@@ -347,7 +347,7 @@ function fetchEngine(s){
      const task={side:s.t,score:null,resolve:r=>{clearTimeout(timer);evalCache.set(fen,r);resolve(r);}};
      const timer=setTimeout(()=>{if(stockfishState.task===task){stockfishState.task=null;reject(new Error('Stockfish analysis timed out'));}},18000);
      stockfishState.task=task;
-     worker.postMessage('setoption name MultiPV value 1');
+     worker.postMessage('setoption name MultiPV value 3');
      worker.postMessage('position fen '+fen);
      worker.postMessage('go depth 12');
    });
@@ -519,7 +519,7 @@ const copy=document.createElement('div');copy.className='why-copy';if(chatPerspe
    const evalRow=document.createElement('div');evalRow.textContent='Position: '+engineText(analysis)+' pawn equivalents · depth '+analysis.depth;evidence.append(evalRow);
    const starting=h.find((position,j)=>j<logs.length&&logs[j]===item.text);
    const line=starting?readablePv(starting,analysis.pv):'';
-   if(line){const variation=document.createElement('div');variation.textContent='Expected continuation: '+line;evidence.append(variation);}
+   if(line){const variation=document.createElement('div');variation.textContent='Expected continuation: '+line;evidence.append(variation);}if(starting&&analysis.candidates?.length>1){const alt=document.createElement('div');const options=analysis.candidates.slice(1,3).map(c=>{const m=legal(starting).find(x=>key(x)===c.uci);return m?moveLabel(starting,m)+' ('+(c.mate!==null?'mate '+c.mate:(c.evaluation>=0?'+':'')+c.evaluation.toFixed(2))+')':null;}).filter(Boolean);if(options.length){alt.textContent='Other candidates: '+options.join(' · ');evidence.append(alt);}}
    const caveat=document.createElement('small');caveat.textContent='The moves and evaluation are actual engine results; the explanation above is an interpretation.';evidence.append(caveat);copy.append(evidence);
  }
 }else if(chatMode==='quick'){const ul=document.createElement('ul');ul.className='why-bullets';quickBullets(item).slice(0,3).forEach(reason=>{const li=document.createElement('li');li.textContent=reason;ul.append(li)});copy.append(ul);}else{copy.textContent=item.reason;}
