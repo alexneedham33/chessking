@@ -399,10 +399,11 @@ async function simulateWithEngine(){if(simBuilding||pendingReply||animatingMove)
   pv.push(analysis.best);
   const uci=analysis.best;const move=legal(st).find(m=>key(m)===uci);if(!move)break;const name=moveLabel(st,move);moves.push([uci,(st.t===openings[selected].side?'Strong continuation for your side: ':'Strong opponent response: ')+name+'. Watch how Stockfish’s position evaluation changes.']);st=apply(st,move);positions.push(st);}if(!moves.length)throw Error('No legal principal variation returned');scenario={title:'Stockfish: what could happen next',summary:'Stockfish selects a strong move for each player from this position. This is an illustrative continuation, not a forced outcome.',moves,dynamic:true,engine:true};scenarioPositions=positions;scenarioIndex=0;lastSimShown=-1;document.querySelectorAll('[data-detail-tab]').forEach(b=>b.classList.toggle('active',b.dataset.detailTab==='simulator'));document.querySelectorAll('.detail-tab-content').forEach(el=>el.classList.toggle('active',el.id==='simulatorTabPane'));render();}catch(error){engineStatus='unavailable';alert('Stockfish could not analyse this position. Install the engine assets beside the HTML file and serve them from a local web server.');}finally{simBuilding=false;if(b)b.disabled=false;}}
 
-let chatMode='quick',chatPerspective='coach',previewReplyEngine=false,previewAnalysis=null,trainingMode='learn',challengeFinished=false,challengeScore=null;let selected='italian',mode='play',h=[original()],selectedSquare=-1,showHint=false,feedback='',promotion=null,logs=[],notes=[],lastSquares=[],pendingReply=null,previewReply=null,replyTimer=null,animatingMove=null,animationTimer=null;const $=id=>document.getElementById(id);
+let chatMode='quick',chatPerspective='coach',previewReplyEngine=false,previewAnalysis=null,trainingMode='learn',challengeStarted=false,challengeFinished=false,challengeScore=null;let selected='italian',mode='play',h=[original()],selectedSquare=-1,showHint=false,feedback='',promotion=null,logs=[],notes=[],lastSquares=[],pendingReply=null,previewReply=null,replyTimer=null,animatingMove=null,animationTimer=null;const $=id=>document.getElementById(id);
 function clearReplyState(){if(replyTimer){clearTimeout(replyTimer);replyTimer=null}if(animationTimer){clearTimeout(animationTimer);animationTimer=null}pendingReply=null;previewReply=null;previewReplyEngine=false;previewAnalysis=null;animatingMove=null;const ghost=$('moveGhost');if(ghost){ghost.className='move-ghost';ghost.style.display='none';ghost.textContent='';}}
 let chatPageStart=0;
-function reset(){challengeFinished=false;challengeScore=null;shownEngineFen='';simEvalRequest++;replySelectionToken++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();if(trainingMode==='challenge'&&current().t!==openings[selected].side)prepareOpponentReply();}
+function reset(){challengeStarted=false;challengeFinished=false;challengeScore=null;shownEngineFen='';simEvalRequest++;replySelectionToken++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();}
+function startChallenge(){reset();challengeStarted=true;feedback='Challenge started. Play your opening against Stockfish.';render();if(current().t!==openings[selected].side)prepareOpponentReply();}
 function current(){return h.at(-1)}function suggested(){const s=current();return legal(s).find(m=>key(m)===routeLine()[s.i]?.[0])}
 function readablePv(s,pv){
  let st=s;const labels=[];
@@ -478,13 +479,14 @@ function startMoveAnimation(m,isOpponent){
   },1550);
 }
 function play(m){
+  if(trainingMode==='challenge'&&!challengeStarted)return;
   if(challengeFinished||scenario||pendingReply||animatingMove||gameStatus(h).done)return;
   const found=legal(current()).find(x=>key(x)===key(m));
   if(!found){feedback='Illegal move';render();return;}
   // Player and guided moves start immediately, without any thinking delay.
   startMoveAnimation(found,false);
 }
-function clickSquare(i){if(challengeFinished||scenario||pendingReply||animatingMove)return;if(gameStatus(h).done||promotion||mode==='play'&&current().t!==openings[selected].side)return;const s=current(),moves=legal(s);if(side(s.b[i])===s.t){selectedSquare=selectedSquare===i?-1:i;feedback='';render();return;}const choices=moves.filter(m=>m[0]===selectedSquare&&m[1]===i);if(choices.length>1){promotion=choices;render();return;}if(choices.length===1)play(choices[0]);else{feedback='Choose one of the highlighted legal destinations.';render();}}
+function clickSquare(i){if(trainingMode==='challenge'&&!challengeStarted)return;if(challengeFinished||scenario||pendingReply||animatingMove)return;if(gameStatus(h).done||promotion||mode==='play'&&current().t!==openings[selected].side)return;const s=current(),moves=legal(s);if(side(s.b[i])===s.t){selectedSquare=selectedSquare===i?-1:i;feedback='';render();return;}const choices=moves.filter(m=>m[0]===selectedSquare&&m[1]===i);if(choices.length>1){promotion=choices;render();return;}if(choices.length===1)play(choices[0]);else{feedback='Choose one of the highlighted legal destinations.';render();}}
 function challengeObjectives(){
  const side=openings[selected].side,pos=current(),old=original(),mine=side===1?x=>x.toUpperCase():x=>x.toLowerCase();
  const moves=logs.filter((_,i)=>h[i]?.t===side).join(' ');
@@ -516,7 +518,8 @@ function renderChallenge(){
  if(trainingMode!=='challenge')return;
  $('challengeEloValue').textContent=$('challengeElo').value+' Elo (approx.)';
  const count=Math.max(0,current().full-1),target=Number($('challengeTarget').value);
- $('challengeStatus').textContent='Complete move '+target+' with '+$('challengeGoal').selectedOptions[0].text+' position against an approximately '+$('challengeElo').value+' Elo opponent. Progress: '+count+' / '+target+' complete move pairs. Engine strength is approximate; analysis stays full strength.';
+ $('challengeRestart').textContent=challengeStarted?'Restart challenge ↻':'Start challenge →';
+ $('challengeStatus').textContent=(challengeStarted?'Challenge underway. ':'Configure your settings and select Start challenge. ')+'Complete move '+target+' with '+$('challengeGoal').selectedOptions[0].text+' position against an approximately '+$('challengeElo').value+' Elo opponent. Progress: '+count+' / '+target+' complete move pairs. Engine strength is approximate; analysis stays full strength.';
  const root=$('challengeResults');root.replaceChildren();root.style.display=challengeFinished?'':'none';if(!challengeFinished||!challengeScore)return;
  const h3=document.createElement('h3');h3.textContent='Challenge result';root.append(h3);
  const rows=challengeScore.rows,e=challengeScore.eval,score=e?(e.mate!==null?(e.mate*openings[selected].side>0?100:-100):e.evaluation*openings[selected].side):null;
@@ -596,7 +599,7 @@ for(const k of Object.keys(scenarios)){selected=k;setScenario();}selected='itali
 $('challengeElo').oninput=()=>renderChallenge();$('challengeElo').onchange=()=>reset();
 $('challengeTarget').onchange=()=>reset();
 $('challengeGoal').onchange=()=>renderChallenge();
-$('challengeRestart').onclick=reset;
+$('challengeRestart').onclick=startChallenge;
 document.querySelectorAll('[data-opening]').forEach(b=>b.onclick=()=>{selected=b.dataset.opening;reset()});document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;reset()});$('strategyToggle').onclick=()=>{strategyOn=!strategyOn;render()};$('scenarioStart').onclick=()=>{clearReplyState();enterScenario()};$('scenarioNext').onclick=()=>{
  if(!scenario||animatingMove||scenarioIndex>=scenario.moves.length)return;
  if(scenario.comparison){
