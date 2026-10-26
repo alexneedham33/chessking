@@ -90,6 +90,7 @@ html.app-fullscreen .panel,html:fullscreen .panel{padding:14px}
 .engine-sim-btn:disabled{opacity:.55;cursor:default}
 .square.engine-from{box-shadow:inset 0 0 0 4px #f4c76c,inset 0 0 0 7px rgba(244,199,108,.3)!important;position:relative;z-index:1}
 .square.engine-to{box-shadow:inset 0 0 0 4px #50d9c6!important;position:relative;z-index:1}
+.commentary-switch{display:flex;gap:7px;margin:9px 0 6px}.commentary-btn{flex:1;border:1px solid #344159;border-radius:8px;background:#131a28;color:#a9b8cd;font-size:12px;font-weight:700;padding:8px;cursor:pointer}.commentary-btn.active{background:#26364d;border-color:#6e9bb2;color:#fff}.engine-disclaimer{font-size:11px;color:#9daabe;margin:0 0 10px}.engine-monologue{border-left:3px solid #54c5b3;padding-left:12px}.engine-monologue .why-title{color:inherit}.engine-empty{padding:16px;color:#afbdd0;font-size:13px;line-height:1.5}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -142,7 +143,7 @@ html.app-fullscreen .panel,html:fullscreen .panel{padding:14px}
         </div>
         <div class="detail-tab-content active" id="chatTabPane">
           <div class="panel-header"><div class="learn-kicker">📖 <span>Learn</span></div><span class="learn-meta" id="openingName">Italian Game</span></div><div class="chat-mode-switch" role="group" aria-label="Chat explanation style"><button class="chat-mode-btn active" data-chat-mode="quick" aria-pressed="true">Quick</button><button class="chat-mode-btn" data-chat-mode="learn" aria-pressed="false">Learn</button></div>
-          <div class="route-notice" id="routeNotice" style="display:none"></div><div class="chat-zone" id="chatZone">
+          <div class="commentary-switch" role="group" aria-label="Chat perspective"><button class="commentary-btn active" data-perspective="coach">Opening coach</button><button class="commentary-btn" data-perspective="engine">Engine commentary</button></div><p class="engine-disclaimer" id="engineDisclaimer" style="display:none">Interpretations of engine moves, not Stockfish's actual thoughts.</p><div class="route-notice" id="routeNotice" style="display:none"></div><div class="chat-zone" id="chatZone">
             <div id="whyPanel" class="why-panel" style="display:none"><div id="whyContent" class="why-content"></div></div>
             <div id="chatWelcome" class="chat-welcome">Play a move to see why it works and how Black or White typically responds.</div>
           </div>
@@ -385,12 +386,23 @@ async function simulateWithEngine(){if(simBuilding||pendingReply||animatingMove)
   pv.push(analysis.best);
   const uci=analysis.best;const move=legal(st).find(m=>key(m)===uci);if(!move)break;const name=moveLabel(st,move);moves.push([uci,(st.t===openings[selected].side?'Strong continuation for your side: ':'Strong opponent response: ')+name+'. Watch how Stockfish’s position evaluation changes.']);st=apply(st,move);positions.push(st);}if(!moves.length)throw Error('No legal principal variation returned');scenario={title:'Stockfish: what could happen next',summary:'Stockfish selects a strong move for each player from this position. This is an illustrative continuation, not a forced outcome.',moves,dynamic:true,engine:true};scenarioPositions=positions;scenarioIndex=0;lastSimShown=-1;document.querySelectorAll('[data-detail-tab]').forEach(b=>b.classList.toggle('active',b.dataset.detailTab==='simulator'));document.querySelectorAll('.detail-tab-content').forEach(el=>el.classList.toggle('active',el.id==='simulatorTabPane'));render();}catch(error){engineStatus='unavailable';alert('Stockfish could not analyse this position. Install the engine assets beside the HTML file and serve them from a local web server.');}finally{simBuilding=false;if(b)b.disabled=false;}}
 
-let chatMode='quick';let selected='italian',mode='play',h=[original()],selectedSquare=-1,showHint=false,feedback='',promotion=null,logs=[],notes=[],lastSquares=[],pendingReply=null,previewReply=null,replyTimer=null,animatingMove=null,animationTimer=null;const $=id=>document.getElementById(id);
-function clearReplyState(){if(replyTimer){clearTimeout(replyTimer);replyTimer=null}if(animationTimer){clearTimeout(animationTimer);animationTimer=null}pendingReply=null;previewReply=null;animatingMove=null;const ghost=$('moveGhost');if(ghost){ghost.className='move-ghost';ghost.style.display='none';ghost.textContent='';}}
+let chatMode='quick',chatPerspective='coach',previewReplyEngine=false;let selected='italian',mode='play',h=[original()],selectedSquare=-1,showHint=false,feedback='',promotion=null,logs=[],notes=[],lastSquares=[],pendingReply=null,previewReply=null,replyTimer=null,animatingMove=null,animationTimer=null;const $=id=>document.getElementById(id);
+function clearReplyState(){if(replyTimer){clearTimeout(replyTimer);replyTimer=null}if(animationTimer){clearTimeout(animationTimer);animationTimer=null}pendingReply=null;previewReply=null;previewReplyEngine=false;animatingMove=null;const ghost=$('moveGhost');if(ghost){ghost.className='move-ghost';ghost.style.display='none';ghost.textContent='';}}
 let chatPageStart=0;
 function reset(){shownEngineFen='';simEvalRequest++;replySelectionToken++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();}
 function current(){return h.at(-1)}function suggested(){const s=current();return legal(s).find(m=>key(m)===routeLine()[s.i]?.[0])}
-function record(m){const s=current();routeHistory.push({branch:activeBranch,info:deviationInfo});guideMove(s,m);const text=moveLabel(s,m),lineIndex=s.i,correct=lineIndex>=0&&key(m)===routeLine()[lineIndex]?.[0];h.push(apply(s,m));logs.push(text);lastSquares=[m[0],m[1]];feedback=deviationInfo?.kind==='variation'&&lineIndex===activeBranch?.at?'Variation recognised: '+deviationInfo.name:correct?'✓ In line with the opening.':deviationInfo?.name||'Adapted continuation';notes.push({text,color:s.t,opening:selected,index:correct&&!activeBranch?lineIndex:-1,reason:activeBranch&&lineIndex>=activeBranch.at?routeLine()[lineIndex]?.[1]:correct?rationales[selected][lineIndex]:explainDeviation(s,m)});return correct;}
+function engineExplanation(s,m){
+ const piece=s.b[m[0]].toLowerCase(),to=sq(m[1]),from=sq(m[0]),capture=s.b[m[1]]!=='.'||m[3]==='ep',next=apply(s,m),checks=checked(next);
+ const n={p:'pawn',n:'knight',b:'bishop',r:'rook',q:'queen',k:'king'}[piece]||'piece';
+ if(m[3]==='castle')return 'I’m castling to improve king safety and connect the rooks.';
+ if(checks)return 'I’m creating a check, forcing my opponent to respond to an immediate threat.';
+ if(capture)return 'I’m capturing on '+to+' to change the material or tactical balance. The follow-up depends on the resulting position.';
+ if(piece==='n'||piece==='b')return 'I’m placing my '+n+' on '+to+' to increase its activity and influence over nearby squares.';
+ if(piece==='p'&&['d','e'].includes(to[0]))return 'I’m using a pawn to challenge or support the centre, shaping the squares each side can control.';
+ if(piece==='k')return 'I’m repositioning my king to '+to+'. Whether this is safe depends on the threats in the position.';
+ return 'I’m moving the '+n+' from '+from+' to '+to+' to improve the position or address a potential threat.';
+}
+function record(m,engineSelected=false){const s=current();routeHistory.push({branch:activeBranch,info:deviationInfo});guideMove(s,m);const text=moveLabel(s,m),lineIndex=s.i,correct=lineIndex>=0&&key(m)===routeLine()[lineIndex]?.[0];h.push(apply(s,m));logs.push(text);lastSquares=[m[0],m[1]];feedback=deviationInfo?.kind==='variation'&&lineIndex===activeBranch?.at?'Variation recognised: '+deviationInfo.name:correct?'✓ In line with the opening.':deviationInfo?.name||'Adapted continuation';notes.push({engineSelected,engineComment:engineSelected?engineExplanation(s,m):'',text,color:s.t,opening:selected,index:correct&&!activeBranch?lineIndex:-1,reason:activeBranch&&lineIndex>=activeBranch.at?routeLine()[lineIndex]?.[1]:correct?rationales[selected][lineIndex]:explainDeviation(s,m)});return correct;}
 function squarePct(i){const row=i>>4,col=i&7;return {x:(col+0.5)*12.5+'%',y:(row+0.5)*12.5+'%'};}
 function shouldUseEngineReply(s){return !!deviationInfo&&(deviationInfo.kind==='warning'||deviationInfo.kind==='detour'||s.i<0);}
 async function prepareOpponentReply(){
@@ -407,7 +419,7 @@ async function prepareOpponentReply(){
      pendingReply=null;
      const move=analysis?.best?legal(s).find(m=>key(m)===analysis.best):null;
      if(move){
-       previewReply=move;feedback='Stockfish suggests '+moveLabel(s,move)+'. Press Next move to play it.';render();
+       previewReply=move;previewReplyEngine=true;feedback='Stockfish suggests '+moveLabel(s,move)+'. Press Next move to play it.';render();
        return;
      }
    }catch(err){
@@ -417,7 +429,7 @@ async function prepareOpponentReply(){
    }
  }
  const reply=useEngine?freeReply(s):suggested()||freeReply(s);
- if(reply){if(useEngine){previewReply=reply;feedback='Illustrative reply '+moveLabel(s,reply)+' (not Stockfish). Press Next move to play it.';render();}else queueReply(reply);return;}
+ if(reply){if(useEngine){previewReply=reply;previewReplyEngine=false;feedback='Illustrative reply '+moveLabel(s,reply)+' (not Stockfish). Press Next move to play it.';render();}else queueReply(reply);return;}
  pendingReply=null;
  render();
 }
@@ -425,6 +437,7 @@ function queueReply(m){pendingReply=m;feedback='Opponent is thinking...';render(
 function startMoveAnimation(m,isOpponent){
   if(isOpponent){replyTimer=null;pendingReply=null;previewReply=null;}
   const piece=current().b[m[0]];
+  const engineSelected=!!(isOpponent&&previewReplyEngine);
   animatingMove={move:m,piece,from:m[0],to:m[1],isOpponent};
   selectedSquare=-1;showHint=false;
   render();
@@ -432,7 +445,7 @@ function startMoveAnimation(m,isOpponent){
   requestAnimationFrame(()=>requestAnimationFrame(()=>{if(animatingMove){const ghost=$('moveGhost');if(ghost)ghost.classList.add('moving');}}));
   animationTimer=setTimeout(async()=>{
     animationTimer=null;
-    record(m);
+    record(m,engineSelected);
     animatingMove=null;
     if(!isOpponent&&mode==='play'&&!gameStatus(h).done&&current().t!==openings[selected].side){
       await prepareOpponentReply();
@@ -460,9 +473,10 @@ $('hint').style.display=scenario?'none':mode==='play'?'':'none';$('next').style.
 if(pendingReply||animatingMove?.isOpponent){$('promptLabel').textContent='OPPONENT';$('prompt').textContent='Typical reply incoming';$('explanation').textContent='Watch how the opponent develops their position.';} else if(ended){$('promptLabel').textContent='GAME OVER';$('prompt').textContent=status.text;$('explanation').textContent='Restart to try again.';}else if(s.i===routeLine().length){$('promptLabel').textContent='COMPLETE';$('prompt').textContent='Opening complete!';$('explanation').textContent='You have finished the prepared line. Keep playing or restart.';}else if(s.i<0){$('promptLabel').textContent='FREE PLAY';$('prompt').textContent='Explore the position';$('explanation').textContent='You have departed from the guided opening. Any legal move is still available.';}else{$('promptLabel').textContent=mode==='play'?(yourTurn?'YOUR TURN':'OPPONENT TO MOVE'):'NEXT IN THE LINE';$('prompt').textContent=mode==='play'&&yourTurn&&!showHint?'Find the next move':hint?moveLabel(s,hint):'Opening complete';$('explanation').textContent=mode==='play'&&yourTurn&&!showHint?'Make your move, or reveal a hint.':step?.[1]||'';}
 if(scenario){$('promptLabel').textContent='SCENARIO';$('prompt').textContent=scenario.title;$('explanation').textContent=scenarioIndex===0?scenario.summary:scenario.moves[scenarioIndex-1][1];}// One chronological conversation page. A new page begins when the messages reach the board's bottom.
 if(chatPageStart>notes.length)chatPageStart=0;
-const recent=notes.slice(chatPageStart).map((item,k)=>({...item,__i:chatPageStart+k}));
+let recent=notes.slice(chatPageStart).map((item,k)=>({...item,__i:chatPageStart+k}));
 // Preview the moving piece's reasoning right as the animation begins.
-if(animatingMove){const s0=current(),m0=animatingMove.move,idx=s0.i;
+if(chatPerspective==='engine')recent=recent.filter(x=>x.engineSelected);
+if(animatingMove&&chatPerspective==='coach'){const s0=current(),m0=animatingMove.move,idx=s0.i;
 const recognized=identifyBranch(idx,key(m0));const inLine=idx>=0&&(key(m0)===routeLine()[idx]?.[0]||!!recognized);
 recent.push({text:moveLabel(s0,m0),color:s0.t,opening:selected,index:inLine&&!activeBranch&&!recognized?idx:-1,reason:recognized?recognized.plan:inLine?(activeBranch&&idx>=activeBranch.at?routeLine()[idx]?.[1]:rationales[selected][idx]):explainDeviation(s0,m0),__i:notes.length});}
 const speakingColor=animatingMove?current().t:(notes.length?notes[notes.length-1].color:0);
@@ -475,11 +489,13 @@ if(info){nav.style.display='block';nav.className='route-notice '+(info.kind==='v
  if(info.kind!=='variation'){const warning=document.createElement('p');warning.className='route-recovery';warning.textContent='After this deviation, Stockfish selects the opponent’s reply. Simulate forward to see how strong counterplay might develop.';nav.append(warning);} if(info.suggestion){const recovery=document.createElement('p');recovery.className='route-recovery';recovery.textContent='Next steps: '+info.suggestion;nav.append(recovery);}
  const sim=document.createElement('button');sim.className='route-simulate';sim.textContent='⇄ Compare with best move';sim.disabled=!!pendingReply||!!animatingMove;sim.onclick=compareWithBestMove;nav.append(sim);
 }else nav.style.display='none';
+$('engineDisclaimer').style.display=chatPerspective==='engine'?'':'none';
 $('whyPanel').style.display=recent.length?'':'none';$('chatWelcome').style.display=recent.length?'none':'';
+$('chatWelcome').textContent=chatPerspective==='engine'?'No engine-played moves yet. Deviate from the opening and press Next move to play a Stockfish suggestion.':'Play a move to see why it works and how Black or White typically responds.';
 $('whyContent').replaceChildren();recent.forEach(item=>{const entry=document.createElement('div');
-entry.className='why-entry '+(item.color===1?'white-side':'black-side')+(item.color===speakingColor?' is-active':' is-muted');
+entry.className='why-entry '+(chatPerspective==='engine'?'engine-monologue ':'')+(item.color===1?'white-side':'black-side')+(item.color===speakingColor?' is-active':' is-muted');
 const title=document.createElement('div');title.className='why-title';title.textContent=(item.color===1?'White':'Black')+' · '+item.text;
-const copy=document.createElement('div');copy.className='why-copy';if(chatMode==='quick'){const ul=document.createElement('ul');ul.className='why-bullets';quickBullets(item).slice(0,3).forEach(reason=>{const li=document.createElement('li');li.textContent=reason;ul.append(li)});copy.append(ul);}else{copy.textContent=item.reason;}
+const copy=document.createElement('div');copy.className='why-copy';if(chatPerspective==='engine'){copy.textContent=item.engineComment;}else if(chatMode==='quick'){const ul=document.createElement('ul');ul.className='why-bullets';quickBullets(item).slice(0,3).forEach(reason=>{const li=document.createElement('li');li.textContent=reason;ul.append(li)});copy.append(ul);}else{copy.textContent=item.reason;}
 entry.append(title,copy);$('whyContent').append(entry);});
 // Wait until layout is measured, then start a clean page if the conversation is full.
 requestAnimationFrame(()=>{
@@ -530,7 +546,7 @@ $('fullscreen').onclick=async()=>{
  setFullButton();
 };
 document.querySelectorAll('[data-detail-tab]').forEach(btn=>btn.onclick=()=>{const tab=btn.dataset.detailTab;document.querySelectorAll('[data-detail-tab]').forEach(b=>b.classList.toggle('active',b===btn));$('chatTabPane').classList.toggle('active',tab==='chat');$('strategyTabPane').classList.toggle('active',tab==='strategy');$('simulatorTabPane').classList.toggle('active',tab==='simulator');});
-document.querySelectorAll('[data-chat-mode]').forEach(button=>button.addEventListener('click',()=>{chatMode=button.dataset.chatMode;document.querySelectorAll('[data-chat-mode]').forEach(b=>{const active=b===button;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});render();}));
+document.querySelectorAll('[data-perspective]').forEach(button=>button.addEventListener('click',()=>{chatMode=button.dataset.chatMode;document.querySelectorAll('[data-chat-mode]').forEach(b=>{const active=b===button;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});render();}));
 document.addEventListener('fullscreenchange',()=>{setFullButton();requestAnimationFrame(fitBoardToViewport);});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&fallbackFullscreen)fallbackFull(false)});
 render();requestAnimationFrame(fitBoardToViewport);
