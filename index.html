@@ -91,6 +91,7 @@ html.app-fullscreen .panel,html:fullscreen .panel{padding:14px}
 .square.engine-from{box-shadow:inset 0 0 0 4px #f4c76c,inset 0 0 0 7px rgba(244,199,108,.3)!important;position:relative;z-index:1}
 .square.engine-to{box-shadow:inset 0 0 0 4px #50d9c6!important;position:relative;z-index:1}
 .commentary-switch{display:flex;gap:7px;margin:9px 0 6px}.commentary-btn{flex:1;border:1px solid #344159;border-radius:8px;background:#131a28;color:#a9b8cd;font-size:12px;font-weight:700;padding:8px;cursor:pointer}.commentary-btn.active{background:#26364d;border-color:#6e9bb2;color:#fff}.engine-disclaimer{font-size:11px;color:#9daabe;margin:0 0 10px}.engine-monologue{border-left:3px solid #54c5b3;padding-left:12px}.engine-monologue .why-title{color:inherit}.engine-empty{padding:16px;color:#afbdd0;font-size:13px;line-height:1.5}
+.engine-evidence{margin-top:12px;padding:10px 12px;background:rgba(69,110,130,.13);border:1px solid rgba(92,148,171,.4);border-radius:9px;display:flex;flex-direction:column;gap:6px;font-size:12px;line-height:1.45}.engine-evidence small{opacity:.8}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -314,14 +315,22 @@ function bootStockfish(){
      for(const line of message.split(/\r?\n/)){
        if(line.startsWith('info ')&&line.includes(' score ')){
          const cp=line.match(/\bscore cp (-?\d+)/),mate=line.match(/\bscore mate (-?\d+)/),depth=line.match(/\bdepth (\d+)/);
-         if(cp||mate){task.score={cp:cp?Number(cp[1]):null,mate:mate?Number(mate[1]):null,depth:depth?Number(depth[1]):0};}
+         if(cp||mate){
+           const rank=Number(line.match(/\bmultipv (\d+)/)?.[1]||1);
+           const pv=(line.match(/\bpv (.+)$/)?.[1]||'').split(/\s+/).filter(Boolean);
+           const entry={cp:cp?Number(cp[1]):null,mate:mate?Number(mate[1]):null,depth:depth?Number(depth[1]):0,pv};
+           if(!task.lines)task.lines=new Map();
+           if(pv.length){const previous=task.lines.get(rank);if(!previous||entry.depth>=previous.depth)task.lines.set(rank,entry);}
+           if(rank===1)task.score=entry;
+         }
        }
        if(line.startsWith('bestmove ')){
          const best=line.match(/^bestmove\s+(\S+)/)?.[1]||null;
          const value=task.score||{cp:0,mate:null,depth:0};
          // Stockfish reports centipawns relative to the side to move.
          const factor=task.side;
-         const result={evaluation:value.cp===null?0:factor*value.cp/100,mate:value.mate===null?null:factor*value.mate,depth:value.depth,best:best==='(none)'?null:best,pv:[]};
+         const candidates=[...(task.lines?.entries()||[])].sort((a,b)=>a[0]-b[0]).map(([rank,data])=>({rank,uci:data.pv[0],pv:data.pv.slice(0,7),evaluation:data.cp===null?null:factor*data.cp/100,mate:data.mate===null?null:factor*data.mate,depth:data.depth}));
+         const result={evaluation:value.cp===null?0:factor*value.cp/100,mate:value.mate===null?null:factor*value.mate,depth:value.depth,best:best==='(none)'?null:best,pv:value.pv||[],candidates};
          stockfishState.task=null;task.resolve(result);
        }
      }
@@ -338,6 +347,7 @@ function fetchEngine(s){
      const task={side:s.t,score:null,resolve:r=>{clearTimeout(timer);evalCache.set(fen,r);resolve(r);}};
      const timer=setTimeout(()=>{if(stockfishState.task===task){stockfishState.task=null;reject(new Error('Stockfish analysis timed out'));}},18000);
      stockfishState.task=task;
+     worker.postMessage('setoption name MultiPV value 1');
      worker.postMessage('position fen '+fen);
      worker.postMessage('go depth 12');
    });
@@ -386,11 +396,16 @@ async function simulateWithEngine(){if(simBuilding||pendingReply||animatingMove)
   pv.push(analysis.best);
   const uci=analysis.best;const move=legal(st).find(m=>key(m)===uci);if(!move)break;const name=moveLabel(st,move);moves.push([uci,(st.t===openings[selected].side?'Strong continuation for your side: ':'Strong opponent response: ')+name+'. Watch how Stockfish’s position evaluation changes.']);st=apply(st,move);positions.push(st);}if(!moves.length)throw Error('No legal principal variation returned');scenario={title:'Stockfish: what could happen next',summary:'Stockfish selects a strong move for each player from this position. This is an illustrative continuation, not a forced outcome.',moves,dynamic:true,engine:true};scenarioPositions=positions;scenarioIndex=0;lastSimShown=-1;document.querySelectorAll('[data-detail-tab]').forEach(b=>b.classList.toggle('active',b.dataset.detailTab==='simulator'));document.querySelectorAll('.detail-tab-content').forEach(el=>el.classList.toggle('active',el.id==='simulatorTabPane'));render();}catch(error){engineStatus='unavailable';alert('Stockfish could not analyse this position. Install the engine assets beside the HTML file and serve them from a local web server.');}finally{simBuilding=false;if(b)b.disabled=false;}}
 
-let chatMode='quick',chatPerspective='coach',previewReplyEngine=false;let selected='italian',mode='play',h=[original()],selectedSquare=-1,showHint=false,feedback='',promotion=null,logs=[],notes=[],lastSquares=[],pendingReply=null,previewReply=null,replyTimer=null,animatingMove=null,animationTimer=null;const $=id=>document.getElementById(id);
-function clearReplyState(){if(replyTimer){clearTimeout(replyTimer);replyTimer=null}if(animationTimer){clearTimeout(animationTimer);animationTimer=null}pendingReply=null;previewReply=null;previewReplyEngine=false;animatingMove=null;const ghost=$('moveGhost');if(ghost){ghost.className='move-ghost';ghost.style.display='none';ghost.textContent='';}}
+let chatMode='quick',chatPerspective='coach',previewReplyEngine=false,previewAnalysis=null;let selected='italian',mode='play',h=[original()],selectedSquare=-1,showHint=false,feedback='',promotion=null,logs=[],notes=[],lastSquares=[],pendingReply=null,previewReply=null,replyTimer=null,animatingMove=null,animationTimer=null;const $=id=>document.getElementById(id);
+function clearReplyState(){if(replyTimer){clearTimeout(replyTimer);replyTimer=null}if(animationTimer){clearTimeout(animationTimer);animationTimer=null}pendingReply=null;previewReply=null;previewReplyEngine=false;previewAnalysis=null;animatingMove=null;const ghost=$('moveGhost');if(ghost){ghost.className='move-ghost';ghost.style.display='none';ghost.textContent='';}}
 let chatPageStart=0;
 function reset(){shownEngineFen='';simEvalRequest++;replySelectionToken++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();}
 function current(){return h.at(-1)}function suggested(){const s=current();return legal(s).find(m=>key(m)===routeLine()[s.i]?.[0])}
+function readablePv(s,pv){
+ let st=s;const labels=[];
+ for(const uci of (pv||[]).slice(0,6)){const mo=legal(st).find(x=>key(x)===uci);if(!mo)break;labels.push(moveLabel(st,mo));st=apply(st,mo);}
+ return labels.join('  ');
+}
 function engineExplanation(s,m){
  const piece=s.b[m[0]].toLowerCase(),to=sq(m[1]),from=sq(m[0]),capture=s.b[m[1]]!=='.'||m[3]==='ep',next=apply(s,m),checks=checked(next);
  const n={p:'pawn',n:'knight',b:'bishop',r:'rook',q:'queen',k:'king'}[piece]||'piece';
@@ -402,7 +417,7 @@ function engineExplanation(s,m){
  if(piece==='k')return 'I’m repositioning my king to '+to+'. Whether this is safe depends on the threats in the position.';
  return 'I’m moving the '+n+' from '+from+' to '+to+' to improve the position or address a potential threat.';
 }
-function record(m,engineSelected=false){const s=current();routeHistory.push({branch:activeBranch,info:deviationInfo});guideMove(s,m);const text=moveLabel(s,m),lineIndex=s.i,correct=lineIndex>=0&&key(m)===routeLine()[lineIndex]?.[0];h.push(apply(s,m));logs.push(text);lastSquares=[m[0],m[1]];feedback=deviationInfo?.kind==='variation'&&lineIndex===activeBranch?.at?'Variation recognised: '+deviationInfo.name:correct?'✓ In line with the opening.':deviationInfo?.name||'Adapted continuation';notes.push({engineSelected,engineComment:engineSelected?engineExplanation(s,m):'',text,color:s.t,opening:selected,index:correct&&!activeBranch?lineIndex:-1,reason:activeBranch&&lineIndex>=activeBranch.at?routeLine()[lineIndex]?.[1]:correct?rationales[selected][lineIndex]:explainDeviation(s,m)});return correct;}
+function record(m,engineSelected=false,analysis=null){const s=current();routeHistory.push({branch:activeBranch,info:deviationInfo});guideMove(s,m);const text=moveLabel(s,m),lineIndex=s.i,correct=lineIndex>=0&&key(m)===routeLine()[lineIndex]?.[0];h.push(apply(s,m));logs.push(text);lastSquares=[m[0],m[1]];feedback=deviationInfo?.kind==='variation'&&lineIndex===activeBranch?.at?'Variation recognised: '+deviationInfo.name:correct?'✓ In line with the opening.':deviationInfo?.name||'Adapted continuation';notes.push({engineSelected,engineAnalysis:engineSelected?analysis:null,engineComment:engineSelected?engineExplanation(s,m):'',text,color:s.t,opening:selected,index:correct&&!activeBranch?lineIndex:-1,reason:activeBranch&&lineIndex>=activeBranch.at?routeLine()[lineIndex]?.[1]:correct?rationales[selected][lineIndex]:explainDeviation(s,m)});return correct;}
 function squarePct(i){const row=i>>4,col=i&7;return {x:(col+0.5)*12.5+'%',y:(row+0.5)*12.5+'%'};}
 function shouldUseEngineReply(s){return !!deviationInfo&&(deviationInfo.kind==='warning'||deviationInfo.kind==='detour'||s.i<0);}
 async function prepareOpponentReply(){
@@ -419,7 +434,7 @@ async function prepareOpponentReply(){
      pendingReply=null;
      const move=analysis?.best?legal(s).find(m=>key(m)===analysis.best):null;
      if(move){
-       previewReply=move;previewReplyEngine=true;feedback='Stockfish suggests '+moveLabel(s,move)+'. Press Next move to play it.';render();
+       previewReply=move;previewReplyEngine=true;previewAnalysis=analysis;feedback='Stockfish suggests '+moveLabel(s,move)+'. Press Next move to play it.';render();
        return;
      }
    }catch(err){
@@ -429,7 +444,7 @@ async function prepareOpponentReply(){
    }
  }
  const reply=useEngine?freeReply(s):suggested()||freeReply(s);
- if(reply){if(useEngine){previewReply=reply;previewReplyEngine=false;feedback='Illustrative reply '+moveLabel(s,reply)+' (not Stockfish). Press Next move to play it.';render();}else queueReply(reply);return;}
+ if(reply){if(useEngine){previewReply=reply;previewReplyEngine=false;previewAnalysis=null;feedback='Illustrative reply '+moveLabel(s,reply)+' (not Stockfish). Press Next move to play it.';render();}else queueReply(reply);return;}
  pendingReply=null;
  render();
 }
@@ -437,7 +452,7 @@ function queueReply(m){pendingReply=m;feedback='Opponent is thinking...';render(
 function startMoveAnimation(m,isOpponent){
   if(isOpponent){replyTimer=null;pendingReply=null;previewReply=null;}
   const piece=current().b[m[0]];
-  const engineSelected=!!(isOpponent&&previewReplyEngine);previewReplyEngine=false;
+  const engineSelected=!!(isOpponent&&previewReplyEngine),engineAnalysis=engineSelected?previewAnalysis:null;previewReplyEngine=false;previewAnalysis=null;
   animatingMove={move:m,piece,from:m[0],to:m[1],isOpponent};
   selectedSquare=-1;showHint=false;
   render();
@@ -445,7 +460,7 @@ function startMoveAnimation(m,isOpponent){
   requestAnimationFrame(()=>requestAnimationFrame(()=>{if(animatingMove){const ghost=$('moveGhost');if(ghost)ghost.classList.add('moving');}}));
   animationTimer=setTimeout(async()=>{
     animationTimer=null;
-    record(m,engineSelected);
+    record(m,engineSelected,engineAnalysis);
     animatingMove=null;
     if(!isOpponent&&mode==='play'&&!gameStatus(h).done&&current().t!==openings[selected].side){
       await prepareOpponentReply();
@@ -495,7 +510,19 @@ $('chatWelcome').textContent=chatPerspective==='engine'?'No engine-played moves 
 $('whyContent').replaceChildren();recent.forEach(item=>{const entry=document.createElement('div');
 entry.className='why-entry '+(chatPerspective==='engine'?'engine-monologue ':'')+(item.color===1?'white-side':'black-side')+(item.color===speakingColor?' is-active':' is-muted');
 const title=document.createElement('div');title.className='why-title';title.textContent=(item.color===1?'White':'Black')+' · '+item.text;
-const copy=document.createElement('div');copy.className='why-copy';if(chatPerspective==='engine'){copy.textContent=item.engineComment;}else if(chatMode==='quick'){const ul=document.createElement('ul');ul.className='why-bullets';quickBullets(item).slice(0,3).forEach(reason=>{const li=document.createElement('li');li.textContent=reason;ul.append(li)});copy.append(ul);}else{copy.textContent=item.reason;}
+const copy=document.createElement('div');copy.className='why-copy';if(chatPerspective==='engine'){
+ const analysis=item.engineAnalysis;
+ const thought=document.createElement('p');thought.textContent=item.engineComment;copy.append(thought);
+ if(analysis){
+   const evidence=document.createElement('div');evidence.className='engine-evidence';
+   const title=document.createElement('strong');title.textContent='Stockfish calculated';evidence.append(title);
+   const evalRow=document.createElement('div');evalRow.textContent='Position: '+engineText(analysis)+' pawn equivalents · depth '+analysis.depth;evidence.append(evalRow);
+   const starting=h.find((position,j)=>j<logs.length&&logs[j]===item.text);
+   const line=starting?readablePv(starting,analysis.pv):'';
+   if(line){const variation=document.createElement('div');variation.textContent='Expected continuation: '+line;evidence.append(variation);}
+   const caveat=document.createElement('small');caveat.textContent='The moves and evaluation are actual engine results; the explanation above is an interpretation.';evidence.append(caveat);copy.append(evidence);
+ }
+}else if(chatMode==='quick'){const ul=document.createElement('ul');ul.className='why-bullets';quickBullets(item).slice(0,3).forEach(reason=>{const li=document.createElement('li');li.textContent=reason;ul.append(li)});copy.append(ul);}else{copy.textContent=item.reason;}
 entry.append(title,copy);$('whyContent').append(entry);});
 // Wait until layout is measured, then start a clean page if the conversation is full.
 requestAnimationFrame(()=>{
