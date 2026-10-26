@@ -92,6 +92,7 @@ html.app-fullscreen .panel,html:fullscreen .panel{padding:14px}
 .square.engine-to{box-shadow:inset 0 0 0 4px #50d9c6!important;position:relative;z-index:1}
 .commentary-switch{display:flex;gap:7px;margin:9px 0 6px}.commentary-btn{flex:1;border:1px solid #344159;border-radius:8px;background:#131a28;color:#a9b8cd;font-size:12px;font-weight:700;padding:8px;cursor:pointer}.commentary-btn.active{background:#26364d;border-color:#6e9bb2;color:#fff}.engine-disclaimer{font-size:11px;color:#9daabe;margin:0 0 10px}.engine-monologue{border-left:3px solid #54c5b3;padding-left:12px}.engine-monologue .why-title{color:inherit}.engine-empty{padding:16px;color:#afbdd0;font-size:13px;line-height:1.5}
 .engine-evidence{margin-top:12px;padding:10px 12px;background:rgba(69,110,130,.13);border:1px solid rgba(92,148,171,.4);border-radius:9px;display:flex;flex-direction:column;gap:6px;font-size:12px;line-height:1.45}.engine-evidence small{opacity:.8}
+.training-switch{display:flex;width:max-content;gap:5px;padding:4px;margin:10px 0;border:1px solid #293347;background:#0f1521;border-radius:10px}.training-option{border:0;border-radius:7px;background:transparent;color:#aab6c9;font-size:13px;font-weight:700;padding:9px 16px}.training-option.active{background:#8444e9;color:white}.challenge-settings{padding:13px 15px;background:#101726;border:1px solid #29374c;border-radius:13px;margin-bottom:13px}.challenge-config{display:flex;align-items:end;flex-wrap:wrap;gap:15px}.challenge-config label{font-size:12px;color:#aab8cc;display:flex;flex-direction:column;gap:7px}.challenge-config label:first-child{min-width:210px;flex:1}.challenge-config strong{color:#eef3fb}.challenge-config input{accent-color:#9c59f4;width:100%}.challenge-config select{background:#202a3b;border:1px solid #384864;border-radius:7px;padding:9px;color:#edf1f8}.challenge-status{margin-top:11px;color:#b5c3d5;font-size:12px;line-height:1.5}.challenge-results{margin-top:12px;background:#1b2636;border:1px solid #506783;padding:13px;border-radius:10px;font-size:13px;line-height:1.5}.challenge-results h3{font-size:15px;margin:0 0 8px}.challenge-objective{padding:8px 0;border-top:1px solid #354458;display:flex;gap:10px;align-items:start}.challenge-objective strong{display:block}.challenge-objective span{color:#c0cbd9}.challenge-objective .achieved{color:#a5efbd}.challenge-objective .adapted{color:#ffd394}.challenge-objective .missed{color:#ffabaa}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -107,7 +108,7 @@ html.app-fullscreen .panel,html:fullscreen .panel{padding:14px}
     <button data-opening="sicilian" class="tab">Sicilian Defence</button>
     <button data-opening="caro" class="tab">Caro–Kann Defence</button>
   </nav>
-  <div class="top-progress"><div class="top-progress-fill" id="topProgressFill"></div></div>
+  <div class="training-switch"><button class="training-option active" data-training="learn">Learn</button><button class="training-option" data-training="challenge">Opening Challenge</button></div><section id="challengeSettings" class="challenge-settings" style="display:none"><div class="challenge-config"><label>Opponent strength <strong id="challengeEloValue">1500 Elo (approx.)</strong><input type="range" id="challengeElo" min="1350" max="2800" step="50" value="1500"></label><label>Reach move <select id="challengeTarget"><option value="10">10</option><option value="15" selected>15</option><option value="20">20</option><option value="25">25</option></select></label><label>Position goal <select id="challengeGoal"><option value="equal">Equal or better</option><option value="slight">Slight disadvantage or better</option></select></label><button class="btn primary" id="challengeRestart">Start challenge ↻</button></div><div id="challengeStatus" class="challenge-status" aria-live="polite"></div><div id="challengeResults" class="challenge-results" style="display:none"></div></section><div class="top-progress"><div class="top-progress-fill" id="topProgressFill"></div></div>
   <main class="main">
     <section class="left">
       <div class="board-shell">
@@ -347,13 +348,15 @@ function fetchEngine(s){
      const task={side:s.t,score:null,resolve:r=>{clearTimeout(timer);evalCache.set(fen,r);resolve(r);}};
      const timer=setTimeout(()=>{if(stockfishState.task===task){stockfishState.task=null;reject(new Error('Stockfish analysis timed out'));}},18000);
      stockfishState.task=task;
-     worker.postMessage('setoption name MultiPV value 3');
+     worker.postMessage('setoption name UCI_LimitStrength value false');worker.postMessage('setoption name MultiPV value 3');
      worker.postMessage('position fen '+fen);
      worker.postMessage('go depth 12');
    });
  });
  stockfishState.chain=request.catch(()=>{});return request;
 }
+function fetchChallengeMove(s){const rating=Number($('challengeElo').value),fen=fenOf(s);
+ const taskPromise=stockfishState.chain.catch(()=>{}).then(async()=>{const worker=await bootStockfish();return new Promise((resolve,reject)=>{const task={side:s.t,score:null,resolve:r=>{clearTimeout(timer);resolve(r);}};const timer=setTimeout(()=>{if(stockfishState.task===task){stockfishState.task=null;reject(Error('Opponent engine timed out'));}},18000);stockfishState.task=task;worker.postMessage('setoption name MultiPV value 1');worker.postMessage('setoption name UCI_LimitStrength value true');worker.postMessage('setoption name UCI_Elo value '+rating);worker.postMessage('position fen '+fen);worker.postMessage('go depth 10');});});stockfishState.chain=taskPromise.catch(()=>{});return taskPromise;}
 function engineValue(e){if(!e)return 50;if(e.mate!==null)return e.mate>0?99:1;return Math.max(1,Math.min(99,100/(1+Math.exp(-e.evaluation/1.55))));}
 function setStrength(e,err){
  const label=$('engineScore'),cap=$('engineCaption'),fill=$('balanceWhite'),depth=$('engineDepth');
@@ -396,10 +399,10 @@ async function simulateWithEngine(){if(simBuilding||pendingReply||animatingMove)
   pv.push(analysis.best);
   const uci=analysis.best;const move=legal(st).find(m=>key(m)===uci);if(!move)break;const name=moveLabel(st,move);moves.push([uci,(st.t===openings[selected].side?'Strong continuation for your side: ':'Strong opponent response: ')+name+'. Watch how Stockfish’s position evaluation changes.']);st=apply(st,move);positions.push(st);}if(!moves.length)throw Error('No legal principal variation returned');scenario={title:'Stockfish: what could happen next',summary:'Stockfish selects a strong move for each player from this position. This is an illustrative continuation, not a forced outcome.',moves,dynamic:true,engine:true};scenarioPositions=positions;scenarioIndex=0;lastSimShown=-1;document.querySelectorAll('[data-detail-tab]').forEach(b=>b.classList.toggle('active',b.dataset.detailTab==='simulator'));document.querySelectorAll('.detail-tab-content').forEach(el=>el.classList.toggle('active',el.id==='simulatorTabPane'));render();}catch(error){engineStatus='unavailable';alert('Stockfish could not analyse this position. Install the engine assets beside the HTML file and serve them from a local web server.');}finally{simBuilding=false;if(b)b.disabled=false;}}
 
-let chatMode='quick',chatPerspective='coach',previewReplyEngine=false,previewAnalysis=null;let selected='italian',mode='play',h=[original()],selectedSquare=-1,showHint=false,feedback='',promotion=null,logs=[],notes=[],lastSquares=[],pendingReply=null,previewReply=null,replyTimer=null,animatingMove=null,animationTimer=null;const $=id=>document.getElementById(id);
+let chatMode='quick',chatPerspective='coach',previewReplyEngine=false,previewAnalysis=null,trainingMode='learn',challengeFinished=false,challengeScore=null;let selected='italian',mode='play',h=[original()],selectedSquare=-1,showHint=false,feedback='',promotion=null,logs=[],notes=[],lastSquares=[],pendingReply=null,previewReply=null,replyTimer=null,animatingMove=null,animationTimer=null;const $=id=>document.getElementById(id);
 function clearReplyState(){if(replyTimer){clearTimeout(replyTimer);replyTimer=null}if(animationTimer){clearTimeout(animationTimer);animationTimer=null}pendingReply=null;previewReply=null;previewReplyEngine=false;previewAnalysis=null;animatingMove=null;const ghost=$('moveGhost');if(ghost){ghost.className='move-ghost';ghost.style.display='none';ghost.textContent='';}}
 let chatPageStart=0;
-function reset(){shownEngineFen='';simEvalRequest++;replySelectionToken++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();}
+function reset(){challengeFinished=false;challengeScore=null;shownEngineFen='';simEvalRequest++;replySelectionToken++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();if(trainingMode==='challenge'&&current().t!==openings[selected].side)prepareOpponentReply();}
 function current(){return h.at(-1)}function suggested(){const s=current();return legal(s).find(m=>key(m)===routeLine()[s.i]?.[0])}
 function readablePv(s,pv){
  let st=s;const labels=[];
@@ -423,6 +426,10 @@ function shouldUseEngineReply(s){return !!deviationInfo&&(deviationInfo.kind==='
 async function prepareOpponentReply(){
  const s=current();
  const token=++replySelectionToken;
+ if(trainingMode==='challenge'){
+ pendingReply={engine:true};feedback='Your '+$('challengeElo').value+' Elo opponent is thinking…';render();
+ try{const analysis=await fetchChallengeMove(s);if(token!==replySelectionToken||current()!==s)return;const move=analysis.best?legal(s).find(m=>key(m)===analysis.best):null;pendingReply=null;if(move){previewReplyEngine=true;previewAnalysis=analysis;queueReply(move);return;}feedback='Stockfish returned no legal response.';}catch(err){if(token!==replySelectionToken||current()!==s)return;pendingReply=null;feedback='Stockfish unavailable. The challenge cannot continue without engine files.';}render();return;
+ }
  const useEngine=shouldUseEngineReply(s);
  if(useEngine){
    pendingReply={engine:true};
@@ -462,6 +469,7 @@ function startMoveAnimation(m,isOpponent){
     animationTimer=null;
     record(m,engineSelected,engineAnalysis);
     animatingMove=null;
+    if(trainingMode==='challenge'&&!scenario&&current().t===1&&current().full>Number($('challengeTarget').value)){finalizeChallenge();render();return;}
     if(!isOpponent&&mode==='play'&&!gameStatus(h).done&&current().t!==openings[selected].side){
       await prepareOpponentReply();
       return;
@@ -470,17 +478,60 @@ function startMoveAnimation(m,isOpponent){
   },1550);
 }
 function play(m){
-  if(scenario||pendingReply||animatingMove||gameStatus(h).done)return;
+  if(challengeFinished||scenario||pendingReply||animatingMove||gameStatus(h).done)return;
   const found=legal(current()).find(x=>key(x)===key(m));
   if(!found){feedback='Illegal move';render();return;}
   // Player and guided moves start immediately, without any thinking delay.
   startMoveAnimation(found,false);
 }
-function clickSquare(i){if(scenario||pendingReply||animatingMove)return;if(gameStatus(h).done||promotion||mode==='play'&&current().t!==openings[selected].side)return;const s=current(),moves=legal(s);if(side(s.b[i])===s.t){selectedSquare=selectedSquare===i?-1:i;feedback='';render();return;}const choices=moves.filter(m=>m[0]===selectedSquare&&m[1]===i);if(choices.length>1){promotion=choices;render();return;}if(choices.length===1)play(choices[0]);else{feedback='Choose one of the highlighted legal destinations.';render();}}
+function clickSquare(i){if(challengeFinished||scenario||pendingReply||animatingMove)return;if(gameStatus(h).done||promotion||mode==='play'&&current().t!==openings[selected].side)return;const s=current(),moves=legal(s);if(side(s.b[i])===s.t){selectedSquare=selectedSquare===i?-1:i;feedback='';render();return;}const choices=moves.filter(m=>m[0]===selectedSquare&&m[1]===i);if(choices.length>1){promotion=choices;render();return;}if(choices.length===1)play(choices[0]);else{feedback='Choose one of the highlighted legal destinations.';render();}}
+function challengeObjectives(){
+ const side=openings[selected].side,pos=current(),old=original(),mine=side===1?x=>x.toUpperCase():x=>x.toLowerCase();
+ const moves=logs.filter((_,i)=>h[i]?.t===side).join(' ');
+ const themes={italian:['e4','Nf3','Bc4'],queen:['d4','c4','Nc3'],sicilian:['c5','cxd4','Nf6'],caro:['c6','d5','Bf5']}[selected];
+ const signature=themes.filter(x=>moves.includes(x)).length;
+ const homes=side===1?[113,118,114,117]:[1,6,2,5],development=homes.filter(i=>pos.b[i]!==old.b[i]).length;
+ const k=mine('k'),home=side===1?116:4,rights=side===1?3:12,castled=(side===1?[118,114]:[6,2]).some(i=>pos.b[i]===k),safety=castled||(pos.b[home]===k&&(pos.c&rights)!==0);
+ const centre=['d4','e4','d5','e5'].map(index).filter(i=>attacked(pos,i,side)||pos.b[i]!=='.'&&(pos.b[i]===pos.b[i].toUpperCase()?1:-1)===side).length;
+ const out=(name,state,detail)=>({name,state,detail});
+ return [
+ out('Opening identity',signature>=2?'achieved':signature===1?'adapted':'missed',signature+' / 3 opening signature themes observed; an alternative can still be sound.'),
+ out('Minor-piece development',development>=2?'achieved':development?'adapted':'missed',development+' home minor-piece squares vacated.'),
+ out('King safety',safety?'achieved':'missed',safety?'Castled or castling rights retained.':'Castling unavailable, king not castled.'),
+ out('Central influence',centre>=2?'achieved':centre?'adapted':'missed','Controls or occupies '+centre+' of the four central squares.'),
+ out('Piece coordination',development>=2&&safety?'achieved':development?'adapted':'missed','Combines minor-piece development with a secure king.')
+ ];}
+async function finalizeChallenge(){
+ if(challengeFinished)return;
+ challengeFinished=true;
+ const state=current(),rows=challengeObjectives(),token=replySelectionToken;
+ challengeScore={rows,loading:true,eval:null};render();
+ try{const e=await fetchEngine(state);if(token!==replySelectionToken||current()!==state||trainingMode!=='challenge')return;challengeScore={rows,loading:false,eval:e};}
+ catch(err){challengeScore={rows,loading:false,eval:null};}
+ render();
+}
+function renderChallenge(){
+ $('challengeSettings').style.display=trainingMode==='challenge'?'':'none';
+ document.querySelectorAll('[data-training]').forEach(b=>b.classList.toggle('active',b.dataset.training===trainingMode));
+ if(trainingMode!=='challenge')return;
+ $('challengeEloValue').textContent=$('challengeElo').value+' Elo (approx.)';
+ const count=Math.max(0,current().full-1),target=Number($('challengeTarget').value);
+ $('challengeStatus').textContent='Complete move '+target+' with '+$('challengeGoal').selectedOptions[0].text+' position against an approximately '+$('challengeElo').value+' Elo opponent. Progress: '+count+' / '+target+' complete move pairs. Engine strength is approximate; analysis stays full strength.';
+ const root=$('challengeResults');root.replaceChildren();root.style.display=challengeFinished?'':'none';if(!challengeFinished||!challengeScore)return;
+ const h3=document.createElement('h3');h3.textContent='Challenge result';root.append(h3);
+ const rows=challengeScore.rows,e=challengeScore.eval,score=e?(e.mate!==null?(e.mate*openings[selected].side>0?100:-100):e.evaluation*openings[selected].side):null;
+ const passedPosition=score!==null&&score>=($('challengeGoal').value==='equal'?-0.3:-1);
+ const achieved=rows.filter(x=>x.state==='achieved').length;
+ const pass=passedPosition&&achieved>=3&&rows[0].state!=='missed';
+ const verdict=document.createElement('p');verdict.textContent=challengeScore.loading?'Stockfish evaluating final position…':score===null?'Engine unavailable; position goal cannot be confirmed.':(pass?'Challenge passed':'Challenge not yet passed')+' · '+(passedPosition?'Position target met':'Position target not met')+' · '+achieved+'/5 observable strategic objectives achieved.';root.append(verdict);
+ const caution=document.createElement('p');caution.textContent='Objective checks are transparent, simplified indicators, not a validated 0–100 chess understanding score. Sound adaptations may require human review.';root.append(caution);
+ for(const ob of rows){const line=document.createElement('div');line.className='challenge-objective';const mark=document.createElement('b');mark.className=ob.state;mark.textContent=ob.state==='achieved'?'✓':ob.state==='adapted'?'~':'×';const text=document.createElement('div');const title=document.createElement('strong');title.textContent=ob.name+' · '+(ob.state==='missed'?'Needs work':ob.state);const detail=document.createElement('span');detail.textContent=ob.detail;text.append(title,detail);line.append(mark,text);root.append(line);}
+}
 function render(){const s=scenario?scenarioPositions[scenarioIndex]:current(),moves=legal(s),status=gameStatus(h),op=openings[selected],step=op.line[s.i],hint=suggested(),yourTurn=s.t===op.side,ended=status.done;document.querySelectorAll('[data-opening]').forEach(x=>x.classList.toggle('active',x.dataset.opening===selected));document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x.dataset.mode===mode));$('turn').textContent=scenario?'Illustrative variation · '+(scenarioIndex===0?'Start':('Step '+scenarioIndex)):pendingReply?'Opponent is thinking…':animatingMove?(animatingMove.isOpponent?'Opponent is moving…':'Your move…'):status.text;$('player').textContent=scenario?'Use Next move to explore':pendingReply?'Opponent reply in progress':animatingMove?(animatingMove.isOpponent?'Opponent reply in progress':'Moving piece'):(mode==='play'?'Playing '+(op.side===1?'White':'Black'):'Study both sides');$('openingName').textContent=op.name;$('description').textContent=op.desc;$('tip').textContent=op.tip;$('progressLabel').textContent=s.i<0?'Exploring':Math.max(0,s.i)+' / '+routeLine().length;const progressPct=100*Math.max(0,s.i)/routeLine().length;$('progressBar').style.width=progressPct+'%'; const topProgress=$('topProgressFill'); if(topProgress) topProgress.style.width=progressPct+'%';
 // Refresh the main strength bar only after a full move (White and Black have both played).
 // During the intervening half-move, preserve the last completed pair's evaluation.
 if(!scenario && s.t===1 && !animatingMove && !pendingReply)requestPositionEval(s);
+renderChallenge();
 if(!scenario)$('simEnginePanel').style.display='none';const st=strategies[selected];$('strategyIntro').textContent=st.intro;const objectives=$('objectiveList');objectives.replaceChildren();let count=scenario?(scenario.dynamic?Math.max(0,current().i):scenarios[selected].setup):Math.max(0,current().i);for(const [name,at,detail] of st.objectives){const row=document.createElement('div');row.className='strategy-item';const mark=document.createElement('span');mark.className='strategy-mark';mark.textContent=count>=at?'✓':'○';const body=document.createElement('div');const heading=document.createElement('div');heading.className='strategy-name';heading.textContent=name;const copy=document.createElement('div');copy.className='strategy-detail';copy.textContent=detail;body.append(heading,copy);row.append(mark,body);objectives.append(row);} $('phaseBadge').textContent=scenario?'Scenario':current().i<0?'Free play':current().i>=op.line.length?'Line complete':'Opening';$('strategyToggle').textContent=strategyOn?'◉ Hide strategy':'◉ Show strategy';$('scenarioIntro').textContent=scenario?.dynamic?scenario.summary:scenarios[selected].summary;const sm=$('comparisonSummary');sm.replaceChildren();sm.style.display=scenario?.comparison?'flex':'none';if(scenario?.comparison){const c=scenario.comparison;for(const [k,v] of [['Your move',c.played+' · '+c.scorePlayed],['Stockfish prefers',c.preferred+' · '+c.scoreBest]]){const row=document.createElement('div');row.className='compare-pair';const label=document.createElement('span');label.textContent=k;const value=document.createElement('strong');value.textContent=v;row.append(label,value);sm.append(row);}const note=document.createElement('div');note.className='compare-result';note.textContent=c.difference;sm.append(note);}$('scenarioStart').style.display=scenario?'none':'';$('scenarioControls').style.display=scenario?'':'none';if(scenario){if(scenario.dynamic&&lastSimShown!==scenarioIndex){lastSimShown=scenarioIndex;updateSimulationScore(scenarioIndex);} $('scenarioStepTitle').textContent=scenario?.comparison?(scenarioIndex===0?'Your original move':scenarioIndex===1?'Back at the decision':'Stockfish recommendation'):scenarioIndex===0?'Starting position':('Step '+scenarioIndex+' of '+scenario.moves.length);$('scenarioStepCopy').textContent=scenario?.comparison?(scenarioIndex===0?'Your original '+scenario.comparison.played+' · press Replay comparison':scenarioIndex===1?'Your move has been rewound. Watch Stockfish’s choice.':scenario.moves[1][1]):scenarioIndex===0?scenario.title:scenario.moves[scenarioIndex-1][1];$('scenarioNext').disabled=!!animatingMove||scenarioIndex>=scenario.moves.length;$('scenarioNext').textContent=scenario?.comparison?(scenarioIndex===0?'Replay comparison →':scenarioIndex===1?'Show best move →':'Comparison complete'):scenarioIndex>=scenario.moves.length?'End of illustration':'Next move →';}
 const board=$('board');board.replaceChildren();for(let j=0;j<64;j++){const i=(j>>3)*16+(j&7),b=document.createElement('button');b.type='button';b.className='square'+(((j>>3)+(j&7))%2?' dark':'');b.setAttribute('aria-label',sq(i)+' '+(s.b[i]==='.'?'empty':s.b[i]));if(strategyOn&&st.targets.includes(sq(i)))b.classList.add('strategic');if(!scenario&&previewReply){if(i===previewReply[0])b.classList.add('engine-from');if(i===previewReply[1])b.classList.add('engine-to');}if(animatingMove&&animatingMove.isOpponent&&(i===animatingMove.from||i===animatingMove.to))b.classList.add('thinking');if(!scenario&&i===selectedSquare)b.classList.add('sel');else if(lastSquares.includes(i))b.classList.add('last');const movingAway=animatingMove&&i===animatingMove.from;const displayPiece=movingAway?'.':s.b[i];const p=document.createElement('span');p.className='piece'+(side(displayPiece)===1?' white':'')+(displayPiece.toLowerCase()==='p'?' pawn':displayPiece.toLowerCase()==='b'?' bishop':'');p.textContent=glyph[displayPiece];b.append(p);if(!scenario&&selectedSquare>=0&&moves.some(m=>m[0]===selectedSquare&&m[1]===i)||showHint&&selectedSquare<0&&hint&&hint[1]===i){const dot=document.createElement('span');dot.className=s.b[i]==='.'?'dot':'capture';b.append(dot);}if(!scenario&&showHint&&selectedSquare<0&&hint&&hint[0]===i)b.classList.add('sel');if((i&7)===0){const c=document.createElement('span');c.className='coord';c.textContent=8-(i>>4);b.append(c);}if((i>>4)===7){const c=document.createElement('span');c.className='file';c.textContent=sq(i)[0];b.append(c);}b.onclick=()=>clickSquare(i);board.append(b);}
 const ghost=$('moveGhost');if(ghost){if(animatingMove){const from=squarePct(animatingMove.from),to=squarePct(animatingMove.to),piece=animatingMove.piece;ghost.style.display='flex';ghost.className='move-ghost active';ghost.style.setProperty('--from-x',from.x);ghost.style.setProperty('--from-y',from.y);ghost.style.setProperty('--to-x',to.x);ghost.style.setProperty('--to-y',to.y);ghost.innerHTML='';const gp=document.createElement('span');gp.className='piece'+(side(piece)===1?' white':'')+(piece.toLowerCase()==='p'?' pawn':piece.toLowerCase()==='b'?' bishop':'');gp.textContent=glyph[piece];ghost.append(gp);}else{ghost.className='move-ghost';ghost.style.display='none';ghost.innerHTML='';}}
@@ -541,7 +592,12 @@ requestAnimationFrame(()=>{
 });
 $('feedback').textContent=feedback;$('feedback').style.display=feedback?'':'none';$('hintText').textContent=showHint&&hint?'Hint: '+moveLabel(s,hint)+' — '+step[1]:status.claim?'Draw may be claimed: '+status.claim:'';$('hint').textContent=showHint?'Hide hint':'✧ Hint';$('plyCount').textContent=logs.length+' plies';$('history').replaceChildren();if(!logs.length){const e=document.createElement('span');e.style.gridColumn='1/-1';e.textContent='Your moves will appear here.';$('history').append(e);}else logs.forEach(x=>{const e=document.createElement('span');e.textContent=x;$('history').append(e);});$('promotion').style.display=promotion?'grid':'none';$('promoChoices').replaceChildren();if(promotion)promotion.forEach(m=>{const e=document.createElement('button');e.textContent=({q:'♛',r:'♜',b:'♝',n:'♞'})[m[2]];e.onclick=()=>{promotion=null;play(m)};$('promoChoices').append(e);});}
 for(const name of Object.keys(openings)){let s=original();for(const [uci]of openings[name].line){selected=name;const m=legal(s).find(m=>key(m)===uci);if(!m)throw Error('Invalid opening '+name+' '+uci);s=apply(s,m);}}selected='italian';
-for(const k of Object.keys(scenarios)){selected=k;setScenario();}selected='italian';document.querySelectorAll('[data-opening]').forEach(b=>b.onclick=()=>{selected=b.dataset.opening;reset()});document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;reset()});$('strategyToggle').onclick=()=>{strategyOn=!strategyOn;render()};$('scenarioStart').onclick=()=>{clearReplyState();enterScenario()};$('scenarioNext').onclick=()=>{
+for(const k of Object.keys(scenarios)){selected=k;setScenario();}selected='italian';document.querySelectorAll('[data-training]').forEach(b=>b.onclick=()=>{trainingMode=b.dataset.training;mode='play';reset();});
+$('challengeElo').oninput=()=>renderChallenge();
+$('challengeTarget').onchange=()=>reset();
+$('challengeGoal').onchange=()=>renderChallenge();
+$('challengeRestart').onclick=reset;
+document.querySelectorAll('[data-opening]').forEach(b=>b.onclick=()=>{selected=b.dataset.opening;reset()});document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;reset()});$('strategyToggle').onclick=()=>{strategyOn=!strategyOn;render()};$('scenarioStart').onclick=()=>{clearReplyState();enterScenario()};$('scenarioNext').onclick=()=>{
  if(!scenario||animatingMove||scenarioIndex>=scenario.moves.length)return;
  if(scenario.comparison){
    const first=scenarioIndex===0,mo=first?scenario.comparison.actualMove:scenario.comparison.bestMove;
