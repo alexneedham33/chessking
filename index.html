@@ -437,7 +437,7 @@ function queueReply(m){pendingReply=m;feedback='Opponent is thinking...';render(
 function startMoveAnimation(m,isOpponent){
   if(isOpponent){replyTimer=null;pendingReply=null;previewReply=null;}
   const piece=current().b[m[0]];
-  const engineSelected=!!(isOpponent&&previewReplyEngine);
+  const engineSelected=!!(isOpponent&&previewReplyEngine);previewReplyEngine=false;
   animatingMove={move:m,piece,from:m[0],to:m[1],isOpponent};
   selectedSquare=-1;showHint=false;
   render();
@@ -546,7 +546,8 @@ $('fullscreen').onclick=async()=>{
  setFullButton();
 };
 document.querySelectorAll('[data-detail-tab]').forEach(btn=>btn.onclick=()=>{const tab=btn.dataset.detailTab;document.querySelectorAll('[data-detail-tab]').forEach(b=>b.classList.toggle('active',b===btn));$('chatTabPane').classList.toggle('active',tab==='chat');$('strategyTabPane').classList.toggle('active',tab==='strategy');$('simulatorTabPane').classList.toggle('active',tab==='simulator');});
-document.querySelectorAll('[data-perspective]').forEach(button=>button.addEventListener('click',()=>{chatMode=button.dataset.chatMode;document.querySelectorAll('[data-chat-mode]').forEach(b=>{const active=b===button;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});render();}));
+document.querySelectorAll('[data-chat-mode]').forEach(button=>button.addEventListener('click',()=>{chatMode=button.dataset.chatMode;document.querySelectorAll('[data-chat-mode]').forEach(b=>{const active=b===button;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});render();}));
+document.querySelectorAll('[data-perspective]').forEach(button=>button.addEventListener('click',()=>{chatPerspective=button.dataset.perspective;chatPageStart=0;document.querySelectorAll('[data-perspective]').forEach(b=>b.classList.toggle('active',b===button));render();}));
 document.addEventListener('fullscreenchange',()=>{setFullButton();requestAnimationFrame(fitBoardToViewport);});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&fallbackFullscreen)fallbackFull(false)});
 render();requestAnimationFrame(fitBoardToViewport);
