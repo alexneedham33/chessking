@@ -82,18 +82,7 @@ html.app-fullscreen .panel,html:fullscreen .panel{padding:14px}
 .balance-track{height:12px;background:#444a5b;border-radius:5px;overflow:hidden;display:flex}
 .balance-white{width:50%;background:#e5dfd0;transition:width .45s ease}
 .balance-foot{font-size:11px;color:#a4adbf;margin-top:6px;line-height:1.4}
-.comparison-summary{margin:10px 0 14px;background:#151e2d;border:1px solid #34465c;border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px;font-size:13px}
-.comparison-summary .compare-pair{display:flex;justify-content:space-between;gap:12px}
-.comparison-summary .compare-pair span{color:#aab9ca}
-.comparison-summary .compare-result{border-top:1px solid #34465c;padding-top:8px;color:#e9edf8}
-.eval-movement{font-size:12px;margin-top:7px;font-weight:650;color:#ced6e5}
-.eval-movement.negative{color:#ffaaa9}.eval-movement.positive{color:#a5edba}
-.eval-history{border-top:1px solid #30374a;margin-top:9px;padding-top:8px;font-size:12px}
-.eval-history summary{cursor:pointer;color:#c6cde0;user-select:none}
-.eval-history-list{display:flex;flex-direction:column;gap:5px;margin-top:8px;max-height:165px;overflow:auto}
-.eval-history-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 8px;background:#181f30;border-radius:6px}
-.eval-history-row strong{font-variant-numeric:tabular-nums}.eval-history-row .deteriorated{color:#ffaaa9}.eval-history-row .improved{color:#a5edba}
-.engine-mini{margin:12px 0 5px;padding:11px;background:#171e30;border:1px solid #333b56;border-radius:10px}
+.comparison-summary{margin:10px 0 14px;background:#151e2d;border:1px solid #34465c;border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px;font-size:13px}.comparison-summary .compare-pair{display:flex;justify-content:space-between;gap:12px}.comparison-summary .compare-pair span{color:#aab9ca}.comparison-summary .compare-result{border-top:1px solid #34465c;padding-top:8px;color:#e9edf8}.engine-mini{margin:12px 0 5px;padding:11px;background:#171e30;border:1px solid #333b56;border-radius:10px}
 .engine-mini .balance-track{margin-top:7px}
 .engine-mini strong{font-size:12px}
 .engine-mini p{font-size:11px;color:#abb6ce;margin:7px 0 0}
@@ -126,8 +115,6 @@ html.app-fullscreen .panel,html:fullscreen .panel{padding:14px}
  <div class="engine-line"><span>Position strength · <small id="engineDepth">Stockfish analysis</small></span><span id="engineScore">Connecting…</span></div>
  <div class="balance-track"><div class="balance-white" id="balanceWhite"></div></div>
  <div class="balance-foot" id="engineCaption">White / Black balance · awaiting engine evaluation</div>
- <div id="evalMovement" class="eval-movement" aria-live="polite">Evaluations update after White and Black complete a move.</div>
- <details class="eval-history"><summary>Position changes by move <span id="evalHistoryCount"></span></summary><div id="evalHistoryList" class="eval-history-list">Complete a move pair to start tracking.</div></details>
  </div><div class="board-stage">
           <div class="board-rail" aria-hidden="true"></div>
           <div class="board-wrap">
@@ -215,7 +202,7 @@ const scenarios={
 let strategyOn=false,scenario=null,scenarioPositions=[],scenarioIndex=0,scenarioBaseHistory=null;
 function setScenario(){const data=scenarios[selected];let s=original();for(let i=0;i<data.setup;i++){const m=legal(s).find(x=>key(x)===openings[selected].line[i][0]);if(!m)throw Error('Scenario setup invalid '+selected);s=apply(s,m);}let positions=[s];for(const [uci] of data.moves){const m=legal(s).find(x=>key(x)===uci);if(!m)throw Error('Scenario move invalid '+selected+' '+uci);s=apply(s,m);positions.push(s);}return positions;}
 function enterScenario(){scenario=scenarios[selected];scenarioPositions=setScenario();scenarioIndex=0;selectedSquare=-1;showHint=false;render();}
-function leaveScenario(){scenario=null;scenarioPositions=[];scenarioIndex=0;lastSimShown=-1;render();}
+function leaveScenario(){if(animationTimer){clearTimeout(animationTimer);animationTimer=null;}animatingMove=null;scenario=null;scenarioPositions=[];scenarioIndex=0;render();}
 // Small, verified opening branches. These are teaching routes, not engine evaluations.
 const routeBranches={
  italian:[
@@ -302,40 +289,6 @@ function simulateFromPosition(){
 // No homemade chess evaluation or invented percentages.
 const evalCache=new Map();let evalRequest=0,evalTimer=null,shownEngineFen='',engineStatus='loading';
 const engineSource='Stockfish · browser engine';
-const pairedEvaluations=new Map();
-function strengthDescription(e){
- if(e.mate!==null)return e.mate>0?'White has a forced mate':'Black has a forced mate';
- const n=e.evaluation,a=Math.abs(n);
- return a<0.3?'Approximately balanced':(a<0.9?'Slight ':a<2?'Clear ':'Large ')+(n>=0?'White':'Black')+' advantage';
-}
-function updateEvaluationTimeline(){
- const list=$('evalHistoryList'),caption=$('evalMovement'),count=$('evalHistoryCount');
- if(!list||!caption)return;
- // Only completed White/Black pairs belong in this timeline.
- const rows=h.map((p,i)=>({p,i,fen:fenOf(p)})).filter(x=>x.p.t===1&&pairedEvaluations.has(x.fen));
- list.replaceChildren();count.textContent=rows.length?'('+Math.max(0,rows.length-1)+')':'';
- if(!rows.length){caption.className='eval-movement';caption.textContent='Evaluations update after both sides move.';list.textContent='Awaiting a completed move pair.';return;}
- let prior=null;
- for(const row of rows){
-  const e=pairedEvaluations.get(row.fen);
-  const delta=prior?.mate===null&&e.mate===null?e.evaluation-prior.evaluation:null;
-  const item=document.createElement('div');item.className='eval-history-row';
-  const name=document.createElement('span');
-  name.textContent=row.i===0?'Starting position':'After '+logs.slice(Math.max(0,row.i-2),row.i).join(' ');
-  const score=document.createElement('strong');
-  score.textContent=(delta===null?'Baseline':(delta>=0?'+':'')+delta.toFixed(2))+' · '+engineText(e);
-  score.className=delta===null?'':delta<-.15?'deteriorated':delta>.15?'improved':'';
-  item.append(name,score);list.append(item);prior=e;
- }
- const last=rows.at(-1),previous=rows.at(-2);
- if(!previous){caption.className='eval-movement';caption.textContent='Baseline saved · Stockfish values are pawn equivalents, not win probabilities.';return;}
- const e=pairedEvaluations.get(last.fen),old=pairedEvaluations.get(previous.fen);
- if(e.mate!==null||old.mate!==null){caption.className='eval-movement';caption.textContent='A forced mate affects the evaluation. See Stockfish details.';return;}
- const delta=e.evaluation-old.evaluation;
- caption.className='eval-movement '+(delta<-.15?'negative':delta>.15?'positive':'');
- const direction=Math.abs(delta)<.15?'Little change':delta<0?'Shift towards Black':'Shift towards White';
- caption.textContent=direction+' · '+(delta>=0?'+':'')+delta.toFixed(2)+' pawn equivalents since last recorded pair';
-}
 function fenOf(s){let ranks=[];for(let r=0;r<8;r++){let row='',empty=0;for(let c=0;c<8;c++){const p=s.b[r*16+c];if(p==='.')empty++;else{if(empty)row+=empty;empty=0;row+=p;}}if(empty)row+=empty;ranks.push(row);}let rights=(s.c&1?'K':'')+(s.c&2?'Q':'')+(s.c&4?'k':'')+(s.c&8?'q':'');return ranks.join('/')+' '+(s.t===1?'w':'b')+' '+(rights||'-')+' '+(s.ep<0?'-':sq(s.ep))+' '+s.half+' '+s.full;}
 function engineText(r){if(r.mate!==null&&r.mate!==undefined)return 'Mate '+(r.mate>0?'+':'')+r.mate;return (r.evaluation>=0?'+':'')+Number(r.evaluation).toFixed(2);}
 const stockfishState={worker:null,ready:null,chain:Promise.resolve(),task:null};
@@ -391,52 +344,35 @@ function fetchEngine(s){
 function engineValue(e){if(!e)return 50;if(e.mate!==null)return e.mate>0?99:1;return Math.max(1,Math.min(99,100/(1+Math.exp(-e.evaluation/1.55))));}
 function setStrength(e,err){
  const label=$('engineScore'),cap=$('engineCaption'),fill=$('balanceWhite'),depth=$('engineDepth');
- if(e){const share=engineValue(e);fill.style.width=share.toFixed(1)+'%';label.textContent=strengthDescription(e);depth.textContent='Stockfish · depth '+e.depth;cap.textContent='Stockfish '+engineText(e)+' pawn equivalents · + favours White, − favours Black. This is not a win probability.';}
- else{fill.style.width='50%';label.textContent=err?'Engine missing':'Analysing…';depth.textContent=err?'Stockfish not loaded':engineSource;cap.textContent=err?'Add stockfish-17.1-lite-single-03e3232.js and stockfish-17.1-lite-single-03e3232.wasm beside this page, then open it using a local web server.':'Waiting for Stockfish evaluation…';}
+ if(e){const share=engineValue(e);fill.style.width=share.toFixed(1)+'%';label.textContent=e.mate!==null?engineText(e):engineText(e)+' pawns';depth.textContent='Stockfish · depth '+e.depth;cap.textContent='Stockfish evaluation · bar is a visualised centipawn advantage, not a win probability.';}
+ else{label.textContent=err?'Engine missing':'Analysing…';depth.textContent=err?'Stockfish not loaded':engineSource;cap.textContent=err?'Add stockfish-17.1-lite-single-03e3232.js and stockfish-17.1-lite-single-03e3232.wasm beside this page, then open it using a local web server.':'Waiting for Stockfish evaluation…';}
 }
-function requestPositionEval(s){const fen=fenOf(s);if(fen===shownEngineFen)return;shownEngineFen=fen;clearTimeout(evalTimer);const token=++evalRequest;setStrength(null,false);evalTimer=setTimeout(async()=>{try{const e=await fetchEngine(s);if(token!==evalRequest)return;engineStatus='ready';pairedEvaluations.set(fenOf(s),e);setStrength(e,false);updateEvaluationTimeline();if(scenario?.dynamic)updateSimulationScore(scenarioIndex);}catch(err){if(token!==evalRequest)return;engineStatus='unavailable';setStrength(null,true);}},250);}
+function requestPositionEval(s){const fen=fenOf(s);if(fen===shownEngineFen)return;shownEngineFen=fen;clearTimeout(evalTimer);const token=++evalRequest;setStrength(null,false);evalTimer=setTimeout(async()=>{try{const e=await fetchEngine(s);if(token!==evalRequest)return;engineStatus='ready';setStrength(e,false);if(scenario?.dynamic)updateSimulationScore(scenarioIndex);}catch(err){if(token!==evalRequest)return;engineStatus='unavailable';setStrength(null,true);}},250);}
 function updateSimulationScore(i){const panel=$('simEnginePanel');if(!scenario?.dynamic){panel.style.display='none';return;}panel.style.display='block';const s=scenarioPositions[i],score=$('simEngineScore'),fill=$('simBalanceWhite'),caption=$('simEngineCaption');score.textContent='Analysing step '+i+'…';caption.textContent='Stockfish is evaluating this position.';const id=++simEvalRequest;fetchEngine(s).then(e=>{if(id!==simEvalRequest)return;const n=engineValue(e);fill.style.width=n+'%';score.textContent='Stockfish: '+(e.mate!==null?engineText(e):engineText(e)+' pawns');caption.textContent='Engine depth '+e.depth+' · visualised evaluation, not win odds';}).catch(()=>{if(id!==simEvalRequest)return;score.textContent='Stockfish unavailable';caption.textContent='Cannot evaluate without the Stockfish engine files.';});}
-let simEvalRequest=0,simBuilding=false,lastSimShown=-1;
-let comparisonBusy=false,comparisonToken=0;
+let simEvalRequest=0,simBuilding=false,lastSimShown=-1,replySelectionToken=0;
+let comparisonBusy=false;
 async function compareWithBestMove(){
  if(comparisonBusy||scenario||animatingMove||pendingReply)return;
- const sideToReview=openings[selected].side;
- let idx=-1;
- for(let i=h.length-2;i>=0;i--){if(h[i].t===sideToReview){idx=i;break;}}
- if(idx<0){feedback='Play a move first to compare it with Stockfish.';render();return;}
- const before=h[idx],after=h[idx+1],played=logs[idx],token=++comparisonToken;
- const notice=$('routeNotice');comparisonBusy=true;
- let btn=notice.querySelector('.route-simulate');if(btn){btn.disabled=true;btn.textContent='Comparing moves…';}
+ let idx=-1;for(let i=h.length-2;i>=0;i--)if(h[i].t===openings[selected].side){idx=i;break;}
+ if(idx<0){feedback='Make a move first, then compare it with Stockfish.';render();return;}
+ const before=h[idx],after=h[idx+1],played=logs[idx],mySide=openings[selected].side;
+ comparisonBusy=true;let b=$('routeNotice').querySelector('.route-simulate');if(b){b.disabled=true;b.textContent='Comparing moves…';}
  try{
-  const best=await fetchEngine(before);
-  if(token!==comparisonToken)return;
-  const m=best.best?legal(before).find(x=>key(x)===best.best):null;
-  if(!m)throw Error('No Stockfish move returned.');
-  const bestAfter=apply(before,m);
-  const [actualScore,bestScore]=await Promise.all([fetchEngine(after),fetchEngine(bestAfter)]);
-  if(token!==comparisonToken)return;
-  const bestText=moveLabel(before,m);
-  const delta=actualScore.mate===null&&bestScore.mate===null?
-     (bestScore.evaluation-actualScore.evaluation)*sideToReview:null;
-  const same=fenOf(bestAfter)===fenOf(after);
-  scenario={
-    title:'Your move vs Stockfish’s best',
-    summary:same?'You found Stockfish’s preferred move. The positions are identical.':
-      'Compare your decision with a Stockfish recommendation from exactly the same earlier position. The alternative is a hypothetical position; your actual game remains unchanged.',
-    moves:[[key(m),'Stockfish preferred '+bestText+' rather than '+played+'.']],
-    dynamic:true,comparison:true,engine:true,
-    comparison:{
-      played,preferred:bestText,scorePlayed:engineText(actualScore),scoreBest:engineText(bestScore),
-      difference:delta===null?'Mate is involved; compare the resulting positions.':same?'Matches Stockfish’s top choice.':Math.abs(delta)<.15?'Nearly equal evaluation.':delta>.15?
-      'Stockfish prefers the alternative by '+delta.toFixed(2)+' pawn equivalents.':
-      'Your move evaluates similarly or better at this search depth.'
-    }
-  };
-  scenarioPositions=[before,bestAfter];scenarioIndex=1;lastSimShown=-1;
+  const best=await fetchEngine(before),m=legal(before).find(x=>key(x)===best.best);
+  if(!m)throw Error('No engine move');
+  const bestAfter=apply(before,m),[actualEval,bestEval]=await Promise.all([fetchEngine(after),fetchEngine(bestAfter)]);
+  const bestName=moveLabel(before,m),equal=fenOf(after)===fenOf(bestAfter);
+  const delta=bestEval.mate===null&&actualEval.mate===null?(bestEval.evaluation-actualEval.evaluation)*mySide:null;
+  scenario={title:'Your move vs Stockfish’s best',summary:'Both moves start from the exact same position. This shows what Stockfish would have preferred, without changing your actual game.',moves:[[key(m),'Rewind your '+played+' move to the decision point.'],[key(m),'Stockfish prefers '+bestName+' instead of '+played+'.']],dynamic:true,engine:true,comparison:{played,preferred:bestName,scorePlayed:engineText(actualEval),scoreBest:engineText(bestEval),difference:delta===null?'A mate score is involved.':equal?'Your move matches Stockfish’s best choice.':Math.abs(delta)<.15?'The moves have nearly equal evaluations.':delta>0?'The alternative is better by '+delta.toFixed(2)+' pawn equivalents.':'Your move is evaluated similarly or better at this depth.'}};
+  scenarioPositions=[after,before,bestAfter];scenarioIndex=0;lastSimShown=-1;
+  scenario.comparison.actualMove=legal(before).find(x=>fenOf(apply(before,x))===fenOf(after));
+  scenario.comparison.bestMove=m;
+  scenario.comparison.originalState=after;
+  scenario.comparison.phase=0;
   document.querySelectorAll('[data-detail-tab]').forEach(x=>x.classList.toggle('active',x.dataset.detailTab==='simulator'));
   document.querySelectorAll('.detail-tab-content').forEach(x=>x.classList.toggle('active',x.dataset.detailContent==='simulator'));
   render();
- }catch(e){feedback='Could not compare moves: Stockfish is unavailable. Try in your locally served app.';render();}
+ }catch(e){feedback='Comparison needs Stockfish. Run the app locally with the engine files.';render();}
  finally{comparisonBusy=false;}
 }
 
@@ -448,28 +384,41 @@ async function simulateWithEngine(){if(simBuilding||pendingReply||animatingMove)
   const uci=analysis.best;const move=legal(st).find(m=>key(m)===uci);if(!move)break;const name=moveLabel(st,move);moves.push([uci,(st.t===openings[selected].side?'Strong continuation for your side: ':'Strong opponent response: ')+name+'. Watch how Stockfish’s position evaluation changes.']);st=apply(st,move);positions.push(st);}if(!moves.length)throw Error('No legal principal variation returned');scenario={title:'Stockfish: what could happen next',summary:'Stockfish selects a strong move for each player from this position. This is an illustrative continuation, not a forced outcome.',moves,dynamic:true,engine:true};scenarioPositions=positions;scenarioIndex=0;lastSimShown=-1;document.querySelectorAll('[data-detail-tab]').forEach(b=>b.classList.toggle('active',b.dataset.detailTab==='simulator'));document.querySelectorAll('.detail-tab-content').forEach(el=>el.classList.toggle('active',el.id==='simulatorTabPane'));render();}catch(error){engineStatus='unavailable';alert('Stockfish could not analyse this position. Install the engine assets beside the HTML file and serve them from a local web server.');}finally{simBuilding=false;if(b)b.disabled=false;}}
 
 let chatMode='quick';let selected='italian',mode='play',h=[original()],selectedSquare=-1,showHint=false,feedback='',promotion=null,logs=[],notes=[],lastSquares=[],pendingReply=null,replyTimer=null,animatingMove=null,animationTimer=null;const $=id=>document.getElementById(id);
-function clearReplyState(){replySelectionToken++;if(replyTimer){clearTimeout(replyTimer);replyTimer=null}if(animationTimer){clearTimeout(animationTimer);animationTimer=null}pendingReply=null;animatingMove=null;const ghost=$('moveGhost');if(ghost){ghost.className='move-ghost';ghost.style.display='none';ghost.textContent='';}}
-let replySelectionToken=0;
+function clearReplyState(){if(replyTimer){clearTimeout(replyTimer);replyTimer=null}if(animationTimer){clearTimeout(animationTimer);animationTimer=null}pendingReply=null;animatingMove=null;const ghost=$('moveGhost');if(ghost){ghost.className='move-ghost';ghost.style.display='none';ghost.textContent='';}}
 let chatPageStart=0;
-function reset(){replySelectionToken++;shownEngineFen='';simEvalRequest++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;comparisonToken++;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];pairedEvaluations.clear();selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();}
+function reset(){shownEngineFen='';simEvalRequest++;replySelectionToken++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();}
 function current(){return h.at(-1)}function suggested(){const s=current();return legal(s).find(m=>key(m)===routeLine()[s.i]?.[0])}
 function record(m){const s=current();routeHistory.push({branch:activeBranch,info:deviationInfo});guideMove(s,m);const text=moveLabel(s,m),lineIndex=s.i,correct=lineIndex>=0&&key(m)===routeLine()[lineIndex]?.[0];h.push(apply(s,m));logs.push(text);lastSquares=[m[0],m[1]];feedback=deviationInfo?.kind==='variation'&&lineIndex===activeBranch?.at?'Variation recognised: '+deviationInfo.name:correct?'✓ In line with the opening.':deviationInfo?.name||'Adapted continuation';notes.push({text,color:s.t,opening:selected,index:correct&&!activeBranch?lineIndex:-1,reason:activeBranch&&lineIndex>=activeBranch.at?routeLine()[lineIndex]?.[1]:correct?rationales[selected][lineIndex]:explainDeviation(s,m)});return correct;}
 function squarePct(i){const row=i>>4,col=i&7;return {x:(col+0.5)*12.5+'%',y:(row+0.5)*12.5+'%'};}
-function needsEngineReply(s){return !!deviationInfo&&(deviationInfo.kind!=='variation'||s.i<0);}
+function shouldUseEngineReply(s){return !!deviationInfo&&(deviationInfo.kind==='warning'||deviationInfo.kind==='detour'||s.i<0);}
 async function prepareOpponentReply(){
- const s=current(),token=++replySelectionToken;
- if(needsEngineReply(s)){
-  pendingReply={engine:true};feedback='Stockfish is finding a strong opponent response…';render();
-  try{
-   const e=await fetchEngine(s);
-   if(token!==replySelectionToken||current()!==s)return;
-   const reply=e.best?legal(s).find(m=>key(m)===e.best):null;
-   pendingReply=null;
-   if(reply){queueReply(reply);return;}
-  }catch(err){if(token!==replySelectionToken||current()!==s)return;pendingReply=null;feedback='Engine unavailable — showing a legal fallback, not a best move.';}
+ const s=current();
+ const token=++replySelectionToken;
+ const useEngine=shouldUseEngineReply(s);
+ if(useEngine){
+   pendingReply={engine:true};
+   feedback='Stockfish is choosing the best practical reply to this off-plan move…';
+   render();
+   try{
+     const analysis=await fetchEngine(s);
+     if(token!==replySelectionToken||current()!==s)return;
+     pendingReply=null;
+     const move=analysis?.best?legal(s).find(m=>key(m)===analysis.best):null;
+     if(move){
+       feedback='Stockfish selected a strong counter-move. Watch how the position changes.';
+       queueReply(move);
+       return;
+     }
+   }catch(err){
+     if(token!==replySelectionToken)return;
+     pendingReply=null;
+     feedback='Stockfish reply unavailable — using the guided fallback.';
+   }
  }
  const reply=suggested()||freeReply(s);
- if(reply)queueReply(reply);else{pendingReply=null;render();}
+ if(reply){queueReply(reply);return;}
+ pendingReply=null;
+ render();
 }
 function queueReply(m){pendingReply=m;feedback='Opponent is thinking...';render();replyTimer=setTimeout(()=>startMoveAnimation(m,true),800);}
 function startMoveAnimation(m,isOpponent){
@@ -480,12 +429,13 @@ function startMoveAnimation(m,isOpponent){
   render();
   // Wait one frame to ensure the piece begins at the origin before travelling.
   requestAnimationFrame(()=>requestAnimationFrame(()=>{if(animatingMove){const ghost=$('moveGhost');if(ghost)ghost.classList.add('moving');}}));
-  animationTimer=setTimeout(()=>{
+  animationTimer=setTimeout(async()=>{
     animationTimer=null;
     record(m);
     animatingMove=null;
     if(!isOpponent&&mode==='play'&&!gameStatus(h).done&&current().t!==openings[selected].side){
-      prepareOpponentReply();return;
+      await prepareOpponentReply();
+      return;
     }
     render();
   },1550);
@@ -502,7 +452,7 @@ function render(){const s=scenario?scenarioPositions[scenarioIndex]:current(),mo
 // Refresh the main strength bar only after a full move (White and Black have both played).
 // During the intervening half-move, preserve the last completed pair's evaluation.
 if(!scenario && s.t===1 && !animatingMove && !pendingReply)requestPositionEval(s);
-if(!scenario)$('simEnginePanel').style.display='none';const st=strategies[selected];$('strategyIntro').textContent=st.intro;const objectives=$('objectiveList');objectives.replaceChildren();let count=scenario?(scenario.dynamic?Math.max(0,current().i):scenarios[selected].setup):Math.max(0,current().i);for(const [name,at,detail] of st.objectives){const row=document.createElement('div');row.className='strategy-item';const mark=document.createElement('span');mark.className='strategy-mark';mark.textContent=count>=at?'✓':'○';const body=document.createElement('div');const heading=document.createElement('div');heading.className='strategy-name';heading.textContent=name;const copy=document.createElement('div');copy.className='strategy-detail';copy.textContent=detail;body.append(heading,copy);row.append(mark,body);objectives.append(row);} $('phaseBadge').textContent=scenario?'Scenario':current().i<0?'Free play':current().i>=op.line.length?'Line complete':'Opening';$('strategyToggle').textContent=strategyOn?'◉ Hide strategy':'◉ Show strategy';$('scenarioIntro').textContent=scenario?.dynamic?scenario.summary:scenarios[selected].summary;const summary=$('comparisonSummary');summary.replaceChildren();summary.style.display=scenario?.comparison?'flex':'none';if(scenario?.comparison){const c=scenario.comparison;for(const [label,value] of [['Your move',c.played+' · '+c.scorePlayed],['Stockfish recommends',c.preferred+' · '+c.scoreBest]]){const row=document.createElement('div');row.className='compare-pair';const key=document.createElement('span');key.textContent=label;const val=document.createElement('strong');val.textContent=value;row.append(key,val);summary.append(row);}const diff=document.createElement('div');diff.className='compare-result';diff.textContent=c.difference;summary.append(diff);}$('scenarioStart').style.display=scenario?'none':'';$('scenarioControls').style.display=scenario?'':'none';if(scenario){if(scenario.dynamic&&lastSimShown!==scenarioIndex){lastSimShown=scenarioIndex;updateSimulationScore(scenarioIndex);} $('scenarioStepTitle').textContent=scenarioIndex===0?'Starting position':('Step '+scenarioIndex+' of '+scenario.moves.length);$('scenarioStepCopy').textContent=scenarioIndex===0?scenario.title:scenario.moves[scenarioIndex-1][1];$('scenarioNext').disabled=scenarioIndex>=scenario.moves.length;$('scenarioNext').textContent=scenarioIndex>=scenario.moves.length?'End of illustration':'Next move →';}
+if(!scenario)$('simEnginePanel').style.display='none';const st=strategies[selected];$('strategyIntro').textContent=st.intro;const objectives=$('objectiveList');objectives.replaceChildren();let count=scenario?(scenario.dynamic?Math.max(0,current().i):scenarios[selected].setup):Math.max(0,current().i);for(const [name,at,detail] of st.objectives){const row=document.createElement('div');row.className='strategy-item';const mark=document.createElement('span');mark.className='strategy-mark';mark.textContent=count>=at?'✓':'○';const body=document.createElement('div');const heading=document.createElement('div');heading.className='strategy-name';heading.textContent=name;const copy=document.createElement('div');copy.className='strategy-detail';copy.textContent=detail;body.append(heading,copy);row.append(mark,body);objectives.append(row);} $('phaseBadge').textContent=scenario?'Scenario':current().i<0?'Free play':current().i>=op.line.length?'Line complete':'Opening';$('strategyToggle').textContent=strategyOn?'◉ Hide strategy':'◉ Show strategy';$('scenarioIntro').textContent=scenario?.dynamic?scenario.summary:scenarios[selected].summary;const sm=$('comparisonSummary');sm.replaceChildren();sm.style.display=scenario?.comparison?'flex':'none';if(scenario?.comparison){const c=scenario.comparison;for(const [k,v] of [['Your move',c.played+' · '+c.scorePlayed],['Stockfish prefers',c.preferred+' · '+c.scoreBest]]){const row=document.createElement('div');row.className='compare-pair';const label=document.createElement('span');label.textContent=k;const value=document.createElement('strong');value.textContent=v;row.append(label,value);sm.append(row);}const note=document.createElement('div');note.className='compare-result';note.textContent=c.difference;sm.append(note);}$('scenarioStart').style.display=scenario?'none':'';$('scenarioControls').style.display=scenario?'':'none';if(scenario){if(scenario.dynamic&&lastSimShown!==scenarioIndex){lastSimShown=scenarioIndex;updateSimulationScore(scenarioIndex);} $('scenarioStepTitle').textContent=scenario?.comparison?(scenarioIndex===0?'Your original move':scenarioIndex===1?'Back at the decision':'Stockfish recommendation'):scenarioIndex===0?'Starting position':('Step '+scenarioIndex+' of '+scenario.moves.length);$('scenarioStepCopy').textContent=scenario?.comparison?(scenarioIndex===0?'Your original '+scenario.comparison.played+' · press Replay comparison':scenarioIndex===1?'Your move has been rewound. Watch Stockfish’s choice.':scenario.moves[1][1]):scenarioIndex===0?scenario.title:scenario.moves[scenarioIndex-1][1];$('scenarioNext').disabled=!!animatingMove||scenarioIndex>=scenario.moves.length;$('scenarioNext').textContent=scenario?.comparison?(scenarioIndex===0?'Replay comparison →':scenarioIndex===1?'Show best move →':'Comparison complete'):scenarioIndex>=scenario.moves.length?'End of illustration':'Next move →';}
 const board=$('board');board.replaceChildren();for(let j=0;j<64;j++){const i=(j>>3)*16+(j&7),b=document.createElement('button');b.type='button';b.className='square'+(((j>>3)+(j&7))%2?' dark':'');b.setAttribute('aria-label',sq(i)+' '+(s.b[i]==='.'?'empty':s.b[i]));if(strategyOn&&st.targets.includes(sq(i)))b.classList.add('strategic');if(animatingMove&&animatingMove.isOpponent&&(i===animatingMove.from||i===animatingMove.to))b.classList.add('thinking');if(!scenario&&i===selectedSquare)b.classList.add('sel');else if(lastSquares.includes(i))b.classList.add('last');const movingAway=animatingMove&&i===animatingMove.from;const displayPiece=movingAway?'.':s.b[i];const p=document.createElement('span');p.className='piece'+(side(displayPiece)===1?' white':'')+(displayPiece.toLowerCase()==='p'?' pawn':displayPiece.toLowerCase()==='b'?' bishop':'');p.textContent=glyph[displayPiece];b.append(p);if(!scenario&&selectedSquare>=0&&moves.some(m=>m[0]===selectedSquare&&m[1]===i)||showHint&&selectedSquare<0&&hint&&hint[1]===i){const dot=document.createElement('span');dot.className=s.b[i]==='.'?'dot':'capture';b.append(dot);}if(!scenario&&showHint&&selectedSquare<0&&hint&&hint[0]===i)b.classList.add('sel');if((i&7)===0){const c=document.createElement('span');c.className='coord';c.textContent=8-(i>>4);b.append(c);}if((i>>4)===7){const c=document.createElement('span');c.className='file';c.textContent=sq(i)[0];b.append(c);}b.onclick=()=>clickSquare(i);board.append(b);}
 const ghost=$('moveGhost');if(ghost){if(animatingMove){const from=squarePct(animatingMove.from),to=squarePct(animatingMove.to),piece=animatingMove.piece;ghost.style.display='flex';ghost.className='move-ghost active';ghost.style.setProperty('--from-x',from.x);ghost.style.setProperty('--from-y',from.y);ghost.style.setProperty('--to-x',to.x);ghost.style.setProperty('--to-y',to.y);ghost.innerHTML='';const gp=document.createElement('span');gp.className='piece'+(side(piece)===1?' white':'')+(piece.toLowerCase()==='p'?' pawn':piece.toLowerCase()==='b'?' bishop':'');gp.textContent=glyph[piece];ghost.append(gp);}else{ghost.className='move-ghost';ghost.style.display='none';ghost.innerHTML='';}}
 $('hint').style.display=scenario?'none':mode==='play'?'':'none';$('next').style.display=scenario?'none':'';$('next').disabled=!hint||ended||!!pendingReply||!!animatingMove;$('hint').disabled=ended||!hint||!!pendingReply||!!animatingMove;$('back').disabled=!!pendingReply||!!animatingMove||(!scenario&&h.length===1);$('opponent').style.display=scenario?'none':mode==='play'&&!yourTurn&&hint&&!ended&&!pendingReply&&!animatingMove?'':'none';
@@ -547,7 +497,19 @@ requestAnimationFrame(()=>{
 });
 $('feedback').textContent=feedback;$('feedback').style.display=feedback?'':'none';$('hintText').textContent=showHint&&hint?'Hint: '+moveLabel(s,hint)+' — '+step[1]:status.claim?'Draw may be claimed: '+status.claim:'';$('hint').textContent=showHint?'Hide hint':'✧ Hint';$('plyCount').textContent=logs.length+' plies';$('history').replaceChildren();if(!logs.length){const e=document.createElement('span');e.style.gridColumn='1/-1';e.textContent='Your moves will appear here.';$('history').append(e);}else logs.forEach(x=>{const e=document.createElement('span');e.textContent=x;$('history').append(e);});$('promotion').style.display=promotion?'grid':'none';$('promoChoices').replaceChildren();if(promotion)promotion.forEach(m=>{const e=document.createElement('button');e.textContent=({q:'♛',r:'♜',b:'♝',n:'♞'})[m[2]];e.onclick=()=>{promotion=null;play(m)};$('promoChoices').append(e);});}
 for(const name of Object.keys(openings)){let s=original();for(const [uci]of openings[name].line){selected=name;const m=legal(s).find(m=>key(m)===uci);if(!m)throw Error('Invalid opening '+name+' '+uci);s=apply(s,m);}}selected='italian';
-for(const k of Object.keys(scenarios)){selected=k;setScenario();}selected='italian';document.querySelectorAll('[data-opening]').forEach(b=>b.onclick=()=>{selected=b.dataset.opening;reset()});document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;reset()});$('strategyToggle').onclick=()=>{strategyOn=!strategyOn;render()};$('scenarioStart').onclick=()=>{clearReplyState();enterScenario()};$('scenarioNext').onclick=()=>{if(scenario&&scenarioIndex<scenario.moves.length){scenarioIndex++;render()}};$('scenarioExit').onclick=()=>{clearReplyState();leaveScenario()};$('hint').onclick=()=>{showHint=!showHint;render()};$('next').onclick=()=>{const m=suggested()||(current().i<0?freeReply(current()):null);if(m&&!pendingReply&&!animatingMove){if(mode==='play'&&current().t!==openings[selected].side){startMoveAnimation(m,true);}else play(m);}};$('opponent').onclick=()=>{const m=suggested();if(m)play(m)};$('restart').onclick=reset;$('back').onclick=()=>{if(scenario){scenarioIndex=Math.max(0,scenarioIndex-1);render();return;}if(pendingReply||animatingMove){clearReplyState();render();return;}if(h.length<2)return;const n=mode==='play'&&h.length>2&&h.at(-1).t===openings[selected].side?2:1;h=h.slice(0,-n);logs=logs.slice(0,-n);notes=notes.slice(0,-n);const restored=routeHistory.length>=n?routeHistory[routeHistory.length-n]:null;routeHistory=routeHistory.slice(0,-n);activeBranch=restored?.branch||null;deviationInfo=restored?.info||null;selectedSquare=-1;showHint=false;feedback='';lastSquares=[];updateEvaluationTimeline();render()};$('cancelPromo').onclick=()=>{promotion=null;render()};function fitBoardToViewport(){
+for(const k of Object.keys(scenarios)){selected=k;setScenario();}selected='italian';document.querySelectorAll('[data-opening]').forEach(b=>b.onclick=()=>{selected=b.dataset.opening;reset()});document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;reset()});$('strategyToggle').onclick=()=>{strategyOn=!strategyOn;render()};$('scenarioStart').onclick=()=>{clearReplyState();enterScenario()};$('scenarioNext').onclick=()=>{
+ if(!scenario||animatingMove||scenarioIndex>=scenario.moves.length)return;
+ if(scenario.comparison){
+   const first=scenarioIndex===0,mo=first?scenario.comparison.actualMove:scenario.comparison.bestMove;
+   if(!mo){scenarioIndex++;render();return;}
+   const source=first?scenarioPositions[0]:scenarioPositions[1];
+   const from=first?mo[1]:mo[0],to=first?mo[0]:mo[1];
+   animatingMove={from,to,piece:source.b[from],isOpponent:false};
+   render();
+   requestAnimationFrame(()=>requestAnimationFrame(()=>{if(animatingMove)$('moveGhost').classList.add('moving')}));
+   animationTimer=setTimeout(()=>{animationTimer=null;animatingMove=null;scenarioIndex++;render();},1550);
+ }else{scenarioIndex++;render();}
+};$('scenarioExit').onclick=()=>{clearReplyState();leaveScenario()};$('hint').onclick=()=>{showHint=!showHint;render()};$('next').onclick=()=>{const m=suggested()||(current().i<0?freeReply(current()):null);if(m&&!pendingReply&&!animatingMove){if(mode==='play'&&current().t!==openings[selected].side){startMoveAnimation(m,true);}else play(m);}};$('opponent').onclick=()=>{const m=suggested();if(m)play(m)};$('restart').onclick=reset;$('back').onclick=()=>{if(scenario){scenarioIndex=Math.max(0,scenarioIndex-1);render();return;}if(pendingReply||animatingMove){clearReplyState();render();return;}if(h.length<2)return;const n=mode==='play'&&h.length>2&&h.at(-1).t===openings[selected].side?2:1;h=h.slice(0,-n);logs=logs.slice(0,-n);notes=notes.slice(0,-n);const restored=routeHistory.length>=n?routeHistory[routeHistory.length-n]:null;routeHistory=routeHistory.slice(0,-n);activeBranch=restored?.branch||null;deviationInfo=restored?.info||null;selectedSquare=-1;showHint=false;feedback='';lastSquares=[];render()};$('cancelPromo').onclick=()=>{promotion=null;render()};function fitBoardToViewport(){
   const stage=document.querySelector('.board-stage');
   if(!stage)return;
   const top=stage.getBoundingClientRect().top;
