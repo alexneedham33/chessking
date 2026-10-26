@@ -82,6 +82,13 @@ html.app-fullscreen .panel,html:fullscreen .panel{padding:14px}
 .balance-track{height:12px;background:#444a5b;border-radius:5px;overflow:hidden;display:flex}
 .balance-white{width:50%;background:#e5dfd0;transition:width .45s ease}
 .balance-foot{font-size:11px;color:#a4adbf;margin-top:6px;line-height:1.4}
+.eval-movement{font-size:12px;margin-top:7px;font-weight:650;color:#ced6e5}
+.eval-movement.negative{color:#ffaaa9}.eval-movement.positive{color:#a5edba}
+.eval-history{border-top:1px solid #30374a;margin-top:9px;padding-top:8px;font-size:12px}
+.eval-history summary{cursor:pointer;color:#c6cde0;user-select:none}
+.eval-history-list{display:flex;flex-direction:column;gap:5px;margin-top:8px;max-height:165px;overflow:auto}
+.eval-history-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 8px;background:#181f30;border-radius:6px}
+.eval-history-row strong{font-variant-numeric:tabular-nums}.eval-history-row .deteriorated{color:#ffaaa9}.eval-history-row .improved{color:#a5edba}
 .engine-mini{margin:12px 0 5px;padding:11px;background:#171e30;border:1px solid #333b56;border-radius:10px}
 .engine-mini .balance-track{margin-top:7px}
 .engine-mini strong{font-size:12px}
@@ -115,6 +122,8 @@ html.app-fullscreen .panel,html:fullscreen .panel{padding:14px}
  <div class="engine-line"><span>Position strength · <small id="engineDepth">Stockfish analysis</small></span><span id="engineScore">Connecting…</span></div>
  <div class="balance-track"><div class="balance-white" id="balanceWhite"></div></div>
  <div class="balance-foot" id="engineCaption">White / Black balance · awaiting engine evaluation</div>
+ <div id="evalMovement" class="eval-movement" aria-live="polite">Evaluations update after White and Black complete a move.</div>
+ <details class="eval-history"><summary>Position changes by move <span id="evalHistoryCount"></span></summary><div id="evalHistoryList" class="eval-history-list">Complete a move pair to start tracking.</div></details>
  </div><div class="board-stage">
           <div class="board-rail" aria-hidden="true"></div>
           <div class="board-wrap">
@@ -289,6 +298,40 @@ function simulateFromPosition(){
 // No homemade chess evaluation or invented percentages.
 const evalCache=new Map();let evalRequest=0,evalTimer=null,shownEngineFen='',engineStatus='loading';
 const engineSource='Stockfish · browser engine';
+const pairedEvaluations=new Map();
+function strengthDescription(e){
+ if(e.mate!==null)return e.mate>0?'White has a forced mate':'Black has a forced mate';
+ const n=e.evaluation,a=Math.abs(n);
+ return a<0.3?'Approximately balanced':(a<0.9?'Slight ':a<2?'Clear ':'Large ')+(n>=0?'White':'Black')+' advantage';
+}
+function updateEvaluationTimeline(){
+ const list=$('evalHistoryList'),caption=$('evalMovement'),count=$('evalHistoryCount');
+ if(!list||!caption)return;
+ // Only completed White/Black pairs belong in this timeline.
+ const rows=h.map((p,i)=>({p,i,fen:fenOf(p)})).filter(x=>x.p.t===1&&pairedEvaluations.has(x.fen));
+ list.replaceChildren();count.textContent=rows.length?'('+Math.max(0,rows.length-1)+')':'';
+ if(!rows.length){caption.className='eval-movement';caption.textContent='Evaluations update after both sides move.';list.textContent='Awaiting a completed move pair.';return;}
+ let prior=null;
+ for(const row of rows){
+  const e=pairedEvaluations.get(row.fen);
+  const delta=prior?.mate===null&&e.mate===null?e.evaluation-prior.evaluation:null;
+  const item=document.createElement('div');item.className='eval-history-row';
+  const name=document.createElement('span');
+  name.textContent=row.i===0?'Starting position':'After '+logs.slice(Math.max(0,row.i-2),row.i).join(' ');
+  const score=document.createElement('strong');
+  score.textContent=(delta===null?'Baseline':(delta>=0?'+':'')+delta.toFixed(2))+' · '+engineText(e);
+  score.className=delta===null?'':delta<-.15?'deteriorated':delta>.15?'improved':'';
+  item.append(name,score);list.append(item);prior=e;
+ }
+ const last=rows.at(-1),previous=rows.at(-2);
+ if(!previous){caption.className='eval-movement';caption.textContent='Baseline saved · Stockfish values are pawn equivalents, not win probabilities.';return;}
+ const e=pairedEvaluations.get(last.fen),old=pairedEvaluations.get(previous.fen);
+ if(e.mate!==null||old.mate!==null){caption.className='eval-movement';caption.textContent='A forced mate affects the evaluation. See Stockfish details.';return;}
+ const delta=e.evaluation-old.evaluation;
+ caption.className='eval-movement '+(delta<-.15?'negative':delta>.15?'positive':'');
+ const direction=Math.abs(delta)<.15?'Little change':delta<0?'Shift towards Black':'Shift towards White';
+ caption.textContent=direction+' · '+(delta>=0?'+':'')+delta.toFixed(2)+' pawn equivalents since last recorded pair';
+}
 function fenOf(s){let ranks=[];for(let r=0;r<8;r++){let row='',empty=0;for(let c=0;c<8;c++){const p=s.b[r*16+c];if(p==='.')empty++;else{if(empty)row+=empty;empty=0;row+=p;}}if(empty)row+=empty;ranks.push(row);}let rights=(s.c&1?'K':'')+(s.c&2?'Q':'')+(s.c&4?'k':'')+(s.c&8?'q':'');return ranks.join('/')+' '+(s.t===1?'w':'b')+' '+(rights||'-')+' '+(s.ep<0?'-':sq(s.ep))+' '+s.half+' '+s.full;}
 function engineText(r){if(r.mate!==null&&r.mate!==undefined)return 'Mate '+(r.mate>0?'+':'')+r.mate;return (r.evaluation>=0?'+':'')+Number(r.evaluation).toFixed(2);}
 const stockfishState={worker:null,ready:null,chain:Promise.resolve(),task:null};
@@ -344,10 +387,10 @@ function fetchEngine(s){
 function engineValue(e){if(!e)return 50;if(e.mate!==null)return e.mate>0?99:1;return Math.max(1,Math.min(99,100/(1+Math.exp(-e.evaluation/1.55))));}
 function setStrength(e,err){
  const label=$('engineScore'),cap=$('engineCaption'),fill=$('balanceWhite'),depth=$('engineDepth');
- if(e){const share=engineValue(e);fill.style.width=share.toFixed(1)+'%';label.textContent=e.mate!==null?engineText(e):engineText(e)+' pawns';depth.textContent='Stockfish · depth '+e.depth;cap.textContent='Stockfish evaluation · bar is a visualised centipawn advantage, not a win probability.';}
+ if(e){const share=engineValue(e);fill.style.width=share.toFixed(1)+'%';label.textContent=strengthDescription(e);depth.textContent='Stockfish · depth '+e.depth;cap.textContent='Stockfish '+engineText(e)+' pawn equivalents · + favours White, − favours Black. This is not a win probability.';}
  else{fill.style.width='50%';label.textContent=err?'Engine missing':'Analysing…';depth.textContent=err?'Stockfish not loaded':engineSource;cap.textContent=err?'Add stockfish-17.1-lite-single-03e3232.js and stockfish-17.1-lite-single-03e3232.wasm beside this page, then open it using a local web server.':'Waiting for Stockfish evaluation…';}
 }
-function requestPositionEval(s){const fen=fenOf(s);if(fen===shownEngineFen)return;shownEngineFen=fen;clearTimeout(evalTimer);const token=++evalRequest;setStrength(null,false);evalTimer=setTimeout(async()=>{try{const e=await fetchEngine(s);if(token!==evalRequest)return;engineStatus='ready';setStrength(e,false);if(scenario?.dynamic)updateSimulationScore(scenarioIndex);}catch(err){if(token!==evalRequest)return;engineStatus='unavailable';setStrength(null,true);}},250);}
+function requestPositionEval(s){const fen=fenOf(s);if(fen===shownEngineFen)return;shownEngineFen=fen;clearTimeout(evalTimer);const token=++evalRequest;setStrength(null,false);evalTimer=setTimeout(async()=>{try{const e=await fetchEngine(s);if(token!==evalRequest)return;engineStatus='ready';pairedEvaluations.set(fenOf(s),e);setStrength(e,false);updateEvaluationTimeline();if(scenario?.dynamic)updateSimulationScore(scenarioIndex);}catch(err){if(token!==evalRequest)return;engineStatus='unavailable';setStrength(null,true);}},250);}
 function updateSimulationScore(i){const panel=$('simEnginePanel');if(!scenario?.dynamic){panel.style.display='none';return;}panel.style.display='block';const s=scenarioPositions[i],score=$('simEngineScore'),fill=$('simBalanceWhite'),caption=$('simEngineCaption');score.textContent='Analysing step '+i+'…';caption.textContent='Stockfish is evaluating this position.';const id=++simEvalRequest;fetchEngine(s).then(e=>{if(id!==simEvalRequest)return;const n=engineValue(e);fill.style.width=n+'%';score.textContent='Stockfish: '+(e.mate!==null?engineText(e):engineText(e)+' pawns');caption.textContent='Engine depth '+e.depth+' · visualised evaluation, not win odds';}).catch(()=>{if(id!==simEvalRequest)return;score.textContent='Stockfish unavailable';caption.textContent='Cannot evaluate without the Stockfish engine files.';});}
 let simEvalRequest=0,simBuilding=false,lastSimShown=-1;
 async function simulateWithEngine(){if(simBuilding||pendingReply||animatingMove)return;simBuilding=true;const src=current();const el=$('routeNotice');let b=el.querySelector('.route-simulate');if(b){b.disabled=true;b.textContent='Analysing continuation…';}try{const startEval=await fetchEngine(src);let st=src,positions=[st],moves=[],pv=[];
@@ -360,7 +403,7 @@ async function simulateWithEngine(){if(simBuilding||pendingReply||animatingMove)
 let chatMode='quick';let selected='italian',mode='play',h=[original()],selectedSquare=-1,showHint=false,feedback='',promotion=null,logs=[],notes=[],lastSquares=[],pendingReply=null,replyTimer=null,animatingMove=null,animationTimer=null;const $=id=>document.getElementById(id);
 function clearReplyState(){if(replyTimer){clearTimeout(replyTimer);replyTimer=null}if(animationTimer){clearTimeout(animationTimer);animationTimer=null}pendingReply=null;animatingMove=null;const ghost=$('moveGhost');if(ghost){ghost.className='move-ghost';ghost.style.display='none';ghost.textContent='';}}
 let chatPageStart=0;
-function reset(){shownEngineFen='';simEvalRequest++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();}
+function reset(){shownEngineFen='';simEvalRequest++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];pairedEvaluations.clear();selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();}
 function current(){return h.at(-1)}function suggested(){const s=current();return legal(s).find(m=>key(m)===routeLine()[s.i]?.[0])}
 function record(m){const s=current();routeHistory.push({branch:activeBranch,info:deviationInfo});guideMove(s,m);const text=moveLabel(s,m),lineIndex=s.i,correct=lineIndex>=0&&key(m)===routeLine()[lineIndex]?.[0];h.push(apply(s,m));logs.push(text);lastSquares=[m[0],m[1]];feedback=deviationInfo?.kind==='variation'&&lineIndex===activeBranch?.at?'Variation recognised: '+deviationInfo.name:correct?'✓ In line with the opening.':deviationInfo?.name||'Adapted continuation';notes.push({text,color:s.t,opening:selected,index:correct&&!activeBranch?lineIndex:-1,reason:activeBranch&&lineIndex>=activeBranch.at?routeLine()[lineIndex]?.[1]:correct?rationales[selected][lineIndex]:explainDeviation(s,m)});return correct;}
 function squarePct(i){const row=i>>4,col=i&7;return {x:(col+0.5)*12.5+'%',y:(row+0.5)*12.5+'%'};}
@@ -440,7 +483,7 @@ requestAnimationFrame(()=>{
 });
 $('feedback').textContent=feedback;$('feedback').style.display=feedback?'':'none';$('hintText').textContent=showHint&&hint?'Hint: '+moveLabel(s,hint)+' — '+step[1]:status.claim?'Draw may be claimed: '+status.claim:'';$('hint').textContent=showHint?'Hide hint':'✧ Hint';$('plyCount').textContent=logs.length+' plies';$('history').replaceChildren();if(!logs.length){const e=document.createElement('span');e.style.gridColumn='1/-1';e.textContent='Your moves will appear here.';$('history').append(e);}else logs.forEach(x=>{const e=document.createElement('span');e.textContent=x;$('history').append(e);});$('promotion').style.display=promotion?'grid':'none';$('promoChoices').replaceChildren();if(promotion)promotion.forEach(m=>{const e=document.createElement('button');e.textContent=({q:'♛',r:'♜',b:'♝',n:'♞'})[m[2]];e.onclick=()=>{promotion=null;play(m)};$('promoChoices').append(e);});}
 for(const name of Object.keys(openings)){let s=original();for(const [uci]of openings[name].line){selected=name;const m=legal(s).find(m=>key(m)===uci);if(!m)throw Error('Invalid opening '+name+' '+uci);s=apply(s,m);}}selected='italian';
-for(const k of Object.keys(scenarios)){selected=k;setScenario();}selected='italian';document.querySelectorAll('[data-opening]').forEach(b=>b.onclick=()=>{selected=b.dataset.opening;reset()});document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;reset()});$('strategyToggle').onclick=()=>{strategyOn=!strategyOn;render()};$('scenarioStart').onclick=()=>{clearReplyState();enterScenario()};$('scenarioNext').onclick=()=>{if(scenario&&scenarioIndex<scenario.moves.length){scenarioIndex++;render()}};$('scenarioExit').onclick=()=>{clearReplyState();leaveScenario()};$('hint').onclick=()=>{showHint=!showHint;render()};$('next').onclick=()=>{const m=suggested()||(current().i<0?freeReply(current()):null);if(m&&!pendingReply&&!animatingMove){if(mode==='play'&&current().t!==openings[selected].side){startMoveAnimation(m,true);}else play(m);}};$('opponent').onclick=()=>{const m=suggested();if(m)play(m)};$('restart').onclick=reset;$('back').onclick=()=>{if(scenario){scenarioIndex=Math.max(0,scenarioIndex-1);render();return;}if(pendingReply||animatingMove){clearReplyState();render();return;}if(h.length<2)return;const n=mode==='play'&&h.length>2&&h.at(-1).t===openings[selected].side?2:1;h=h.slice(0,-n);logs=logs.slice(0,-n);notes=notes.slice(0,-n);const restored=routeHistory.length>=n?routeHistory[routeHistory.length-n]:null;routeHistory=routeHistory.slice(0,-n);activeBranch=restored?.branch||null;deviationInfo=restored?.info||null;selectedSquare=-1;showHint=false;feedback='';lastSquares=[];render()};$('cancelPromo').onclick=()=>{promotion=null;render()};function fitBoardToViewport(){
+for(const k of Object.keys(scenarios)){selected=k;setScenario();}selected='italian';document.querySelectorAll('[data-opening]').forEach(b=>b.onclick=()=>{selected=b.dataset.opening;reset()});document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;reset()});$('strategyToggle').onclick=()=>{strategyOn=!strategyOn;render()};$('scenarioStart').onclick=()=>{clearReplyState();enterScenario()};$('scenarioNext').onclick=()=>{if(scenario&&scenarioIndex<scenario.moves.length){scenarioIndex++;render()}};$('scenarioExit').onclick=()=>{clearReplyState();leaveScenario()};$('hint').onclick=()=>{showHint=!showHint;render()};$('next').onclick=()=>{const m=suggested()||(current().i<0?freeReply(current()):null);if(m&&!pendingReply&&!animatingMove){if(mode==='play'&&current().t!==openings[selected].side){startMoveAnimation(m,true);}else play(m);}};$('opponent').onclick=()=>{const m=suggested();if(m)play(m)};$('restart').onclick=reset;$('back').onclick=()=>{if(scenario){scenarioIndex=Math.max(0,scenarioIndex-1);render();return;}if(pendingReply||animatingMove){clearReplyState();render();return;}if(h.length<2)return;const n=mode==='play'&&h.length>2&&h.at(-1).t===openings[selected].side?2:1;h=h.slice(0,-n);logs=logs.slice(0,-n);notes=notes.slice(0,-n);const restored=routeHistory.length>=n?routeHistory[routeHistory.length-n]:null;routeHistory=routeHistory.slice(0,-n);activeBranch=restored?.branch||null;deviationInfo=restored?.info||null;selectedSquare=-1;showHint=false;feedback='';lastSquares=[];updateEvaluationTimeline();render()};$('cancelPromo').onclick=()=>{promotion=null;render()};function fitBoardToViewport(){
   const stage=document.querySelector('.board-stage');
   if(!stage)return;
   const top=stage.getBoundingClientRect().top;
