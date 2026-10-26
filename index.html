@@ -368,30 +368,42 @@ function updateSimulationScore(i){const panel=$('simEnginePanel');if(!scenario?.
 let simEvalRequest=0,simBuilding=false,lastSimShown=-1,replySelectionToken=0;
 let comparisonBusy=false;
 async function compareWithBestMove(){
- if(comparisonBusy||scenario||animatingMove||pendingReply)return;
- let idx=-1;for(let i=h.length-2;i>=0;i--)if(h[i].t===openings[selected].side){idx=i;break;}
- if(idx<0){feedback='Make a move first, then compare it with Stockfish.';render();return;}
+ if(comparisonBusy)return;
+ if(animatingMove||pendingReply){const nav=$('routeNotice');const p=document.createElement('p');p.textContent='Finish the current move before comparing.';nav.append(p);return;}
+ if(scenario)leaveScenario();
+ let idx=-1;for(let i=h.length-2;i>=0;i--){if(h[i].t===openings[selected].side){idx=i;break;}}
+ if(idx<0){const nav=$('routeNotice');const p=document.createElement('p');p.textContent='Play one move first, then compare it with Stockfish.';nav.append(p);return;}
  const before=h[idx],after=h[idx+1],played=logs[idx],mySide=openings[selected].side;
- comparisonBusy=true;let b=$('routeNotice').querySelector('.route-simulate');if(b){b.disabled=true;b.textContent='Comparing moves…';}
+ comparisonBusy=true;const nav=$('routeNotice'),b=nav.querySelector('.route-simulate');
+ if(b){b.disabled=true;b.textContent='Comparing with Stockfish…';}
+ const progress=document.createElement('p');progress.textContent='Analysing your move and the recommended alternative. This may take several seconds.';nav.append(progress);
  try{
   const best=await fetchEngine(before),m=legal(before).find(x=>key(x)===best.best);
-  if(!m)throw Error('No engine move');
-  const bestAfter=apply(before,m),[actualEval,bestEval]=await Promise.all([fetchEngine(after),fetchEngine(bestAfter)]);
-  const bestName=moveLabel(before,m),equal=fenOf(after)===fenOf(bestAfter);
-  const delta=bestEval.mate===null&&actualEval.mate===null?(bestEval.evaluation-actualEval.evaluation)*mySide:null;
-  scenario={title:'Your move vs Stockfish’s best',summary:'Both moves start from the exact same position. This shows what Stockfish would have preferred, without changing your actual game.',moves:[[key(m),'Rewind your '+played+' move to the decision point.'],[key(m),'Stockfish prefers '+bestName+' instead of '+played+'.']],dynamic:true,engine:true,comparison:{played,preferred:bestName,scorePlayed:engineText(actualEval),scoreBest:engineText(bestEval),difference:delta===null?'A mate score is involved.':equal?'Your move matches Stockfish’s best choice.':Math.abs(delta)<.15?'The moves have nearly equal evaluations.':delta>0?'The alternative is better by '+delta.toFixed(2)+' pawn equivalents.':'Your move is evaluated similarly or better at this depth.'}};
+  if(!m)throw Error('Stockfish returned no legal best move.');
+  const bestAfter=apply(before,m),bestName=moveLabel(before,m),equal=key(m)===key(legal(before).find(x=>fenOf(apply(before,x))===fenOf(after))||[]);
+  // Show the comparison immediately, then calculate the optional detailed scores.
+  scenario={title:'Your move vs Stockfish’s best',summary:'Your move is rewound, then Stockfish’s preferred move is animated from the same decision point. Your real game is unchanged.',
+    moves:[[key(m),'Your '+played+' is rewound to the previous position.'],[key(m),'Stockfish prefers '+bestName+' instead of '+played+'.']],dynamic:true,engine:true,
+    comparison:{played,preferred:bestName,scorePlayed:'Analysing…',scoreBest:engineText(best),difference:equal?'Your move matches Stockfish’s preferred choice.':'Stockfish recommends a different move. Compare the two positions.'}};
   scenarioPositions=[after,before,bestAfter];scenarioIndex=0;lastSimShown=-1;
   scenario.comparison.actualMove=legal(before).find(x=>fenOf(apply(before,x))===fenOf(after));
   scenario.comparison.bestMove=m;
-  scenario.comparison.originalState=after;
-  scenario.comparison.phase=0;
   document.querySelectorAll('[data-detail-tab]').forEach(x=>x.classList.toggle('active',x.dataset.detailTab==='simulator'));
   document.querySelectorAll('.detail-tab-content').forEach(x=>x.classList.toggle('active',x.dataset.detailContent==='simulator'));
   render();
- }catch(e){feedback='Comparison needs Stockfish. Run the app locally with the engine files.';render();}
- finally{comparisonBusy=false;}
+  // Reuse the before-position evaluation as the best-move baseline, and update details asynchronously.
+  fetchEngine(after).then(actual=>{
+    if(!scenario?.comparison||scenario.comparison.played!==played)return;
+    const difference=actual.mate===null&&best.mate===null?(best.evaluation-actual.evaluation)*mySide:null;
+    scenario.comparison.scorePlayed=engineText(actual);
+    scenario.comparison.difference=equal?'Your move matches Stockfish’s best.':difference===null?'A mate score is involved.':Math.abs(difference)<.15?'Nearly equal evaluations.':difference>0?'Stockfish prefers the alternative by '+difference.toFixed(2)+' pawn equivalents.':'Your move evaluates similarly or better at this depth.';
+    render();
+  }).catch(()=>{});
+ }catch(err){
+  progress.textContent='Unable to compare: '+(err?.message||'Stockfish did not respond')+'. Check the local Stockfish engine files.';
+  if(b){b.disabled=false;b.textContent='Try comparison again';}
+ }finally{comparisonBusy=false;}
 }
-
 async function simulateWithEngine(){if(simBuilding||pendingReply||animatingMove)return;simBuilding=true;const src=current();const el=$('routeNotice');let b=el.querySelector('.route-simulate');if(b){b.disabled=true;b.textContent='Analysing continuation…';}try{const startEval=await fetchEngine(src);let st=src,positions=[st],moves=[],pv=[];
  for(let k=0;k<6;k++){
   const analysis=k===0?startEval:await fetchEngine(st);
