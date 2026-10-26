@@ -394,19 +394,36 @@ function requestPositionEval(s){const fen=fenOf(s);if(fen===shownEngineFen)retur
 function updateSimulationScore(i){const panel=$('simEnginePanel');if(!scenario?.dynamic){panel.style.display='none';return;}panel.style.display='block';const s=scenarioPositions[i],score=$('simEngineScore'),fill=$('simBalanceWhite'),caption=$('simEngineCaption');score.textContent='Analysing step '+i+'…';caption.textContent='Stockfish is evaluating this position.';const id=++simEvalRequest;fetchEngine(s).then(e=>{if(id!==simEvalRequest)return;const n=engineValue(e);fill.style.width=n+'%';score.textContent='Stockfish: '+(e.mate!==null?engineText(e):engineText(e)+' pawns');caption.textContent='Engine depth '+e.depth+' · visualised evaluation, not win odds';}).catch(()=>{if(id!==simEvalRequest)return;score.textContent='Stockfish unavailable';caption.textContent='Cannot evaluate without the Stockfish engine files.';});}
 let simEvalRequest=0,simBuilding=false,lastSimShown=-1;
 async function simulateWithEngine(){if(simBuilding||pendingReply||animatingMove)return;simBuilding=true;const src=current();const el=$('routeNotice');let b=el.querySelector('.route-simulate');if(b){b.disabled=true;b.textContent='Analysing continuation…';}try{const startEval=await fetchEngine(src);let st=src,positions=[st],moves=[],pv=[];
- for(let k=0;k<8;k++){
+ for(let k=0;k<6;k++){
   const analysis=k===0?startEval:await fetchEngine(st);
   if(!analysis.best)break;
   pv.push(analysis.best);
-  const uci=analysis.best;const move=legal(st).find(m=>key(m)===uci);if(!move)break;const name=moveLabel(st,move);moves.push([uci,'Illustrative continuation: '+name+'. Watch how the estimate changes at each step.']);st=apply(st,move);positions.push(st);}if(!moves.length)throw Error('No legal principal variation returned');scenario={title:'Stockfish continuation from your position',summary:'A depth-limited Stockfish analysis line; not a guaranteed outcome.',moves,dynamic:true,engine:true};scenarioPositions=positions;scenarioIndex=0;lastSimShown=-1;document.querySelectorAll('[data-detail-tab]').forEach(b=>b.classList.toggle('active',b.dataset.detailTab==='simulator'));document.querySelectorAll('.detail-tab-content').forEach(el=>el.classList.toggle('active',el.id==='simulatorTabPane'));render();}catch(error){engineStatus='unavailable';alert('Stockfish could not analyse this position. Install the engine assets beside the HTML file and serve them from a local web server.');}finally{simBuilding=false;if(b)b.disabled=false;}}
+  const uci=analysis.best;const move=legal(st).find(m=>key(m)===uci);if(!move)break;const name=moveLabel(st,move);moves.push([uci,(st.t===openings[selected].side?'Strong continuation for your side: ':'Strong opponent response: ')+name+'. Watch how Stockfish’s position evaluation changes.']);st=apply(st,move);positions.push(st);}if(!moves.length)throw Error('No legal principal variation returned');scenario={title:'Stockfish: what could happen next',summary:'Stockfish selects a strong move for each player from this position. This is an illustrative continuation, not a forced outcome.',moves,dynamic:true,engine:true};scenarioPositions=positions;scenarioIndex=0;lastSimShown=-1;document.querySelectorAll('[data-detail-tab]').forEach(b=>b.classList.toggle('active',b.dataset.detailTab==='simulator'));document.querySelectorAll('.detail-tab-content').forEach(el=>el.classList.toggle('active',el.id==='simulatorTabPane'));render();}catch(error){engineStatus='unavailable';alert('Stockfish could not analyse this position. Install the engine assets beside the HTML file and serve them from a local web server.');}finally{simBuilding=false;if(b)b.disabled=false;}}
 
 let chatMode='quick';let selected='italian',mode='play',h=[original()],selectedSquare=-1,showHint=false,feedback='',promotion=null,logs=[],notes=[],lastSquares=[],pendingReply=null,replyTimer=null,animatingMove=null,animationTimer=null;const $=id=>document.getElementById(id);
-function clearReplyState(){if(replyTimer){clearTimeout(replyTimer);replyTimer=null}if(animationTimer){clearTimeout(animationTimer);animationTimer=null}pendingReply=null;animatingMove=null;const ghost=$('moveGhost');if(ghost){ghost.className='move-ghost';ghost.style.display='none';ghost.textContent='';}}
+function clearReplyState(){replySelectionToken++;if(replyTimer){clearTimeout(replyTimer);replyTimer=null}if(animationTimer){clearTimeout(animationTimer);animationTimer=null}pendingReply=null;animatingMove=null;const ghost=$('moveGhost');if(ghost){ghost.className='move-ghost';ghost.style.display='none';ghost.textContent='';}}
+let replySelectionToken=0;
 let chatPageStart=0;
-function reset(){shownEngineFen='';simEvalRequest++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];pairedEvaluations.clear();selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();}
+function reset(){replySelectionToken++;shownEngineFen='';simEvalRequest++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];pairedEvaluations.clear();selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();}
 function current(){return h.at(-1)}function suggested(){const s=current();return legal(s).find(m=>key(m)===routeLine()[s.i]?.[0])}
 function record(m){const s=current();routeHistory.push({branch:activeBranch,info:deviationInfo});guideMove(s,m);const text=moveLabel(s,m),lineIndex=s.i,correct=lineIndex>=0&&key(m)===routeLine()[lineIndex]?.[0];h.push(apply(s,m));logs.push(text);lastSquares=[m[0],m[1]];feedback=deviationInfo?.kind==='variation'&&lineIndex===activeBranch?.at?'Variation recognised: '+deviationInfo.name:correct?'✓ In line with the opening.':deviationInfo?.name||'Adapted continuation';notes.push({text,color:s.t,opening:selected,index:correct&&!activeBranch?lineIndex:-1,reason:activeBranch&&lineIndex>=activeBranch.at?routeLine()[lineIndex]?.[1]:correct?rationales[selected][lineIndex]:explainDeviation(s,m)});return correct;}
 function squarePct(i){const row=i>>4,col=i&7;return {x:(col+0.5)*12.5+'%',y:(row+0.5)*12.5+'%'};}
+function needsEngineReply(s){return !!deviationInfo&&(deviationInfo.kind!=='variation'||s.i<0);}
+async function prepareOpponentReply(){
+ const s=current(),token=++replySelectionToken;
+ if(needsEngineReply(s)){
+  pendingReply={engine:true};feedback='Stockfish is finding a strong opponent response…';render();
+  try{
+   const e=await fetchEngine(s);
+   if(token!==replySelectionToken||current()!==s)return;
+   const reply=e.best?legal(s).find(m=>key(m)===e.best):null;
+   pendingReply=null;
+   if(reply){queueReply(reply);return;}
+  }catch(err){if(token!==replySelectionToken||current()!==s)return;pendingReply=null;feedback='Engine unavailable — showing a legal fallback, not a best move.';}
+ }
+ const reply=suggested()||freeReply(s);
+ if(reply)queueReply(reply);else{pendingReply=null;render();}
+}
 function queueReply(m){pendingReply=m;feedback='Opponent is thinking...';render();replyTimer=setTimeout(()=>startMoveAnimation(m,true),800);}
 function startMoveAnimation(m,isOpponent){
   if(isOpponent){replyTimer=null;pendingReply=null;}
@@ -421,7 +438,7 @@ function startMoveAnimation(m,isOpponent){
     record(m);
     animatingMove=null;
     if(!isOpponent&&mode==='play'&&!gameStatus(h).done&&current().t!==openings[selected].side){
-      const reply=suggested()||freeReply(current());if(reply){queueReply(reply);return;}
+      prepareOpponentReply();return;
     }
     render();
   },1550);
@@ -457,7 +474,7 @@ if(info){nav.style.display='block';nav.className='route-notice '+(info.kind==='v
  const top=document.createElement('div');top.className='route-heading';const title=document.createElement('strong');title.textContent=(info.kind==='variation'?'↗ Variation recognised · ':info.kind==='warning'?'⚠ Off-plan · ':'↪ Adaptable detour · ')+info.name;top.append(title);
  const rating=document.createElement('span');rating.className='route-score';rating.textContent=info.kind==='variation'?'Recognised · plan changes':info.kind==='warning'?'Low strategy alignment':(info.score||'Needs adaptation');top.append(rating);nav.append(top);
  const detail=document.createElement('p');detail.textContent=info.plan;nav.append(detail);
- if(info.suggestion){const recovery=document.createElement('p');recovery.className='route-recovery';recovery.textContent='Next steps: '+info.suggestion;nav.append(recovery);}
+ if(info.kind!=='variation'){const warning=document.createElement('p');warning.className='route-recovery';warning.textContent='After this deviation, Stockfish selects the opponent’s reply. Simulate forward to see how strong counterplay might develop.';nav.append(warning);} if(info.suggestion){const recovery=document.createElement('p');recovery.className='route-recovery';recovery.textContent='Next steps: '+info.suggestion;nav.append(recovery);}
  const sim=document.createElement('button');sim.className='route-simulate';sim.textContent='▶ Simulate forward';sim.disabled=!!pendingReply||!!animatingMove;sim.onclick=simulateWithEngine;nav.append(sim);
 }else nav.style.display='none';
 $('whyPanel').style.display=recent.length?'':'none';$('chatWelcome').style.display=recent.length?'none':'';
