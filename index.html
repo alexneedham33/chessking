@@ -461,7 +461,7 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 </div>
 <div id="coachAnswer" class="coach-answer" style="display:none"></div>
 <div class="insights-coach" id="strategicInsights" hidden>
- <div class="insights-coach-head"><strong>✦ Strategic insights</strong><label class="insights-coach-toggle"><input type="checkbox" id="strategicInsightsToggle" checked> On</label></div>
+ <div class="insights-coach-head"><strong>✦ Strategic insights</strong><div style="display:flex;gap:12px"><label class="insights-coach-toggle"><input type="checkbox" id="strategicAiToggle"> AI</label><label class="insights-coach-toggle"><input type="checkbox" id="strategicInsightsToggle" checked> On</label></div></div>
  <div class="insights-coach-message" id="strategicInsightsMessage" hidden>
   <div class="insights-coach-topic" id="strategicInsightsTopic"></div>
   <p id="strategicInsightsText"></p>
@@ -1205,7 +1205,7 @@ function revealLatestCoachMove(){
  sizeCoachConversation(true);
 }
 function invalidateReview(){comparisonView=null;reviewSerial++;reviewData=null;reviewSelection=0;$('reviewResults').style.display='none';$('reviewStatus').textContent='Game changed. Analyse the current moves to refresh the review.';}
-function reset(){insightsEntries=[];insightsSeenHistory=0;inspectedStrategyCheckpoint=null;clearOutsideLinePreview();coachScrollPending=false;coachScrollGeneration++;$('chatZone').scrollTop=0;invalidateReview();comparisonView=null;variationPanelOpen=false;gameReviewOpen=false;coachAnswerText='';challengeStarted=false;challengeFinished=false;challengeScore=null;shownEngineFen='';simEvalRequest++;replySelectionToken++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();if(trainingMode==='learn'&&learnOpponent==='adaptive'&&mode==='play'&&current().t!==openings[selected].side)prepareOpponentReply();}
+function reset(){strategicAiNonce++;strategicAiBusy=false;aiRequestedPly.clear();insightsEntries=[];insightsSeenHistory=0;inspectedStrategyCheckpoint=null;clearOutsideLinePreview();coachScrollPending=false;coachScrollGeneration++;$('chatZone').scrollTop=0;invalidateReview();comparisonView=null;variationPanelOpen=false;gameReviewOpen=false;coachAnswerText='';challengeStarted=false;challengeFinished=false;challengeScore=null;shownEngineFen='';simEvalRequest++;replySelectionToken++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();if(trainingMode==='learn'&&learnOpponent==='adaptive'&&mode==='play'&&current().t!==openings[selected].side)prepareOpponentReply();}
 function startChallenge(){reset();challengeStarted=true;feedback='Challenge started. Play your opening against Stockfish.';render();if(current().t!==openings[selected].side)prepareOpponentReply();}
 function current(){return h.at(-1)}function suggested(){const s=current();return legal(s).find(m=>key(m)===routeLine()[s.i]?.[0])}
 function readablePv(s,pv){
@@ -1478,6 +1478,9 @@ function renderStrategyRoadmap(){
 
 const INSIGHTS_KEY='openingLab.strategicInsights';
 let insightsEnabled=true,insightsEntries=[],insightsSeenHistory=0;
+let strategicAiEnabled=false,strategicAiBusy=false,strategicAiFailed=false,strategicAiNonce=0;
+const aiRequestedPly=new Set();
+try{strategicAiEnabled=localStorage.getItem('openingLab.aiInsights')==='on';}catch{}
 try{insightsEnabled=localStorage.getItem(INSIGHTS_KEY)!=='off';}catch{}
 function squareAt(file,rank){return (8-rank)*16+file;}
 function strategicFacts(position,color){
@@ -1546,15 +1549,45 @@ function candidateStrategicInsights(position,ply){
  }
  return out.sort((a,b)=>b.priority-a.priority);
 }
+async function requestAiStrategicInsight(entry){
+ if(strategicAiBusy||strategicAiFailed||!strategicAiEnabled||!insightsEnabled||!entry||aiRequestedPly.has(entry.ply))return;
+ aiRequestedPly.add(entry.ply);strategicAiBusy=true;
+ const ply=entry.ply,position=h[ply],fen=fenOf(position),nonce=strategicAiNonce;
+ const facts=strategicFacts(position,openings[selected].side);
+ const candidates=candidateStrategicInsights(position,ply).slice(0,6);
+ try{
+  const response=await fetch('/api/coach/insight',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+   fen,opening:openings[selected].name,player:openings[selected].side===1?'White':'Black',
+   moveHistory:logs.slice(Math.max(0,ply-12),ply),facts,candidates,
+   previous:insightsEntries.length>1?insightsEntries.at(-2)?.message:null
+  })});
+  if(!response.ok)throw Error('AI not connected');
+  const result=await response.json();
+  if(nonce!==strategicAiNonce||h[ply]!==position||!insightsEntries.includes(entry))return;
+  if(result.id==='none'){insightsEntries=insightsEntries.filter(x=>x!==entry);}
+  else if(candidates.some(x=>x.id===result.id)&&typeof result.message==='string'&&result.message.length<=240){
+   entry.id=result.id;entry.topic=String(result.topic||entry.topic).slice(0,70);
+   entry.message=result.message;entry.source='AI';
+  }
+  refreshStrategicInsights();
+ }catch{
+  if(nonce===strategicAiNonce){strategicAiFailed=true;refreshStrategicInsights();}
+ }finally{if(nonce===strategicAiNonce)strategicAiBusy=false;}
+}
 function refreshStrategicInsights(){
  const root=$('strategicInsights'),toggle=$('strategicInsightsToggle'),body=$('strategicInsightsMessage');
  const visible=trainingMode==='learn'&&!scenario;
  root.hidden=!visible;
  if(!visible)return;
  toggle.checked=insightsEnabled;
+ $('strategicAiToggle').checked=strategicAiEnabled;
  // Rebuild after rewind, restart, or a newly selected opening. Recorded
  // insights follow their actual board positions, not wall-clock timers.
- if(insightsSeenHistory>h.length)insightsEntries=insightsEntries.filter(entry=>entry.ply<h.length);
+ if(insightsSeenHistory>h.length){
+  insightsEntries=insightsEntries.filter(entry=>entry.ply<h.length);
+  strategicAiNonce++;strategicAiBusy=false;aiRequestedPly.clear();
+ }
+ let newest=null;
  if(insightsSeenHistory!==h.length){
   const begin=Math.max(1,Math.min(insightsSeenHistory,h.length));
   for(let length=begin;length<=h.length;length++){
@@ -1564,7 +1597,7 @@ function refreshStrategicInsights(){
    if(recent&&ply-recent.ply<4)continue;
    const used=new Set(insightsEntries.map(entry=>entry.id));
    const fresh=candidateStrategicInsights(position,ply).find(candidate=>!used.has(candidate.id));
-   if(fresh)insightsEntries.push({...fresh,ply});
+   if(fresh){const added={...fresh,ply};insightsEntries.push(added);if(ply===h.length-1)newest=added;}
   }
   insightsSeenHistory=h.length;
  }
@@ -1573,7 +1606,11 @@ function refreshStrategicInsights(){
  if(show){
   $('strategicInsightsTopic').textContent=last.topic;
   $('strategicInsightsText').textContent=last.message;
-  $('strategicInsightsMeta').textContent='Insight after move '+Math.ceil(last.ply/2)+' · Consider, don’t copy';
+  $('strategicInsightsMeta').textContent='Insight after move '+Math.ceil(last.ply/2)+' · '+(last.source==='AI'?'AI-assisted':'Position-based')+(strategicAiEnabled&&strategicAiFailed?' · AI offline':'');
+ }
+ if(insightsEnabled&&strategicAiEnabled&&!strategicAiFailed){
+  const target=newest||insightsEntries.at(-1);
+  if(target&&!aiRequestedPly.has(target.ply))requestAiStrategicInsight(target);
  }
 }
 
@@ -1668,6 +1705,12 @@ $('coachVariation').onclick=showCoachVariation;
 $('coachGameReview').onclick=openGameReview;
 $('coachWhy').onclick=()=>explainCoachQuestion('why');
 $('coachPlan').onclick=()=>explainCoachQuestion('plan');
+$('strategicAiToggle').onchange=()=>{
+ strategicAiEnabled=$('strategicAiToggle').checked;
+ strategicAiFailed=false;strategicAiNonce++;strategicAiBusy=false;aiRequestedPly.clear();
+ try{localStorage.setItem('openingLab.aiInsights',strategicAiEnabled?'on':'off');}catch{}
+ refreshStrategicInsights();
+};
 $('strategicInsightsToggle').onchange=()=>{
  insightsEnabled=$('strategicInsightsToggle').checked;
  try{localStorage.setItem(INSIGHTS_KEY,insightsEnabled?'on':'off');}catch{}
