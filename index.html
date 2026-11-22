@@ -309,7 +309,8 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
     <div class="actions"><button class="btn" id="fullscreen">⛶ Expand view</button></div>
   </header>
 <nav class="compact-toolbar" aria-label="Opening and opponent controls">
- <label class="toolbar-field"><span>Opening</span><select id="openingSelect"><option value="slav">Slav Defence</option><option value="albin">Albin Countergambit</option><option value="queenAccepted">Queen's Gambit Accepted</option><option value="queen">Queen's Gambit Declined</option><option value="italian">Italian Game</option><option value="sicilian">Sicilian Defence</option><option value="caro">Caro–Kann Defence</option></select></label>
+ <label class="toolbar-field"><span>Opening strategy</span><select id="openingSelect"><option value="queenAccepted">Queen's Gambit Accepted</option><option value="queen">Queen's Gambit Declined</option><option value="italian">Italian Game</option><option value="sicilian">Sicilian Defence</option><option value="caro">Caro–Kann Defence</option></select></label>
+ <label class="toolbar-field"><span>Variation</span><select id="variationSelect" aria-label="Opening variation"><option value="queenAccepted">Main line</option></select></label>
  <div class="training-switch" role="group" aria-label="Learning mode"><button class="training-option active" data-experience="guided">Learn</button><button class="training-option" data-experience="practice">Play</button></div>
  <label id="challengeToggleWrap" class="challenge-toggle" style="display:none"><input type="checkbox" id="challengeToggle"> Opening challenge</label>
  <button class="btn primary" id="challengeQuickStart" style="display:none">Start challenge</button><details class="opponent-dropdown" id="opponentDropdown"><summary id="opponentSummary">Opponent · Guided opening</summary><div class="opponent-dropdown-panel"><section id="learnOpponentSettings" class="learn-opponent-settings"><div class="learn-opponent-head"><strong>Opponent</strong><select id="learnOpponent"><option value="guided">Predefined replies</option><option value="guidedEngine">Stockfish opponent</option></select></div>
@@ -957,7 +958,7 @@ async function checkBalanceScale(){
    const note=document.createElement('p');note.textContent='Diagnostic sample positions only. This checks engine integration and scale behaviour; it does not statistically validate the chosen scale.';out.append(note);
  }catch(err){if(currentSerial===reviewSerial)out.textContent='Calibration check unavailable: '+(err?.message||'Stockfish error');}
 }
-let chatMode='learn',chatPerspective='coach',previewReplyEngine=false,previewAnalysis=null,trainingMode='learn',learnOpponent='guided',challengeStarted=false,challengeFinished=false,challengeScore=null;let selected='slav',mode='play',h=[original()],selectedSquare=-1,showHint=false,feedback='',promotion=null,logs=[],notes=[],lastSquares=[],pendingReply=null,previewReply=null,replyTimer=null,animatingMove=null,animationTimer=null;const $=id=>document.getElementById(id);
+let chatMode='learn',chatPerspective='coach',previewReplyEngine=false,previewAnalysis=null,trainingMode='learn',learnOpponent='guided',challengeStarted=false,challengeFinished=false,challengeScore=null;let selected='queenAccepted',mode='play',h=[original()],selectedSquare=-1,showHint=false,feedback='',promotion=null,logs=[],notes=[],lastSquares=[],pendingReply=null,previewReply=null,replyTimer=null,animatingMove=null,animationTimer=null;const $=id=>document.getElementById(id);
 function clearReplyState(){if(replyTimer){clearTimeout(replyTimer);replyTimer=null}if(animationTimer){clearTimeout(animationTimer);animationTimer=null}pendingReply=null;previewReply=null;previewReplyEngine=false;previewAnalysis=null;animatingMove=null;const ghost=$('moveGhost');if(ghost){ghost.className='move-ghost';ghost.style.display='none';ghost.style.transitionDuration='';ghost.textContent='';}}
 let variationPanelOpen=false,gameReviewOpen=false,coachAnswerText='';
 function explainCoachQuestion(type){
@@ -1203,19 +1204,38 @@ function renderChallenge(){
  for(const ob of rows){const line=document.createElement('div');line.className='challenge-objective';const mark=document.createElement('b');mark.className=ob.state;mark.textContent=ob.state==='achieved'?'✓':ob.state==='adapted'?'~':'×';const text=document.createElement('div');const title=document.createElement('strong');title.textContent=ob.name+' · '+(ob.state==='missed'?'Needs work':ob.state);const detail=document.createElement('span');detail.textContent=ob.detail;text.append(title,detail);line.append(mark,text);root.append(line);}
 }
 
+const openingStrategies=['queenAccepted','queen','italian','sicilian','caro'];
+const variationGroups={
+ queenAccepted:[['queenAccepted','Main line']],
+ queen:[['queen','Main line (…e6)'],['slav','Slav Defence (…c6)'],['albin','Albin Countergambit (…e5)']],
+ italian:[['italian','Main line']],
+ sicilian:[['sicilian','Main line']],
+ caro:[['caro','Main line']]
+};
+function openingParent(name){return name==='slav'||name==='albin'?'queen':name;}
 function syncOpeningChoices(){
- const allowed=trainingMode==='learn'&&learnOpponent==='guided'?predefinedQueenLines:Object.keys(openings);
- const select=$('openingSelect'),signature=allowed.join(',');
- if(select.dataset.choices!==signature){
-  select.replaceChildren();
-  for(const name of allowed){const opt=document.createElement('option');opt.value=name;opt.textContent=openings[name].name;select.append(opt);}
-  select.dataset.choices=signature;
+ const parent=openingParent(selected);
+ const strategy=$('openingSelect'),variation=$('variationSelect');
+ if(strategy.options.length!==openingStrategies.length){
+  strategy.replaceChildren();
+  for(const id of openingStrategies){
+   const option=document.createElement('option');option.value=id;option.textContent=openings[id].name;strategy.append(option);
+  }
  }
- if(!allowed.includes(selected))selected=allowed[0];
- select.value=selected;
+ strategy.value=parent;
+ const options=variationGroups[parent]||variationGroups.queenAccepted;
+ const signature=options.map(row=>row[0]).join(',');
+ if(variation.dataset.choices!==signature){
+  variation.replaceChildren();
+  for(const [id,label] of options){
+   const option=document.createElement('option');option.value=id;option.textContent=label;variation.append(option);
+  }
+  variation.dataset.choices=signature;
+ }
+ variation.value=selected;
 }
 
-function render(){syncOpeningChoices();const s=scenario?scenarioPositions[scenarioIndex]:current(),moves=legal(s),status=gameStatus(h),op=openings[selected],step=op.line[s.i],hint=suggested(),yourTurn=s.t===op.side,ended=status.done;$('openingSelect').value=selected;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x.dataset.mode===mode));$('turn').textContent=scenario?'Illustrative variation · '+(scenarioIndex===0?'Start':('Step '+scenarioIndex)):pendingReply?'Opponent is thinking…':animatingMove?(animatingMove.isOpponent?'Opponent is moving…':'Your move…'):status.text;$('player').textContent=scenario?'Use Next move to explore':pendingReply?'Opponent reply in progress':animatingMove?(animatingMove.isOpponent?'Opponent reply in progress':'Moving piece'):(mode==='play'?'Playing '+(op.side===1?'White':'Black'):'Study both sides');$('openingName').textContent=op.name;$('description').textContent=op.desc;$('tip').textContent=op.tip;$('progressLabel').textContent=s.i<0?'Exploring':Math.max(0,s.i)+' / '+routeLine().length;const progressPct=100*Math.max(0,s.i)/routeLine().length;$('progressBar').style.width=progressPct+'%';$('openingProgress').style.display=trainingMode==='learn'&&learnOpponent!=='adaptive'?'':'none'; const topProgress=$('topProgressFill'); if(topProgress) topProgress.style.width=progressPct+'%';
+function render(){syncOpeningChoices();const s=scenario?scenarioPositions[scenarioIndex]:current(),moves=legal(s),status=gameStatus(h),op=openings[selected],step=op.line[s.i],hint=suggested(),yourTurn=s.t===op.side,ended=status.done;$('openingSelect').value=openingParent(selected);$('variationSelect').value=selected;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x.dataset.mode===mode));$('turn').textContent=scenario?'Illustrative variation · '+(scenarioIndex===0?'Start':('Step '+scenarioIndex)):pendingReply?'Opponent is thinking…':animatingMove?(animatingMove.isOpponent?'Opponent is moving…':'Your move…'):status.text;$('player').textContent=scenario?'Use Next move to explore':pendingReply?'Opponent reply in progress':animatingMove?(animatingMove.isOpponent?'Opponent reply in progress':'Moving piece'):(mode==='play'?'Playing '+(op.side===1?'White':'Black'):'Study both sides');$('openingName').textContent=op.name;$('description').textContent=op.desc;$('tip').textContent=op.tip;$('progressLabel').textContent=s.i<0?'Exploring':Math.max(0,s.i)+' / '+routeLine().length;const progressPct=100*Math.max(0,s.i)/routeLine().length;$('progressBar').style.width=progressPct+'%';$('openingProgress').style.display=trainingMode==='learn'&&learnOpponent!=='adaptive'?'':'none'; const topProgress=$('topProgressFill'); if(topProgress) topProgress.style.width=progressPct+'%';
 // Update after every completed half-move, including White's move.
  if(!scenario && !animatingMove)requestPositionEval(s);
  $('reviewAnalyse').disabled=animatingMove||pendingReply||h.length<2||reviewBusy;
@@ -1273,8 +1293,8 @@ coachScrollPending=false;
 sizeCoachConversation(revealNewMessage);
 // Keep the conversation scrollable; never delete earlier explanations to make room.
 $('feedback').textContent=feedback;$('feedback').style.display=feedback?'':'none';$('hintText').textContent=showHint&&hint?'Hint: '+moveLabel(s,hint)+' — '+step[1]:status.claim?'Draw may be claimed: '+status.claim:'';$('hint').textContent=showHint?'Hide hint':'✧ Hint';$('plyCount').textContent=logs.length+' plies';$('history').replaceChildren();if(!logs.length){const e=document.createElement('span');e.style.gridColumn='1/-1';e.textContent='Your moves will appear here.';$('history').append(e);}else logs.forEach(x=>{const e=document.createElement('span');e.textContent=x;$('history').append(e);});$('promotion').style.display=promotion?'grid':'none';$('promoChoices').replaceChildren();if(promotion)promotion.forEach(m=>{const e=document.createElement('button');e.textContent=({q:'♛',r:'♜',b:'♝',n:'♞'})[m[2]];e.onclick=()=>{promotion=null;play(m)};$('promoChoices').append(e);});}
-for(const name of Object.keys(openings)){let s=original();for(const [uci]of openings[name].line){selected=name;const m=legal(s).find(m=>key(m)===uci);if(!m)throw Error('Invalid opening '+name+' '+uci);s=apply(s,m);}}selected='slav';
-for(const k of Object.keys(scenarios)){selected=k;setScenario();}selected='slav';$('learnOpponent').onchange=()=>{learnOpponent=$('learnOpponent').value;if(learnOpponent==='guided'&&!predefinedQueenLines.includes(selected))selected='slav';mode='play';reset();};
+for(const name of Object.keys(openings)){let s=original();for(const [uci]of openings[name].line){selected=name;const m=legal(s).find(m=>key(m)===uci);if(!m)throw Error('Invalid opening '+name+' '+uci);s=apply(s,m);}}selected='queenAccepted';
+for(const k of Object.keys(scenarios)){selected=k;setScenario();}selected='queenAccepted';$('learnOpponent').onchange=()=>{learnOpponent=$('learnOpponent').value;mode='play';reset();};
 $('reviewMyMove').onclick=compareWithBestMove;
 $('learnElo').oninput=()=>{saveOpponentElo($('learnElo').value);renderChallenge();};
 $('coachVariation').onclick=showCoachVariation;
@@ -1293,14 +1313,14 @@ $('inlineScenarioHost').append(simPane);
 document.querySelectorAll('[data-experience]').forEach(b=>b.onclick=()=>{
  const play=b.dataset.experience==='practice';
  trainingMode='learn';learnOpponent=play?'adaptive':'guided';
- if(!play&&!predefinedQueenLines.includes(selected))selected='slav';
  mode='play';$('opponentDropdown').open=false;reset();
 });
 $('challengeElo').oninput=()=>{saveOpponentElo($('challengeElo').value);renderChallenge();};
 $('challengeTarget').onchange=()=>{if(challengeStarted)reset();else renderChallenge();};
 $('challengeGoal').onchange=()=>renderChallenge();
 $('challengeRestart').onclick=startChallenge;$('reviewAnalyse').onclick=analysePlayedGame;$('reviewCheckScale').onclick=checkBalanceScale;
-$('openingSelect').onchange=()=>{selected=$('openingSelect').value;reset();};document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;reset()});$('strategyToggle').onclick=()=>{strategyOn=!strategyOn;render()};$('scenarioStart').onclick=()=>{clearReplyState();enterScenario()};$('scenarioNext').onclick=()=>{
+$('openingSelect').onchange=()=>{selected=$('openingSelect').value;reset();};
+$('variationSelect').onchange=()=>{selected=$('variationSelect').value;reset();};document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;reset()});$('strategyToggle').onclick=()=>{strategyOn=!strategyOn;render()};$('scenarioStart').onclick=()=>{clearReplyState();enterScenario()};$('scenarioNext').onclick=()=>{
  if(!scenario||animatingMove||scenarioIndex>=scenario.moves.length)return;
  if(scenario.comparison){
    const first=scenarioIndex===0,mo=first?scenario.comparison.actualMove:scenario.comparison.bestMove;
