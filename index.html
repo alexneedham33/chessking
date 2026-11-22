@@ -1546,6 +1546,10 @@ async function requestAiStrategicInsight(entry){
   if(nonce!==strategicAiNonce||h[ply]!==position||!insightsEntries.includes(entry))return;
   const candidates=[...candidateStrategicInsights(position,ply),...coachEngineCandidates(position,player,engine)]
    .sort((a,b)=>b.priority-a.priority).slice(0,8);
+  if(!candidates.length){
+   if(entry.id==='pending-ai')insightsEntries=insightsEntries.filter(x=>x!==entry);
+   render();return;
+  }
   const response=await fetch('/api/coach/insight',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
    fen,opening:openings[selected].name,player:openings[selected].side===1?'White':'Black',
    moveHistory:logs.slice(Math.max(0,ply-12),ply),facts,candidates,engine,
@@ -1562,7 +1566,11 @@ async function requestAiStrategicInsight(entry){
   }
   render();
  }catch{
-  if(nonce===strategicAiNonce){strategicAiFailed=true;render();}
+  if(nonce===strategicAiNonce){
+   strategicAiFailed=true;
+   if(entry.id==='pending-ai')insightsEntries=insightsEntries.filter(x=>x!==entry);
+   render();
+  }
  }finally{if(nonce===strategicAiNonce)strategicAiBusy=false;}
 }
 function refreshStrategicInsights(){
@@ -1588,7 +1596,13 @@ function refreshStrategicInsights(){
    if(recent&&ply-recent.ply<4)continue;
    const used=new Set(insightsEntries.map(entry=>entry.id));
    const fresh=candidateStrategicInsights(position,ply).find(candidate=>!used.has(candidate.id));
-   if(fresh){const added={...fresh,ply};insightsEntries.push(added);if(ply===h.length-1)newest=added;}
+   // Let AI consider engine evidence even when no predefined heuristic fires.
+   // An empty pending entry is never shown in the conversation.
+   if(fresh||insightsEnabled&&strategicAiEnabled&&!strategicAiFailed){
+    const added={...(fresh||{id:'pending-ai',topic:'',message:''}),ply};
+    insightsEntries.push(added);
+    if(ply===h.length-1)newest=added;
+   }
   }
   insightsSeenHistory=h.length;
  }
@@ -1675,7 +1689,7 @@ if(item.proposed){const summary=document.createElement('div');summary.className=
 // Use the existing verified strategic observation, if one was triggered
 // at the position reached by this exact move (not on every chat message).
 const insight=trainingMode==='learn'&&!scenario&&chatPerspective==='coach'&&insightsEnabled&&!item.proposed?
- insightsEntries.find(x=>x.ply===item.__i+1):null;
+ insightsEntries.find(x=>x.ply===item.__i+1&&x.id!=='pending-ai'):null;
 if(insight){
  const idea=document.createElement('div');idea.className='why-strategic-idea';
  const heading=document.createElement('div');heading.className='why-strategic-heading';
