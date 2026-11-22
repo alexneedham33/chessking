@@ -71,7 +71,9 @@ async function explainMove(payload){
   'Use the originalExplanation as potentially helpful lesson context, but it may be generic, outdated or wrong; correct it if it conflicts with the board.',
   'Use Stockfish evaluations and continuations only as supporting evidence for concrete consequences. They are calculations, not a statement of intent, and must not be confused with the move that was played.',
   'Explain what changed, why it matters, and one appropriate next consideration. Avoid repetition, unsupported threats or false confidence. Do not claim an advantage is decisive from a small evaluation change.',
-  'On a simple opening move, write two natural sentences. On a critical capture, check, tactical mistake or decisive shift, use up to four. Use 50-110 words at most.',
+  'For routine opening moves, write exactly two concise, natural sentences, normally 30-55 words total, with a hard limit of 65 words. Explain the most useful strategic idea and, only if helpful, one relevant next consideration. For genuinely critical tactical positions, you may use up to three sentences and 85 words.',
+  'Do not narrate obvious piece movement or repeat the move notation in prose (for example, avoid White has just played 1. d4, moving the pawn from d2 to d4). The move title already provides this. Mention origin or destination only if it teaches something important.',
+  'Prioritise one clear lesson over exhaustive coverage. No filler, repetitive development advice, or speculative follow-ups. Use the actual resulting position to keep the explanation accurate.',
   'If the provided evidence cannot justify a tactical claim, omit it. Keep plain, encouraging language rather than generic stock phrases. Do not invent an unseen move.',
   'Output only a JSON object with a single message string. No separate insights or numbered lists.'
  ].join(' ');
