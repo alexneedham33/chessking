@@ -1582,8 +1582,12 @@ if(item.proposed){const summary=document.createElement('div');summary.className=
  }else{
  const ai=trainingMode==='learn'&&!scenario&&chatPerspective==='coach'&&!item.proposed&&strategicAiEnabled?
   coachMoveMessages.get(item.__i+1):null;
- if(ai)entry.classList.add('coach-ai-message');
- if(ai?.pending){
+ // If the student advances while a previous request is in flight, keep the
+ // newest move in a waiting state until its own complete response is ready.
+ const queuedAi=!ai&&strategicAiEnabled&&!strategicAiFailed&&trainingMode==='learn'&&!scenario&&chatPerspective==='coach'&&!item.proposed&&
+  item.__i+1===h.length-1&&item.__i+1>=AI_COACH_MIN_PLY&&aiRequestedPly.size<AI_COACH_GAME_LIMIT;
+ if(ai||queuedAi)entry.classList.add('coach-ai-message');
+ if(ai?.pending||queuedAi){
   analysisLabel.textContent='Preparing explanation';
   const pending=document.createElement('div');pending.className='unified-coach-pending';
   pending.setAttribute('role','status');
