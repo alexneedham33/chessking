@@ -1542,6 +1542,8 @@ function coachEngineCandidates(position,player,engine){
 async function requestAiStrategicInsight(entry){
  if(strategicAiBusy||strategicAiFailed||!strategicAiEnabled||!insightsEnabled||!entry||aiRequestedPly.has(entry.ply))return;
  aiRequestedPly.add(entry.ply);strategicAiBusy=true;strategicAiStatus='analysing';
+ const statusNode=$('aiCoachStatus');
+ if(statusNode){statusNode.hidden=false;statusNode.textContent='Analysing…';statusNode.classList.remove('error');}
  const ply=entry.ply,position=h[ply],fen=fenOf(position),nonce=strategicAiNonce;
  const player=openings[selected].side;
  const facts=strategicFacts(position,player);
@@ -1554,6 +1556,7 @@ async function requestAiStrategicInsight(entry){
   const candidates=[...candidateStrategicInsights(position,ply),...coachEngineCandidates(position,player,engine)]
    .sort((a,b)=>b.priority-a.priority).slice(0,8);
   if(!candidates.length){
+   strategicAiStatus=engine?'engine':'position';
    if(entry.id==='pending-ai')insightsEntries=insightsEntries.filter(x=>x!==entry);
    render();return;
   }
