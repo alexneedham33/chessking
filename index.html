@@ -366,6 +366,8 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 @media(prefers-reduced-motion:reduce){.why-strategic-pending .why-strategic-heading{animation:none}}
 .why-entry.white-side .why-strategic-idea{background:#fff3df;border-color:#ead0a9;border-left-color:#b37b23;color:#3c2c15}
 .why-entry.white-side .why-strategic-heading{color:#8e5916}
+ .unified-coach-pending{font-size:12px;opacity:.68;margin-top:9px}
+ .unified-coach-source{font-size:11px;opacity:.68;margin-top:9px}
 .coach-header-right{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:9px}
 .coach-inline-settings{display:flex;align-items:center;gap:9px}
 .coach-inline-settings[hidden]{display:none!important}
@@ -434,7 +436,7 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
           <button class="detail-tab" data-detail-tab="simulator">Simulator</button><button class="detail-tab" data-detail-tab="review">Review</button>
         </div>
         <div class="detail-tab-content active" id="chatTabPane">
-          <div class="panel-header"><div class="learn-kicker">📖 <span>Opening coach</span></div><div class="coach-header-right"><span class="learn-meta" id="openingName">Queen's Gambit Accepted</span><div class="coach-inline-settings" id="strategicInsights" hidden><label class="coach-inline-toggle" title="Show occasional strategic ideas in the chat"><input type="checkbox" id="strategicInsightsToggle" checked> Ideas</label><label class="coach-inline-toggle" title="Use the optional AI coach when available"><input type="checkbox" id="strategicAiToggle"> AI</label><span id="aiCoachStatus" class="coach-ai-status" role="status" aria-live="polite" hidden></span></div></div></div><div class="chat-mode-switch" role="group" aria-label="Chat explanation style" style="display:none"><button class="chat-mode-btn active" data-chat-mode="quick" aria-pressed="true">Quick</button><button class="chat-mode-btn" data-chat-mode="learn" aria-pressed="false">Learn</button></div>
+          <div class="panel-header"><div class="learn-kicker">📖 <span>Opening coach</span></div><div class="coach-header-right"><span class="learn-meta" id="openingName">Queen's Gambit Accepted</span><div class="coach-inline-settings" id="strategicInsights" hidden><label class="coach-inline-toggle" title="Use the optional AI coach when available"><input type="checkbox" id="strategicAiToggle"> AI</label><span id="aiCoachStatus" class="coach-ai-status" role="status" aria-live="polite" hidden></span></div></div></div><div class="chat-mode-switch" role="group" aria-label="Chat explanation style" style="display:none"><button class="chat-mode-btn active" data-chat-mode="quick" aria-pressed="true">Quick</button><button class="chat-mode-btn" data-chat-mode="learn" aria-pressed="false">Learn</button></div>
           <div class="commentary-switch" role="group" aria-label="Chat perspective" style="display:none"><button class="commentary-btn active" data-perspective="coach">Opening coach</button><button class="commentary-btn" data-perspective="engine">Engine commentary</button></div><p class="engine-disclaimer" id="engineDisclaimer" style="display:none">Interpretations of engine moves, not Stockfish's actual thoughts.</p>
 <div class="move-review-toolbar" id="moveReviewToolbar"><div><strong>Understand your move</strong><span>Full-strength Stockfish checks meaningful differences</span></div><button class="btn" id="reviewMyMove">Review move</button></div>
 <div class="chat-zone" id="chatZone">
@@ -1173,7 +1175,7 @@ function revealLatestCoachMove(){
  sizeCoachConversation(true);
 }
 function invalidateReview(){comparisonView=null;reviewSerial++;reviewData=null;reviewSelection=0;$('reviewResults').style.display='none';$('reviewStatus').textContent='Game changed. Analyse the current moves to refresh the review.';}
-function reset(){strategicAiNonce++;strategicAiBusy=false;strategicAiStatus='';strategicAiFailed=false;aiRequestedPly.clear();insightsEntries=[];insightsSeenHistory=0;clearOutsideLinePreview();coachScrollPending=false;coachScrollGeneration++;$('chatZone').scrollTop=0;invalidateReview();comparisonView=null;variationPanelOpen=false;gameReviewOpen=false;coachAnswerText='';challengeStarted=false;challengeFinished=false;challengeScore=null;shownEngineFen='';simEvalRequest++;replySelectionToken++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();if(trainingMode==='learn'&&learnOpponent==='adaptive'&&mode==='play'&&current().t!==openings[selected].side)prepareOpponentReply();}
+function reset(){strategicAiNonce++;strategicAiBusy=false;strategicAiStatus='';strategicAiFailed=false;aiRequestedPly.clear();coachMoveMessages.clear();coachSeenPositionCount=1;clearOutsideLinePreview();coachScrollPending=false;coachScrollGeneration++;$('chatZone').scrollTop=0;invalidateReview();comparisonView=null;variationPanelOpen=false;gameReviewOpen=false;coachAnswerText='';challengeStarted=false;challengeFinished=false;challengeScore=null;shownEngineFen='';simEvalRequest++;replySelectionToken++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();if(trainingMode==='learn'&&learnOpponent==='adaptive'&&mode==='play'&&current().t!==openings[selected].side)prepareOpponentReply();}
 function startChallenge(){reset();challengeStarted=true;feedback='Challenge started. Play your opening against Stockfish.';render();if(current().t!==openings[selected].side)prepareOpponentReply();}
 function current(){return h.at(-1)}function suggested(){const s=current();return legal(s).find(m=>key(m)===routeLine()[s.i]?.[0])}
 function readablePv(s,pv){
@@ -1192,7 +1194,7 @@ function engineExplanation(s,m){
  if(piece==='k')return 'I’m repositioning my king to '+to+'. Whether this is safe depends on the threats in the position.';
  return 'I’m moving the '+n+' from '+from+' to '+to+' to improve the position or address a potential threat.';
 }
-function record(m,engineSelected=false,analysis=null){if(!(trainingMode==='learn'&&learnOpponent!=='adaptive'))coachScrollPending=true;coachAnswerText='';invalidateReview();const s=current();routeHistory.push({branch:activeBranch,info:deviationInfo});guideMove(s,m);const text=moveLabel(s,m),lineIndex=s.i,correct=lineIndex>=0&&key(m)===routeLine()[lineIndex]?.[0];h.push(apply(s,m));logs.push(text);lastSquares=[m[0],m[1]];feedback=deviationInfo?.kind==='variation'&&lineIndex===activeBranch?.at?'Variation recognised: '+deviationInfo.name:correct?'✓ In line with the opening.':deviationInfo?.name||'Adapted continuation';notes.push({engineSelected,engineAnalysis:engineSelected?analysis:null,engineComment:engineSelected?engineExplanation(s,m):'',text,color:s.t,opening:selected,index:correct&&!activeBranch?lineIndex:-1,reason:activeBranch&&lineIndex>=activeBranch.at?routeLine()[lineIndex]?.[1]:correct?rationales[selected][lineIndex]:explainDeviation(s,m)});return correct;}
+function record(m,engineSelected=false,analysis=null){if(!(trainingMode==='learn'&&learnOpponent!=='adaptive'))coachScrollPending=true;coachAnswerText='';invalidateReview();const s=current();routeHistory.push({branch:activeBranch,info:deviationInfo});guideMove(s,m);const text=moveLabel(s,m),lineIndex=s.i,correct=lineIndex>=0&&key(m)===routeLine()[lineIndex]?.[0];h.push(apply(s,m));logs.push(text);lastSquares=[m[0],m[1]];feedback=deviationInfo?.kind==='variation'&&lineIndex===activeBranch?.at?'Variation recognised: '+deviationInfo.name:correct?'✓ In line with the opening.':deviationInfo?.name||'Adapted continuation';notes.push({uci:key(m),engineSelected,engineAnalysis:engineSelected?analysis:null,engineComment:engineSelected?engineExplanation(s,m):'',text,color:s.t,opening:selected,index:correct&&!activeBranch?lineIndex:-1,reason:activeBranch&&lineIndex>=activeBranch.at?routeLine()[lineIndex]?.[1]:correct?rationales[selected][lineIndex]:explainDeviation(s,m)});return correct;}
 function squarePct(i){const row=i>>4,col=i&7;return {x:(col+0.5)*12.5+'%',y:(row+0.5)*12.5+'%'};}
 function shouldUseEngineReply(s){return !!deviationInfo&&(deviationInfo.kind==='warning'||deviationInfo.kind==='detour'||s.i<0);}
 async function prepareOpponentReply(){
@@ -1405,83 +1407,12 @@ function renderCapturedPieces(){
 
 
 
-const INSIGHTS_KEY='openingLab.strategicInsights';
-let insightsEnabled=true,insightsEntries=[],insightsSeenHistory=0;
+// Each move has one explanation. AI asynchronously replaces the scripted text.
 let strategicAiEnabled=false,strategicAiBusy=false,strategicAiFailed=false,strategicAiNonce=0,strategicAiStatus='';
-const aiRequestedPly=new Set();
-// Evaluate coaching opportunities from move two onward, approximately every two plies.
-// The model can still decline to add a message. Cap API calls per game.
+const aiRequestedPly=new Set(),coachMoveMessages=new Map();
 const AI_COACH_MIN_PLY=2,AI_COACH_INTERVAL=2,AI_COACH_GAME_LIMIT=24;
+let coachSeenPositionCount=1;
 try{strategicAiEnabled=localStorage.getItem('openingLab.aiInsights')==='on';}catch{}
-try{insightsEnabled=localStorage.getItem(INSIGHTS_KEY)!=='off';}catch{}
-function squareAt(file,rank){return (8-rank)*16+file;}
-function strategicFacts(position,color){
- const b=position.b,king=b.indexOf(color===1?'K':'k'),kingSquare=king>=0?sq(king):'',
-       castleBits=color===1?3:12,canCastle=!!(position.c&castleBits);
- const home= color===1?7:0;
- let undeveloped=0;
- for(const [file,piece] of [[1,'n'],[2,'b'],[5,'b'],[6,'n']]){
-  if(b[home*16+file]===(color===1?piece.toUpperCase():piece))undeveloped++;
- }
- const enemy=color===1?-1:1;
- let enemyQueenside=0,enemyKingside=0,enemyCentre=0;
- for(let i=0;i<128;i++){
-  if(!on(i)||side(b[i])!==enemy)continue;
-  const rank=i>>4,file=i&7,p=b[i].toLowerCase();
-  if(p==='k')continue;
-  const advanced=enemy===1?rank<=4:rank>=3;
-  if(!advanced)continue;
-  if(file<=2)enemyQueenside++;
-  if(file>=5)enemyKingside++;
-  if(file>=3&&file<=4)enemyCentre++;
- }
- const pawn=(color===1?'P':'p'),enemyPawn=(color===1?'p':'P');
- let centrePawns=0,enemyCentrePawns=0;
- for(const file of [3,4])for(const rank of [3,4,5,6]){
-  const p=b[squareAt(file,rank)];
-  if(p===pawn)centrePawns++;if(p===enemyPawn)enemyCentrePawns++;
- }
- const castleMoves=legal(position).filter(m=>m[3]==='castle'&&position.t===color);
- return {kingSquare,canCastle,undeveloped,enemyQueenside,enemyKingside,enemyCentre,centrePawns,enemyCentrePawns,castleReady:castleMoves.length>0,kingCentral:kingSquare[0]==='e'||kingSquare[0]==='d'};
-}
-function candidateStrategicInsights(position,ply){
- const player=openings[selected].side,own=strategicFacts(position,player),opp=strategicFacts(position,-player),out=[];
- const name=(player===1?'Black':'White');
- const push=(id,priority,topic,message)=>out.push({id,priority,topic,message});
- if(checked(position,player)){
-  push('check',100,'King safety','Your king is in check. Deal with that first; we can return to the wider plan afterwards.');
-  return out;
- }
- if(own.canCastle&&own.kingCentral&&own.undeveloped<=2&&ply>=12&&position.t===player&&own.castleReady){
-  push('castle-ready',83,'A moment to consider castling','Your kingside development is coming together, and castling is available. It may be a good time to secure your king before you open more central lines.');
- }
- if(own.canCastle&&own.kingCentral&&ply>=16){
-  push('castle-late',88,'Keep king safety in mind','Your king is still in the centre as the game develops. Consider whether you can finish preparing to castle before the position becomes more open.');
- }
- if(!own.canCastle&&!own.kingCentral&&ply>=12&&opp.canCastle&&opp.kingCentral){
-  push('castled',65,'Build on your king safety','Your king has moved away from the centre. With that settled, consider how to improve your rooks and coordinate your pieces.');
- }
- if(own.undeveloped>=3&&ply>=14){
-  push('development',75,'Bring more pieces into play','Several of your minor pieces are still on their starting squares. Before starting a new attack, look for a useful developing move.');
- }
- if(own.enemyQueenside>=2&&ply>=14){
-  push('queenside-pressure',64,'Watch the queenside',name+' has been gaining space or activity on the queenside. It may be worth checking what those pieces are preparing before you commit to a plan elsewhere.');
- }
- if(own.enemyKingside>=2&&ply>=14){
-  push('kingside-pressure',67,'Keep an eye on the kingside',name+' is becoming more active on the kingside. There may be no immediate problem, but consider your king safety and the squares those pieces are targeting.');
- }
- if(own.enemyCentre>=2&&ply>=14){
-  push('central-pressure',60,'The centre is getting busier',name+' has increased central activity. Before expanding on a flank, check whether your central pawns and pieces have enough support.');
- }
- if(own.centrePawns===0&&ply>=16&&own.undeveloped<=2){
-  push('open-centre',51,'Use your active pieces','There are fewer of your pawns controlling the central squares now. Think about how your pieces can use the open lines, especially if your king is secure.');
- }
- if(own.undeveloped===0&&ply>=18&&!own.kingCentral){
-  push('coordinate',43,'Look beyond development','Your minor pieces are off their starting squares and your king has left the centre. Think about which file or weakness your pieces could coordinate around.');
- }
- return out.sort((a,b)=>b.priority-a.priority);
-}
-// Send only actual, legal Stockfish lines from the analysed position.
 function coachEngineEvidence(position,analysis){
  if(!analysis||!Number.isFinite(analysis.depth)||analysis.depth<1)return null;
  const variations=[];
@@ -1512,137 +1443,75 @@ function coachEngineEvidence(position,analysis){
   variations
  };
 }
-function coachEngineCandidates(position,player,engine){
- if(!engine)return [];
- const ownTurn=position.t===player,first=engine.variations.map(v=>v.moves[0]).filter(Boolean),
-       primary=first[0],suggestions=[];
- const push=(id,priority,topic,message)=>suggestions.push({id,priority,topic,message});
- if(!primary)return suggestions;
- const engineMove=m=>m.label+' ('+m.from+'–'+m.to+')';
- if(first.some(m=>m.castle)&&ownTurn){
-  const move=first.find(m=>m.castle);
-  push('engine-castling',78,'Consider king safety',
-       'Stockfish considers '+engineMove(move)+'. Consider how castling here would affect your king safety and the coordination of your rooks.');
- }
- if(first.some(m=>m.piece==='p'&&['d','e'].includes(m.to[0]))){
-  const move=first.find(m=>m.piece==='p'&&['d','e'].includes(m.to[0]));
-  push('engine-central-play',ownTurn?62:68,'Watch the central pawns',
-       'Stockfish examines '+engineMove(move)+' for '+move.side+'. Consider which central squares and pawn relationships that move would change.');
- }
- if(first.some(m=>m.capture)){
-  const move=first.find(m=>m.capture);
-  push('engine-exchanges',58,'Consider the exchanges',
-       'One analysed option is '+engineMove(move)+'. Consider whether that exchange improves piece activity or leaves a useful square behind.');
- }
- if(first.some(m=>m.piece==='n'||m.piece==='b')&&ownTurn){
-  const move=first.find(m=>m.piece==='n'||m.piece==='b');
-  push('engine-piece-activity',52,'Improve your pieces',
-       'Stockfish examines '+engineMove(move)+'. Consider what the '+(move.piece==='n'?'knight':'bishop')+' would influence on its new square and what it leaves behind.');
- }
- return suggestions;
-}
 
-async function requestAiStrategicInsight(entry){
- if(strategicAiBusy||strategicAiFailed||!strategicAiEnabled||!insightsEnabled||!entry||aiRequestedPly.has(entry.ply)||aiRequestedPly.size>=AI_COACH_GAME_LIMIT)return;
- aiRequestedPly.add(entry.ply);strategicAiBusy=true;strategicAiStatus='analysing';
- const statusNode=$('aiCoachStatus');
- if(statusNode){statusNode.hidden=false;statusNode.textContent='Analysing…';statusNode.classList.remove('error');}
- const ply=entry.ply,position=h[ply],fen=fenOf(position),nonce=strategicAiNonce;
- const player=openings[selected].side;
- const facts=strategicFacts(position,player);
+function clearPendingCoaching(){
+ for(const [ply,item] of coachMoveMessages)if(item.pending)coachMoveMessages.delete(ply);
+}
+function playedMoveEvidence(position,move){
+ return {uci:key(move),label:moveLabel(position,move),side:position.t===1?'White':'Black',
+  piece:position.b[move[0]].toLowerCase(),from:sq(move[0]),to:sq(move[1]),
+  capture:position.b[move[1]]!=='.'||move[3]==='ep',castle:move[3]==='castle',
+  check:checked(apply(position,move))};
+}
+async function requestUnifiedMoveCoaching(ply){
+ if(!strategicAiEnabled||strategicAiFailed||strategicAiBusy||aiRequestedPly.size>=AI_COACH_GAME_LIMIT)return;
+ const before=h[ply-1],after=h[ply],note=notes[ply-1];
+ if(!before||!after||!note?.uci)return;
+ const move=legal(before).find(m=>key(m)===note.uci);
+ if(!move)return;
+ const nonce=strategicAiNonce,openingAtRequest=selected;
+ const record={pending:true,message:'',engineGrounded:false};
+ coachMoveMessages.set(ply,record);
+ aiRequestedPly.add(ply);
+ strategicAiBusy=true;strategicAiStatus='analysing';
  try{
-  // This is the very same cached depth-16 analysis used for positional balance.
-  // If Stockfish is unavailable, the existing positional coach still works.
   let engine=null;
-  try{engine=coachEngineEvidence(position,await fetchEngine(position,16));}catch{}
-  if(nonce!==strategicAiNonce||h[ply]!==position||!insightsEntries.includes(entry))return;
-  const candidates=[...candidateStrategicInsights(position,ply),...coachEngineCandidates(position,player,engine)]
-   .sort((a,b)=>b.priority-a.priority).slice(0,8);
-  if(!candidates.length){
-   strategicAiStatus='noidea';entry.pending=false;
-   if(entry.id==='pending-ai')insightsEntries=insightsEntries.filter(x=>x!==entry);
-   render();return;
-  }
-  const response=await fetch('/api/coach/insight',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-   fen,opening:openings[selected].name,player:openings[selected].side===1?'White':'Black',
-   moveHistory:logs.slice(Math.max(0,ply-12),ply),facts,candidates,engine,
-   previous:insightsEntries.length>1?insightsEntries.at(-2)?.message:null,
-   recentInsights:insightsEntries.filter(x=>x!==entry&&x.ply<ply).slice(-3).map(x=>({topic:x.topic,message:x.message}))
+  try{engine=coachEngineEvidence(after,await fetchEngine(after,16));}catch{}
+  if(nonce!==strategicAiNonce||h[ply]!==after||coachMoveMessages.get(ply)!==record||selected!==openingAtRequest)return;
+  const prior=evalCache.get('16:'+fenOf(before));
+  const recentCoaching=[...coachMoveMessages.entries()]
+   .filter(([at,item])=>at<ply&&!item.pending&&item.message).slice(-3).map(([,item])=>item.message);
+  const response=await fetch('/api/coach/move',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+   beforeFen:fenOf(before),afterFen:fenOf(after),
+   opening:openings[openingAtRequest].name,player:openings[openingAtRequest].side===1?'White':'Black',
+   played:playedMoveEvidence(before,move),scripted:note.reason,
+   history:logs.slice(Math.max(0,ply-10),ply),recentCoaching,engine,
+   priorEngine:prior?{evaluation:prior.evaluation,depth:prior.depth}:null
   })});
-  if(!response.ok)throw Error('AI not connected');
+  if(!response.ok)throw Error('AI coaching unavailable');
   const result=await response.json();
-  if(nonce!==strategicAiNonce||h[ply]!==position||!insightsEntries.includes(entry))return;
-  strategicAiFailed=false;strategicAiStatus=engine?'engine':'position';entry.pending=false;
-  if(result.id==='none'){insightsEntries=insightsEntries.filter(x=>x!==entry);}
-  else if(candidates.some(x=>x.id===result.id)&&typeof result.message==='string'&&result.message.length<=240){
-   entry.id=result.id;entry.topic=String(result.topic||entry.topic).slice(0,70);
-   entry.message=result.message;entry.source=result.engineGrounded?'AI + Stockfish':'AI';
-  }
-  render();
+  if(nonce!==strategicAiNonce||h[ply]!==after||coachMoveMessages.get(ply)!==record||selected!==openingAtRequest)return;
+  if(typeof result.message!=='string'||result.message.trim().length<30||result.message.length>900)throw Error('Invalid AI explanation');
+  record.pending=false;record.message=result.message.trim();record.engineGrounded=!!result.engineGrounded;
+  strategicAiFailed=false;strategicAiStatus=result.engineGrounded?'engine':'position';
  }catch{
-  if(nonce===strategicAiNonce){
-   strategicAiFailed=true;strategicAiStatus='error';entry.pending=false;
-   if(entry.id==='pending-ai')insightsEntries=insightsEntries.filter(x=>x!==entry);
-   render();
+  if(nonce===strategicAiNonce&&coachMoveMessages.get(ply)===record){
+   coachMoveMessages.delete(ply);strategicAiFailed=true;strategicAiStatus='error';
   }
- }finally{if(nonce===strategicAiNonce)strategicAiBusy=false;}
+ }finally{
+  if(nonce===strategicAiNonce){strategicAiBusy=false;render();}
+ }
 }
-function discardPendingAiInsights(){
- insightsEntries=insightsEntries.filter(entry=>{
-  if(!entry.pending)return true;
-  entry.pending=false;
-  return entry.id!=='pending-ai';
- });
-}
-function refreshStrategicInsights(){
- const root=$('strategicInsights'),toggle=$('strategicInsightsToggle'),status=$('aiCoachStatus');
+function refreshUnifiedMoveCoaching(){
+ const root=$('strategicInsights'),toggle=$('strategicAiToggle'),status=$('aiCoachStatus');
  const visible=trainingMode==='learn'&&!scenario;
- root.hidden=!visible;
- if(!visible)return;
- toggle.checked=insightsEnabled;
- $('strategicAiToggle').checked=strategicAiEnabled;
- status.hidden=!strategicAiEnabled||!strategicAiStatus;
+ root.hidden=!visible;toggle.checked=strategicAiEnabled;
+ if(coachSeenPositionCount>h.length){
+  strategicAiNonce++;strategicAiBusy=false;
+  for(const ply of coachMoveMessages.keys())if(ply>=h.length)coachMoveMessages.delete(ply);
+  for(const ply of [...aiRequestedPly])if(ply>=h.length)aiRequestedPly.delete(ply);
+  clearPendingCoaching();
+ }
+ coachSeenPositionCount=h.length;
+ status.hidden=!visible||!strategicAiEnabled||!strategicAiStatus;
  status.classList.toggle('error',strategicAiStatus==='error');
- status.textContent=({analysing:'Analysing…',engine:'AI + Stockfish',position:'AI · position only',noidea:'No insight needed',error:'AI unavailable'})[strategicAiStatus]||'';
- status.title=strategicAiStatus==='error'?'AI coaching request failed. Check the server Terminal for the API error.':'AI response status; this does not alter the standard move explanations.';
- // Rebuild after rewind, restart, or a newly selected opening. Recorded
- // insights follow their actual board positions, not wall-clock timers.
- if(insightsSeenHistory>h.length){
-  insightsEntries=insightsEntries.filter(entry=>entry.ply<h.length);
-  strategicAiNonce++;strategicAiBusy=false;aiRequestedPly.clear();
-  discardPendingAiInsights();
- }
- let newest=null;
- if(insightsSeenHistory!==h.length){
-  const begin=Math.max(1,Math.min(insightsSeenHistory,h.length));
-  for(let length=begin;length<=h.length;length++){
-   const ply=length-1;
-   if(ply<AI_COACH_MIN_PLY)continue;
-   const position=h[ply],recent=insightsEntries.at(-1);
-   const lastAttempt=Math.max(-1,...aiRequestedPly);
-   if(ply-lastAttempt<AI_COACH_INTERVAL)continue;
-   if(ply%AI_COACH_INTERVAL!==0)continue;
-   if(recent&&ply-recent.ply<AI_COACH_INTERVAL)continue;
-   const used=new Set(insightsEntries.map(entry=>entry.id));
-   const fresh=candidateStrategicInsights(position,ply).find(candidate=>!used.has(candidate.id));
-   // Let AI consider engine evidence even when no predefined heuristic fires.
-   // An empty pending entry is never shown in the conversation.
-   const willAskAi=insightsEnabled&&strategicAiEnabled&&!strategicAiFailed&&!strategicAiBusy&&aiRequestedPly.size<AI_COACH_GAME_LIMIT&&ply===h.length-1;
-   if(fresh||willAskAi){
-    const added={...(fresh||{id:'pending-ai',topic:'',message:''}),ply,pending:willAskAi};
-    insightsEntries.push(added);
-    if(ply===h.length-1)newest=added;
-   }
-  }
-  insightsSeenHistory=h.length;
- }
-
- if(insightsEnabled&&strategicAiEnabled&&!strategicAiFailed&&aiRequestedPly.size<AI_COACH_GAME_LIMIT){
-  const target=newest||insightsEntries.at(-1);
-  if(target&&!aiRequestedPly.has(target.ply)&&target.ply>=AI_COACH_MIN_PLY&&target.ply%AI_COACH_INTERVAL===0)requestAiStrategicInsight(target);
- }
+ status.textContent=({analysing:'Refining…',engine:'AI + Stockfish',position:'AI · position',error:'AI unavailable'})[strategicAiStatus]||'';
+ status.title=strategicAiStatus==='error'?'AI coaching failed. Check the server Terminal.':'The AI explanation replaces the scripted move explanation in place.';
+ if(!visible||!strategicAiEnabled||strategicAiFailed||strategicAiBusy||aiRequestedPly.size>=AI_COACH_GAME_LIMIT)return;
+ const ply=h.length-1;
+ if(ply<AI_COACH_MIN_PLY||ply%AI_COACH_INTERVAL!==0||aiRequestedPly.has(ply)||!notes[ply-1]?.uci)return;
+ requestUnifiedMoveCoaching(ply);
 }
-
 function render(){syncOpeningChoices();requestAnimationFrame(alignCapturedTrayWithBoard);const s=scenario?scenarioPositions[scenarioIndex]:current(),moves=legal(s),status=gameStatus(h),op=openings[selected],step=op.line[s.i],hint=trainingMode==='learn'&&h.length-1>=guidedOpeningLimit()?null:suggested(),yourTurn=s.t===op.side,ended=status.done;$('openingSelect').value=openingParent(selected);$('variationSelect').value=selected;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x.dataset.mode===mode));$('turn').textContent=scenario?'Illustrative variation · '+(scenarioIndex===0?'Start':('Step '+scenarioIndex)):pendingReply?'Opponent is thinking…':animatingMove?(animatingMove.isOpponent?'Opponent is moving…':'Your move…'):status.text;$('player').textContent=scenario?'Use Next move to explore':pendingReply?'Opponent reply in progress':animatingMove?(animatingMove.isOpponent?'Opponent reply in progress':'Moving piece'):(mode==='play'?'Playing '+(op.side===1?'White':'Black'):'Study both sides');$('openingName').textContent=op.name;$('description').textContent=op.desc;$('tip').textContent=op.tip;const lessonLimit=guidedOpeningLimit();
 const lessonDone=Math.min(lessonLimit,Math.max(0,h.length-1));
 $('progressLabel').textContent=lessonDone+' / '+lessonLimit;const progressPct=100*lessonDone/lessonLimit;$('progressBar').style.width=progressPct+'%';$('openingProgress').style.display=trainingMode==='learn'&&learnOpponent!=='adaptive'?'':'none';
@@ -1660,7 +1529,7 @@ const topProgress=$('topProgressFill'); if(topProgress) topProgress.style.width=
 renderChallenge();
 renderCapturedPieces();
 renderCoachTools();
-refreshStrategicInsights();
+refreshUnifiedMoveCoaching();
 if(!scenario)$('simEnginePanel').style.display='none';const st=strategies[selected];$('strategyIntro').textContent=st.intro;const objectives=$('objectiveList');objectives.replaceChildren();let count=scenario?(scenario.dynamic?Math.max(0,current().i):scenarios[selected].setup):Math.max(0,current().i);for(const [name,at,detail] of st.objectives){const row=document.createElement('div');row.className='strategy-item';const mark=document.createElement('span');mark.className='strategy-mark';mark.textContent=count>=at?'✓':'○';const body=document.createElement('div');const heading=document.createElement('div');heading.className='strategy-name';heading.textContent=name;const copy=document.createElement('div');copy.className='strategy-detail';copy.textContent=detail;body.append(heading,copy);row.append(mark,body);objectives.append(row);} $('phaseBadge').textContent=scenario?'Scenario':current().i<0?'Free play':current().i>=op.line.length?'Line complete':'Opening';$('strategyToggle').textContent=strategyOn?'◉ Hide strategy':'◉ Show strategy';$('scenarioIntro').textContent=scenario?.dynamic?scenario.summary:scenarios[selected].summary;const sm=$('comparisonSummary');sm.replaceChildren();sm.style.display=scenario?.comparison?'flex':'none';if(scenario?.comparison){const c=scenario.comparison;for(const [k,v] of [['Your move',c.played+' · '+c.scorePlayed],['Stockfish prefers',c.preferred+' · '+c.scoreBest]]){const row=document.createElement('div');row.className='compare-pair';const label=document.createElement('span');label.textContent=k;const value=document.createElement('strong');value.textContent=v;row.append(label,value);sm.append(row);}const note=document.createElement('div');note.className='compare-result';note.textContent=c.difference;sm.append(note);}$('scenarioStart').style.display=scenario?'none':'';$('scenarioControls').style.display=scenario?'':'none';if(scenario){if(scenario.dynamic&&lastSimShown!==scenarioIndex){lastSimShown=scenarioIndex;updateSimulationScore(scenarioIndex);} $('scenarioStepTitle').textContent=scenario?.comparison?(scenarioIndex===0?'Your original move':scenarioIndex===1?'Back at the decision':'Stockfish recommendation'):scenarioIndex===0?'Starting position':('Step '+scenarioIndex+' of '+scenario.moves.length);$('scenarioStepCopy').textContent=scenario?.comparison?(scenarioIndex===0?'Your original '+scenario.comparison.played+' · press Replay comparison':scenarioIndex===1?'Your move has been rewound. Watch Stockfish’s choice.':scenario.moves[1][1]):scenarioIndex===0?scenario.title:scenario.moves[scenarioIndex-1][1];$('scenarioNext').disabled=!!animatingMove||scenarioIndex>=scenario.moves.length;$('scenarioNext').textContent=scenario?.comparison?(scenarioIndex===0?'Replay comparison →':scenarioIndex===1?'Show best move →':'Comparison complete'):scenarioIndex>=scenario.moves.length?'End of illustration':'Next move →';}
 const previewBoard=!scenario&&outsideLinePreview?apply(s,outsideLinePreview.move):null;
 const board=$('board');board.replaceChildren();for(let j=0;j<64;j++){const i=(j>>3)*16+(j&7),b=document.createElement('button');b.type='button';b.className='square'+(((j>>3)+(j&7))%2?' dark':'');b.setAttribute('aria-label',sq(i)+' '+(s.b[i]==='.'?'empty':s.b[i]));if(strategyOn&&st.targets.includes(sq(i)))b.classList.add('strategic');if(!scenario&&comparisonView?.bestMove){if(i===comparisonView.bestMove[0])b.classList.add('compare-from');if(i===comparisonView.bestMove[1])b.classList.add('compare-to');}if(animatingMove&&animatingMove.isOpponent&&(i===animatingMove.from||i===animatingMove.to))b.classList.add('thinking');if(previewBoard){
@@ -1715,28 +1584,19 @@ if(item.proposed){const summary=document.createElement('div');summary.className=
    if(line){const variation=document.createElement('div');variation.textContent='Expected continuation: '+line;evidence.append(variation);}if(starting&&analysis.candidates?.length>1){const alt=document.createElement('div');const options=analysis.candidates.slice(1,3).map(c=>{const m=legal(starting).find(x=>key(x)===c.uci);return m?moveLabel(starting,m)+' ('+(c.mate!==null?'mate '+c.mate:(c.evaluation>=0?'+':'')+c.evaluation.toFixed(2))+')':null;}).filter(Boolean);if(options.length){alt.textContent='Other candidates: '+options.join(' · ');evidence.append(alt);}}
    const caveat=document.createElement('small');caveat.textContent='The moves and evaluation are actual engine results; the explanation above is an interpretation.';evidence.append(caveat);copy.append(evidence);
  }
-}else if(chatMode==='quick'){const ul=document.createElement('ul');ul.className='why-bullets';quickBullets(item).slice(0,3).forEach(reason=>{const li=document.createElement('li');li.textContent=reason;ul.append(li)});copy.append(ul);}else{copy.textContent=item.reason;}
-// Use the existing verified strategic observation, if one was triggered
-// at the position reached by this exact move (not on every chat message).
-const insight=trainingMode==='learn'&&!scenario&&chatPerspective==='coach'&&insightsEnabled&&!item.proposed?
- insightsEntries.find(x=>x.ply===item.__i+1&&(x.id!=='pending-ai'||x.pending)):null;
-if(insight){
- const idea=document.createElement('div');idea.className='why-strategic-idea';
- const heading=document.createElement('div');heading.className='why-strategic-heading';
- if(insight.pending){
-  idea.classList.add('why-strategic-pending');
-  idea.setAttribute('aria-busy','true');
-  heading.textContent='✦ Strategic idea · Analysing position…';
-  idea.append(heading);
-  const pending=document.createElement('p');pending.textContent='Checking Stockfish’s analysis for a useful coaching point.';idea.append(pending);
  }else{
-  heading.textContent='✦ Strategic idea · '+insight.topic;idea.append(heading);
-  const paragraph=document.createElement('p');paragraph.textContent=insight.message;idea.append(paragraph);
-  const source=document.createElement('div');source.className='why-strategic-source';
-  source.textContent=insight.source==='AI + Stockfish'?'AI-assisted · Stockfish + position checks':insight.source==='AI'?'AI-assisted · position checks':'Based on position checks'+(strategicAiEnabled&&strategicAiFailed?' · AI unavailable':'');
-  idea.append(source);
+ const ai=trainingMode==='learn'&&!scenario&&chatPerspective==='coach'&&!item.proposed&&strategicAiEnabled?
+  coachMoveMessages.get(item.__i+1):null;
+ const explanation=document.createElement('p');
+ explanation.textContent=ai&&!ai.pending?ai.message:item.reason;
+ copy.append(explanation);
+ if(ai?.pending){
+  const pending=document.createElement('div');pending.className='unified-coach-pending';
+  pending.textContent='Refining with AI + Stockfish…';copy.append(pending);
+ }else if(ai?.message){
+  const source=document.createElement('div');source.className='unified-coach-source';
+  source.textContent=ai.engineGrounded?'AI-assisted · Stockfish-grounded':'AI-assisted · position-grounded';copy.append(source);
  }
- copy.append(idea);
 }
 entry.append(title,copy);$('whyContent').append(entry);});
 coachScrollPending=false;
@@ -1757,13 +1617,8 @@ $('guidedOpeningLength').onchange=()=>{
 $('strategicAiToggle').onchange=()=>{
  strategicAiEnabled=$('strategicAiToggle').checked;
  strategicAiFailed=false;strategicAiStatus='';strategicAiNonce++;strategicAiBusy=false;aiRequestedPly.clear();
- discardPendingAiInsights();
+ clearPendingCoaching();
  try{localStorage.setItem('openingLab.aiInsights',strategicAiEnabled?'on':'off');}catch{}
- render();
-};
-$('strategicInsightsToggle').onchange=()=>{
- insightsEnabled=$('strategicInsightsToggle').checked;
- try{localStorage.setItem(INSIGHTS_KEY,insightsEnabled?'on':'off');}catch{}
  render();
 };
 $('challengeToggle').onchange=()=>{
