@@ -1587,6 +1587,13 @@ async function requestAiStrategicInsight(entry){
   }
  }finally{if(nonce===strategicAiNonce)strategicAiBusy=false;}
 }
+function discardPendingAiInsights(){
+ insightsEntries=insightsEntries.filter(entry=>{
+  if(!entry.pending)return true;
+  entry.pending=false;
+  return entry.id!=='pending-ai';
+ });
+}
 function refreshStrategicInsights(){
  const root=$('strategicInsights'),toggle=$('strategicInsightsToggle'),status=$('aiCoachStatus');
  const visible=trainingMode==='learn'&&!scenario;
@@ -1603,6 +1610,7 @@ function refreshStrategicInsights(){
  if(insightsSeenHistory>h.length){
   insightsEntries=insightsEntries.filter(entry=>entry.ply<h.length);
   strategicAiNonce++;strategicAiBusy=false;aiRequestedPly.clear();
+  discardPendingAiInsights();
  }
  let newest=null;
  if(insightsSeenHistory!==h.length){
@@ -1749,6 +1757,7 @@ $('guidedOpeningLength').onchange=()=>{
 $('strategicAiToggle').onchange=()=>{
  strategicAiEnabled=$('strategicAiToggle').checked;
  strategicAiFailed=false;strategicAiStatus='';strategicAiNonce++;strategicAiBusy=false;aiRequestedPly.clear();
+ discardPendingAiInsights();
  try{localStorage.setItem('openingLab.aiInsights',strategicAiEnabled?'on':'off');}catch{}
  render();
 };
