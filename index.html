@@ -76,9 +76,17 @@ html.app-fullscreen .panel,html:fullscreen .panel{padding:14px}
 .route-simulate{margin-top:10px;width:100%;background:#363b57;border:1px solid #606c92;color:#fff;border-radius:9px;padding:10px;font-weight:750;cursor:pointer}
 .route-simulate:disabled{opacity:.55;cursor:default}
 
-.engine-panel{margin:9px 0 13px;padding:10px 13px;background:#121726;border:1px solid #293246;border-radius:12px;color:#e9edf8}
-.engine-line{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:12px;font-weight:750;margin-bottom:7px}
+.engine-panel{margin:7px 0 10px;padding:9px 12px;background:#121726;border:1px solid #293246;border-radius:10px;color:#e9edf8}
+.engine-line{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:12px;font-weight:750;margin-bottom:6px}
 .engine-line small{color:#929bb0;font-weight:500}
+.outlook-label{color:#e9edf8;font-size:13px;font-weight:750}
+.outlook-track{height:9px;display:flex;overflow:hidden;border-radius:6px;background:#444a5b}
+.outlook-white{background:#e5dfd0;transition:width .4s ease}
+.outlook-draw{background:#9299a9;transition:width .4s ease}
+.outlook-black{background:#434c60;transition:width .4s ease}
+.outlook-stats{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:6px;color:#b6c0d1;font-size:11px;font-variant-numeric:tabular-nums}
+.outlook-stats strong{color:#f0f3fa;font-weight:750}
+.outlook-caption{font-size:10px;line-height:1.3;color:#8995aa;margin-top:5px}
 .balance-track{height:12px;background:#444a5b;border-radius:5px;overflow:hidden;display:flex}
 .balance-white{width:50%;background:#e5dfd0;transition:width .45s ease}
 .balance-foot{font-size:11px;color:#a4adbf;margin-top:6px;line-height:1.4}
@@ -129,10 +137,11 @@ html.app-fullscreen .panel,html:fullscreen .panel{padding:14px}
           <span id="turn" class="board-title">White to move</span>
           <span class="muted" id="player">Playing White</span>
         </div>
-        <div class="engine-panel" id="enginePanel">
- <div class="engine-line"><span>Position strength · <small id="engineDepth">Stockfish analysis</small></span><span id="engineScore">Connecting…</span></div>
- <div class="balance-track"><div class="balance-white" id="balanceWhite"></div></div>
- <div class="balance-foot" id="engineCaption">White / Black balance · awaiting engine evaluation</div>
+        <div class="engine-panel" id="enginePanel" aria-label="Position outlook based on Stockfish engine self-play estimates">
+ <div class="engine-line"><span>Position outlook · <small id="engineDepth">Stockfish analysis</small></span><span class="outlook-label" id="engineScore" aria-live="polite">Connecting…</span></div>
+ <div class="outlook-track" role="img" id="outlookTrack" aria-label="Win, draw and loss estimates unavailable"><div class="outlook-white" id="outlookWhite" style="width:0%"></div><div class="outlook-draw" id="outlookDraw" style="width:100%"></div><div class="outlook-black" id="outlookBlack" style="width:0%"></div></div>
+ <div class="outlook-stats"><span>White <strong id="outlookWhitePct">—</strong></span><span>Draw <strong id="outlookDrawPct">—</strong></span><span>Black <strong id="outlookBlackPct">—</strong></span></div>
+ <div class="outlook-caption" id="engineCaption">Engine self-play estimates, not human win probabilities.</div>
  </div><div class="board-stage">
           <div class="board-rail" aria-hidden="true"></div>
           <div class="board-wrap">
@@ -328,11 +337,11 @@ function bootStockfish(){
      if(!task)return;
      for(const line of message.split(/\r?\n/)){
        if(line.startsWith('info ')&&line.includes(' score ')){
-         const cp=line.match(/\bscore cp (-?\d+)/),mate=line.match(/\bscore mate (-?\d+)/),depth=line.match(/\bdepth (\d+)/);
+         const cp=line.match(/\bscore cp (-?\d+)/),mate=line.match(/\bscore mate (-?\d+)/),depth=line.match(/\bdepth (\d+)/),wdl=line.match(/\bwdl (\d+) (\d+) (\d+)/);
          if(cp||mate){
            const rank=Number(line.match(/\bmultipv (\d+)/)?.[1]||1);
            const pv=(line.match(/\bpv (.+)$/)?.[1]||'').split(/\s+/).filter(Boolean);
-           const entry={cp:cp?Number(cp[1]):null,mate:mate?Number(mate[1]):null,depth:depth?Number(depth[1]):0,pv};
+           const entry={cp:cp?Number(cp[1]):null,mate:mate?Number(mate[1]):null,depth:depth?Number(depth[1]):0,wdl:wdl?wdl.slice(1).map(Number):null,pv};
            if(!task.lines)task.lines=new Map();
            if(pv.length){const previous=task.lines.get(rank);if(!previous||entry.depth>=previous.depth)task.lines.set(rank,entry);}
            if(rank===1)task.score=entry;
@@ -344,7 +353,7 @@ function bootStockfish(){
          // Stockfish reports centipawns relative to the side to move.
          const factor=task.side;
          const candidates=[...(task.lines?.entries()||[])].sort((a,b)=>a[0]-b[0]).map(([rank,data])=>({rank,uci:data.pv[0],pv:data.pv.slice(0,7),evaluation:data.cp===null?null:factor*data.cp/100,mate:data.mate===null?null:factor*data.mate,depth:data.depth}));
-         const result={evaluation:value.cp===null?0:factor*value.cp/100,mate:value.mate===null?null:factor*value.mate,depth:value.depth,best:best==='(none)'?null:best,pv:value.pv||[],candidates};
+         const result={evaluation:value.cp===null?0:factor*value.cp/100,mate:value.mate===null?null:factor*value.mate,depth:value.depth,wdl:value.wdl?(factor===1?value.wdl:[value.wdl[2],value.wdl[1],value.wdl[0]]):null,best:best==='(none)'?null:best,pv:value.pv||[],candidates};
          stockfishState.task=null;task.resolve(result);
        }
      }
@@ -361,7 +370,7 @@ function fetchEngine(s){
      const task={side:s.t,score:null,resolve:r=>{clearTimeout(timer);evalCache.set(fen,r);resolve(r);}};
      const timer=setTimeout(()=>{if(stockfishState.task===task){stockfishState.task=null;reject(new Error('Stockfish analysis timed out'));}},18000);
      stockfishState.task=task;
-     worker.postMessage('setoption name UCI_LimitStrength value false');worker.postMessage('setoption name MultiPV value 3');
+     worker.postMessage('setoption name UCI_LimitStrength value false');worker.postMessage('setoption name UCI_ShowWDL value true');worker.postMessage('setoption name MultiPV value 3');
      worker.postMessage('position fen '+fen);
      worker.postMessage('go depth 12');
    });
@@ -371,10 +380,36 @@ function fetchEngine(s){
 function fetchChallengeMove(s){const rating=Number($('challengeElo').value),fen=fenOf(s);
  const taskPromise=stockfishState.chain.catch(()=>{}).then(async()=>{const worker=await bootStockfish();return new Promise((resolve,reject)=>{const task={side:s.t,score:null,resolve:r=>{clearTimeout(timer);resolve(r);}};const timer=setTimeout(()=>{if(stockfishState.task===task){stockfishState.task=null;reject(Error('Opponent engine timed out'));}},18000);stockfishState.task=task;worker.postMessage('setoption name MultiPV value 1');worker.postMessage('setoption name UCI_LimitStrength value true');worker.postMessage('setoption name UCI_Elo value '+rating);worker.postMessage('position fen '+fen);worker.postMessage('go depth 10');});});stockfishState.chain=taskPromise.catch(()=>{});return taskPromise;}
 function engineValue(e){if(!e)return 50;if(e.mate!==null)return e.mate>0?99:1;return Math.max(1,Math.min(99,100/(1+Math.exp(-e.evaluation/1.55))));}
+function outlookAssessment(wdl){
+ const [white,draw,black]=wdl;
+ if(draw>=650&&Math.abs(white-black)<160)return 'Draw looks likely';
+ const lead=Math.abs(white-black),winner=white>black?'White':'Black';
+ if(lead<120)return 'Balanced position';
+ return winner+(lead>=650?' is heavily favoured':lead>=350?' has a strong advantage':' is favoured');
+}
 function setStrength(e,err){
- const label=$('engineScore'),cap=$('engineCaption'),fill=$('balanceWhite'),depth=$('engineDepth');
- if(e){const share=engineValue(e);fill.style.width=share.toFixed(1)+'%';label.textContent=e.mate!==null?engineText(e):engineText(e)+' pawns';depth.textContent='Stockfish · depth '+e.depth;cap.textContent='Stockfish evaluation · bar is a visualised centipawn advantage, not a win probability.';}
- else{label.textContent=err?'Engine missing':'Analysing…';depth.textContent=err?'Stockfish not loaded':engineSource;cap.textContent=err?'Add stockfish-17.1-lite-single-03e3232.js and stockfish-17.1-lite-single-03e3232.wasm beside this page, then open it using a local web server.':'Waiting for Stockfish evaluation…';}
+ const label=$('engineScore'),cap=$('engineCaption'),depth=$('engineDepth'),track=$('outlookTrack');
+ const wdl=e?.wdl,valid=Array.isArray(wdl)&&wdl.length===3&&wdl.every(n=>Number.isInteger(n)&&n>=0)&&wdl.reduce((a,b)=>a+b,0)===1000;
+ if(valid){
+   const [white,draw,black]=wdl;
+   $('outlookWhite').style.width=white/10+'%';
+   $('outlookDraw').style.width=draw/10+'%';
+   $('outlookBlack').style.width=black/10+'%';
+   $('outlookWhitePct').textContent=(white/10).toFixed(1)+'%';
+   $('outlookDrawPct').textContent=(draw/10).toFixed(1)+'%';
+   $('outlookBlackPct').textContent=(black/10).toFixed(1)+'%';
+   label.textContent=outlookAssessment(wdl);
+   depth.textContent='Stockfish · depth '+e.depth;
+   cap.textContent='Estimated outcomes for strong-engine self-play; not human win probabilities.';
+   track.setAttribute('aria-label','White wins '+white/10+'%, draws '+draw/10+'%, Black wins '+black/10+'%');
+ }else{
+   $('outlookWhite').style.width='0%';$('outlookDraw').style.width='100%';$('outlookBlack').style.width='0%';
+   for(const id of ['outlookWhitePct','outlookDrawPct','outlookBlackPct'])$(id).textContent='—';
+   label.textContent=err?'Engine unavailable':e?'Outlook unavailable':'Analysing…';
+   depth.textContent=e?'Stockfish · depth '+e.depth:err?'Stockfish not loaded':engineSource;
+   cap.textContent=err?'Stockfish could not be loaded. Check the engine files and use a local HTTP server.':e?'This engine did not provide win/draw/loss estimates for this position.':'Engine self-play estimates, not human win probabilities.';
+   track.setAttribute('aria-label','Win, draw and loss estimates unavailable');
+ }
 }
 function requestPositionEval(s){const fen=fenOf(s);if(fen===shownEngineFen)return;shownEngineFen=fen;clearTimeout(evalTimer);const token=++evalRequest;setStrength(null,false);evalTimer=setTimeout(async()=>{try{const e=await fetchEngine(s);if(token!==evalRequest)return;engineStatus='ready';setStrength(e,false);if(scenario?.dynamic)updateSimulationScore(scenarioIndex);}catch(err){if(token!==evalRequest)return;engineStatus='unavailable';setStrength(null,true);}},250);}
 function updateSimulationScore(i){const panel=$('simEnginePanel');if(!scenario?.dynamic){panel.style.display='none';return;}panel.style.display='block';const s=scenarioPositions[i],score=$('simEngineScore'),fill=$('simBalanceWhite'),caption=$('simEngineCaption');score.textContent='Analysing step '+i+'…';caption.textContent='Stockfish is evaluating this position.';const id=++simEvalRequest;fetchEngine(s).then(e=>{if(id!==simEvalRequest)return;const n=engineValue(e);fill.style.width=n+'%';score.textContent='Stockfish: '+(e.mate!==null?engineText(e):engineText(e)+' pawns');caption.textContent='Engine depth '+e.depth+' · visualised evaluation, not win odds';}).catch(()=>{if(id!==simEvalRequest)return;score.textContent='Stockfish unavailable';caption.textContent='Cannot evaluate without the Stockfish engine files.';});}
