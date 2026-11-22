@@ -353,9 +353,13 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 .guided-length-note{font-size:12px;line-height:1.45;color:#a8b9d0}
 
 
-/* One coach explanation per move. A muted status shows while AI refines it. */
+/* One finished explanation per move: loading placeholder, then the complete AI response. */
 .why-analysis-label{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;opacity:.66}
-.unified-coach-pending{font-size:12px;opacity:.68;margin-top:9px}
+.unified-coach-pending{display:flex;align-items:center;gap:9px;font-size:14px;color:#b9c4d7;margin:5px 0 19px}
+.unified-coach-spinner{width:15px;height:15px;flex:none;border:2px solid #6b7892;border-top-color:#b88cff;border-radius:50%;animation:coach-pending-spin .85s linear infinite}
+@keyframes coach-pending-spin{to{transform:rotate(360deg)}}
+.trainer-panel .why-entry.coach-ai-message{min-height:315px;box-sizing:border-box}
+@media(prefers-reduced-motion:reduce){.unified-coach-spinner{animation:none}}
  .unified-coach-source{font-size:11px;opacity:.68;margin-top:9px}
 .coach-header-right{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:9px}
 .coach-inline-settings{display:flex;align-items:center;gap:9px}
@@ -1399,7 +1403,7 @@ function renderCapturedPieces(){
 // Each move has one explanation. AI asynchronously replaces the scripted text.
 let strategicAiEnabled=false,strategicAiBusy=false,strategicAiFailed=false,strategicAiNonce=0,strategicAiStatus='';
 const aiRequestedPly=new Set(),coachMoveMessages=new Map();
-const AI_COACH_MIN_PLY=2,AI_COACH_INTERVAL=2,AI_COACH_GAME_LIMIT=24;
+const AI_COACH_MIN_PLY=1,AI_COACH_INTERVAL=1,AI_COACH_GAME_LIMIT=24;
 let coachSeenPositionCount=1;
 try{strategicAiEnabled=localStorage.getItem('openingLab.aiInsights')==='on';}catch{}
 function coachEngineEvidence(position,analysis){
@@ -1454,7 +1458,7 @@ async function requestUnifiedMoveCoaching(ply){
  aiRequestedPly.add(ply);
  strategicAiBusy=true;strategicAiStatus='analysing';
  const aiStatus=$('aiCoachStatus');
- if(aiStatus){aiStatus.hidden=false;aiStatus.textContent='Refining…';aiStatus.classList.remove('error');}
+ if(aiStatus){aiStatus.hidden=false;aiStatus.textContent='Preparing…';aiStatus.classList.remove('error');}
  try{
   let engine=null;
   try{engine=coachEngineEvidence(after,await fetchEngine(after,16));}catch{}
@@ -1496,8 +1500,8 @@ function refreshUnifiedMoveCoaching(){
  coachSeenPositionCount=h.length;
  status.hidden=!visible||!strategicAiEnabled||!strategicAiStatus;
  status.classList.toggle('error',strategicAiStatus==='error');
- status.textContent=({analysing:'Refining…',engine:'AI + Stockfish',position:'AI · position',error:'AI unavailable'})[strategicAiStatus]||'';
- status.title=strategicAiStatus==='error'?'AI coaching failed. Check the server Terminal.':'The AI explanation replaces the scripted move explanation in place.';
+ status.textContent=({analysing:'Preparing…',engine:'AI + Stockfish',position:'AI · position',error:'AI unavailable'})[strategicAiStatus]||'';
+ status.title=strategicAiStatus==='error'?'AI coaching unavailable; scripted explanations are shown.':'A complete AI coaching explanation is displayed when ready.';
  if(!visible||!strategicAiEnabled||strategicAiFailed||strategicAiBusy||aiRequestedPly.size>=AI_COACH_GAME_LIMIT)return;
  const ply=h.length-1;
  if(ply<AI_COACH_MIN_PLY||ply%AI_COACH_INTERVAL!==0||aiRequestedPly.has(ply)||!notes[ply-1]?.uci)return;
@@ -1578,13 +1582,20 @@ if(item.proposed){const summary=document.createElement('div');summary.className=
  }else{
  const ai=trainingMode==='learn'&&!scenario&&chatPerspective==='coach'&&!item.proposed&&strategicAiEnabled?
   coachMoveMessages.get(item.__i+1):null;
- const explanation=document.createElement('p');
- explanation.textContent=ai&&!ai.pending?ai.message:item.reason;
- copy.append(explanation);
+ if(ai)entry.classList.add('coach-ai-message');
  if(ai?.pending){
+  analysisLabel.textContent='Preparing explanation';
   const pending=document.createElement('div');pending.className='unified-coach-pending';
-  pending.textContent='Refining with AI + Stockfish…';copy.append(pending);
- }else if(ai?.message){
+  pending.setAttribute('role','status');
+  const spinner=document.createElement('span');spinner.className='unified-coach-spinner';spinner.setAttribute('aria-hidden','true');
+  const pendingText=document.createElement('span');pendingText.textContent='Analysing the move with AI + Stockfish…';
+  pending.append(spinner,pendingText);copy.append(pending);
+ }else{
+  const explanation=document.createElement('p');
+  explanation.textContent=ai?.message||item.reason;
+  copy.append(explanation);
+ }
+ if(ai?.message){
   const source=document.createElement('div');source.className='unified-coach-source';
   source.textContent=ai.engineGrounded?'AI-assisted · Stockfish-grounded':'AI-assisted · position-grounded';copy.append(source);
  }
