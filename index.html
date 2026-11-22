@@ -197,6 +197,7 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 
 /* Simplified opening-first interface: one coach, inline review, optional practice strength. */
 .compact-toolbar .training-switch{flex-wrap:wrap}
+#challengeQuickStart{font-size:12px;padding:9px 12px}
 .compact-toolbar .training-option{white-space:nowrap}
 .trainer-panel .detail-tabs{display:none!important}
 .coach-tool-row{display:flex;gap:8px;margin:12px 0 8px}
@@ -224,7 +225,7 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 <nav class="compact-toolbar" aria-label="Opening and opponent controls">
  <label class="toolbar-field"><span>Opening</span><select id="openingSelect"><option value="queen">Queen's Gambit Declined</option><option value="italian">Italian Game</option><option value="sicilian">Sicilian Defence</option><option value="caro">Caro–Kann Defence</option></select></label>
  <div class="training-switch"><button class="training-option active" data-experience="guided">Learn opening</button><button class="training-option" data-experience="practice">Free practice</button><button class="training-option" data-experience="challenge">Opening challenge</button></div>
- <details class="opponent-dropdown" id="opponentDropdown"><summary id="opponentSummary">Opponent · Guided opening</summary><div class="opponent-dropdown-panel"><section id="learnOpponentSettings" class="learn-opponent-settings"><div class="learn-opponent-head"><strong>Opponent</strong><select id="learnOpponent"><option value="guided">Guided opening</option><option value="adaptive">Adaptive Stockfish</option></select></div>
+ <button class="btn primary" id="challengeQuickStart" style="display:none">Start challenge</button><details class="opponent-dropdown" id="opponentDropdown"><summary id="opponentSummary">Opponent · Guided opening</summary><div class="opponent-dropdown-panel"><section id="learnOpponentSettings" class="learn-opponent-settings"><div class="learn-opponent-head"><strong>Opponent</strong><select id="learnOpponent"><option value="guided">Guided opening</option><option value="adaptive">Adaptive Stockfish</option></select></div>
 <div id="learnOpponentDescription" class="learn-opponent-description">Follow the prepared line or practise against Stockfish.</div>
 <label id="learnEloSetting" class="opponent-slider" style="display:none"><span class="opponent-slider-heading">Opponent strength <strong id="learnEloValue">1700 Elo (approx.)</strong></span><input type="range" id="learnElo" min="750" max="2800" step="50" value="1700"><span class="opponent-slider-range"><span>750 · Easier</span><span>2800 · Harder</span></span></label>
 <div class="opponent-assessment" id="learnEvalNote" style="display:none">Position evaluation and review always use full-strength Stockfish.</div></section>
@@ -1011,6 +1012,8 @@ function renderChallenge(){
  $('learnOpponentSettings').style.display='none';
  $('learnOpponent').value=learnOpponent;
  $('opponentDropdown').style.display=trainingMode==='learn'&&learnOpponent==='guided'?'none':'';
+ $('challengeQuickStart').style.display=trainingMode==='challenge'?'':'none';
+ $('challengeQuickStart').textContent=challengeStarted?'Restart challenge':'Start challenge';
  $('opponentSummary').textContent='Stockfish · '+opponentElo()+' Elo';
  $('learnEloSetting').style.display=learnOpponent==='adaptive'?'block':'none';
  $('learnEvalNote').style.display=learnOpponent==='adaptive'?'block':'none';
@@ -1096,6 +1099,7 @@ $('reviewMyMove').onclick=compareWithBestMove;
 $('learnElo').oninput=()=>{saveOpponentElo($('learnElo').value);renderChallenge();};
 $('coachVariation').onclick=showCoachVariation;
 $('coachGameReview').onclick=openGameReview;
+$('challengeQuickStart').onclick=startChallenge;
 const reviewPane=$('reviewTabPane'),simPane=$('simulatorTabPane');
 $('inlineReviewHost').append(reviewPane);
 $('inlineScenarioHost').append(simPane);
