@@ -1556,7 +1556,7 @@ async function requestAiStrategicInsight(entry){
   const candidates=[...candidateStrategicInsights(position,ply),...coachEngineCandidates(position,player,engine)]
    .sort((a,b)=>b.priority-a.priority).slice(0,8);
   if(!candidates.length){
-   strategicAiStatus=engine?'engine':'position';
+   strategicAiStatus='noidea';
    if(entry.id==='pending-ai')insightsEntries=insightsEntries.filter(x=>x!==entry);
    render();return;
   }
@@ -1593,7 +1593,7 @@ function refreshStrategicInsights(){
  $('strategicAiToggle').checked=strategicAiEnabled;
  status.hidden=!strategicAiEnabled||!strategicAiStatus;
  status.classList.toggle('error',strategicAiStatus==='error');
- status.textContent=({analysing:'Analysing…',engine:'AI + Stockfish',position:'AI · position only',error:'AI unavailable'})[strategicAiStatus]||'';
+ status.textContent=({analysing:'Analysing…',engine:'AI + Stockfish',position:'AI · position only',noidea:'No insight needed',error:'AI unavailable'})[strategicAiStatus]||'';
  status.title=strategicAiStatus==='error'?'AI coaching request failed. Check the server Terminal for the API error.':'AI response status; this does not alter the standard move explanations.';
  // Rebuild after rewind, restart, or a newly selected opening. Recorded
  // insights follow their actual board positions, not wall-clock timers.
