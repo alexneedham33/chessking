@@ -376,8 +376,16 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 .strategy-roadmap-detour{border-left:3px solid #dc9c47;background:#3f3428;border-radius:8px;padding:10px 12px;margin-top:10px;color:#ffe7c2;font-size:13px;line-height:1.5}
 @media(max-width:650px){.strategy-roadmap{padding:12px}.strategy-roadmap-connector{flex-basis:7px;min-width:6px}.strategy-roadmap-node{font-size:10px;padding:8px 3px;min-height:50px}.strategy-roadmap-step:last-child{flex-basis:80px}}
 
+/* Two-tier coach chat: neutral move explanation and occasional amber strategic idea. */
+.why-analysis-label{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;opacity:.66}
+.why-strategic-idea{margin-top:13px;padding:11px 12px;border-radius:11px;background:rgba(176,116,38,.13);border:1px solid rgba(211,151,62,.32);border-left:3px solid #daa650;color:inherit}
+.why-strategic-heading{font-size:12px;font-weight:800;color:#edb45c;letter-spacing:.015em}
+.why-strategic-idea p{margin:5px 0 0;font-size:14px;line-height:1.5;color:inherit}
+.why-strategic-source{font-size:10px;opacity:.7;margin-top:7px}
+.why-entry.white-side .why-strategic-idea{background:#fff3df;border-color:#ead0a9;border-left-color:#b37b23;color:#3c2c15}
+.why-entry.white-side .why-strategic-heading{color:#8e5916}
 /* Occasional, position-grounded coaching below the move chat. */
-.insights-coach{margin-top:13px;border:1px solid #44506a;border-radius:14px;background:#1a2232;padding:12px 14px}
+.insights-coach{margin-top:11px;border:1px solid #344055;border-radius:11px;background:#151e2e;padding:9px 12px}
 .insights-coach[hidden],.insights-coach-message[hidden]{display:none!important}
 .insights-coach-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .insights-coach-head strong{font-size:14px;color:#f0f3fb}
@@ -461,7 +469,7 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 </div>
 <div id="coachAnswer" class="coach-answer" style="display:none"></div>
 <div class="insights-coach" id="strategicInsights" hidden>
- <div class="insights-coach-head"><strong>✦ Strategic insights</strong><div style="display:flex;gap:12px"><label class="insights-coach-toggle"><input type="checkbox" id="strategicAiToggle"> AI</label><label class="insights-coach-toggle"><input type="checkbox" id="strategicInsightsToggle" checked> On</label></div></div>
+ <div class="insights-coach-head"><strong>✦ Strategic ideas in chat</strong><div style="display:flex;gap:12px"><label class="insights-coach-toggle"><input type="checkbox" id="strategicAiToggle"> AI</label><label class="insights-coach-toggle"><input type="checkbox" id="strategicInsightsToggle" checked> On</label></div></div>
  <div class="insights-coach-message" id="strategicInsightsMessage" hidden>
   <div class="insights-coach-topic" id="strategicInsightsTopic"></div>
   <p id="strategicInsightsText"></p>
@@ -1569,9 +1577,9 @@ async function requestAiStrategicInsight(entry){
    entry.id=result.id;entry.topic=String(result.topic||entry.topic).slice(0,70);
    entry.message=result.message;entry.source='AI';
   }
-  refreshStrategicInsights();
+  render();
  }catch{
-  if(nonce===strategicAiNonce){strategicAiFailed=true;refreshStrategicInsights();}
+  if(nonce===strategicAiNonce){strategicAiFailed=true;render();}
  }finally{if(nonce===strategicAiNonce)strategicAiBusy=false;}
 }
 function refreshStrategicInsights(){
@@ -1601,13 +1609,8 @@ function refreshStrategicInsights(){
   }
   insightsSeenHistory=h.length;
  }
- const last=insightsEntries.at(-1),show=insightsEnabled&&!!last;
- body.hidden=!show;
- if(show){
-  $('strategicInsightsTopic').textContent=last.topic;
-  $('strategicInsightsText').textContent=last.message;
-  $('strategicInsightsMeta').textContent='Insight after move '+Math.ceil(last.ply/2)+' · '+(last.source==='AI'?'AI-assisted':'Position-based')+(strategicAiEnabled&&strategicAiFailed?' · AI offline':'');
- }
+ // Insights now live inside the relevant move bubble, not in a second card.
+ body.hidden=true;
  if(insightsEnabled&&strategicAiEnabled&&!strategicAiFailed){
   const target=newest||insightsEntries.at(-1);
   if(target&&!aiRequestedPly.has(target.ply))requestAiStrategicInsight(target);
@@ -1671,7 +1674,11 @@ $('chatWelcome').textContent=chatPerspective==='engine'?'No engine-played moves 
 $('whyContent').replaceChildren();recent.forEach(item=>{const entry=document.createElement('div');
 entry.className='why-entry '+(item.proposed?'proposed-bubble ':'')+(chatPerspective==='engine'?'engine-monologue ':'')+(item.color===1?'white-side':'black-side')+(item.color===speakingColor?' is-active':' is-muted');
 const title=document.createElement('div');title.className='why-title';title.textContent=(item.color===1?'White':'Black')+' · '+item.text;
-const copy=document.createElement('div');copy.className='why-copy';if(item.proposed){const summary=document.createElement('div');summary.className='proposal-inline-label';summary.textContent=previewReplyEngine?'Stockfish suggestion · not played yet':'Illustrative response · not played yet';copy.append(summary);const why=document.createElement('p');why.textContent=item.reason;copy.append(why);const hint=document.createElement('div');hint.className='proposal-inline-hint';hint.textContent='Highlighted on board · Next move to play';copy.append(hint);}else if(chatPerspective==='engine'){
+const copy=document.createElement('div');copy.className='why-copy';
+const analysisLabel=document.createElement('div');analysisLabel.className='why-analysis-label';
+analysisLabel.textContent=item.engineAnalysis?'Stockfish analysis':'Move explanation';
+copy.append(analysisLabel);
+if(item.proposed){const summary=document.createElement('div');summary.className='proposal-inline-label';summary.textContent=previewReplyEngine?'Stockfish suggestion · not played yet':'Illustrative response · not played yet';copy.append(summary);const why=document.createElement('p');why.textContent=item.reason;copy.append(why);const hint=document.createElement('div');hint.className='proposal-inline-hint';hint.textContent='Highlighted on board · Next move to play';copy.append(hint);}else if(chatPerspective==='engine'){
  const analysis=item.engineAnalysis;
  const thought=document.createElement('p');thought.textContent=item.engineComment;copy.append(thought);
  if(analysis){
@@ -1684,6 +1691,19 @@ const copy=document.createElement('div');copy.className='why-copy';if(item.propo
    const caveat=document.createElement('small');caveat.textContent='The moves and evaluation are actual engine results; the explanation above is an interpretation.';evidence.append(caveat);copy.append(evidence);
  }
 }else if(chatMode==='quick'){const ul=document.createElement('ul');ul.className='why-bullets';quickBullets(item).slice(0,3).forEach(reason=>{const li=document.createElement('li');li.textContent=reason;ul.append(li)});copy.append(ul);}else{copy.textContent=item.reason;}
+// Use the existing verified strategic observation, if one was triggered
+// at the position reached by this exact move (not on every chat message).
+const insight=trainingMode==='learn'&&!scenario&&chatPerspective==='coach'&&insightsEnabled&&!item.proposed?
+ insightsEntries.find(x=>x.ply===item.__i+1):null;
+if(insight){
+ const idea=document.createElement('div');idea.className='why-strategic-idea';
+ const heading=document.createElement('div');heading.className='why-strategic-heading';
+ heading.textContent='✦ Strategic idea · '+insight.topic;idea.append(heading);
+ const paragraph=document.createElement('p');paragraph.textContent=insight.message;idea.append(paragraph);
+ const source=document.createElement('div');source.className='why-strategic-source';
+ source.textContent=insight.source==='AI'?'AI-assisted · grounded in position checks':'Based on position checks'+(strategicAiEnabled&&strategicAiFailed?' · AI unavailable':'');
+ idea.append(source);copy.append(idea);
+}
 entry.append(title,copy);$('whyContent').append(entry);});
 const revealNewMessage=coachScrollPending;
 coachScrollPending=false;
@@ -1709,12 +1729,12 @@ $('strategicAiToggle').onchange=()=>{
  strategicAiEnabled=$('strategicAiToggle').checked;
  strategicAiFailed=false;strategicAiNonce++;strategicAiBusy=false;aiRequestedPly.clear();
  try{localStorage.setItem('openingLab.aiInsights',strategicAiEnabled?'on':'off');}catch{}
- refreshStrategicInsights();
+ render();
 };
 $('strategicInsightsToggle').onchange=()=>{
  insightsEnabled=$('strategicInsightsToggle').checked;
  try{localStorage.setItem(INSIGHTS_KEY,insightsEnabled?'on':'off');}catch{}
- refreshStrategicInsights();
+ render();
 };
 $('challengeToggle').onchange=()=>{
  trainingMode=$('challengeToggle').checked?'challenge':'learn';
