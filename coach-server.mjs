@@ -10,6 +10,11 @@ const port=Number(process.env.PORT||8787);
 const host='127.0.0.1'; // Do not expose the unauthenticated prototype publicly.
 const model=process.env.OPENAI_COACH_MODEL||'gpt-4.1-mini';
 const history=new Map();
+// Process-local API safety ceiling (resets at UTC midnight or on server restart).
+// Adjust with OPENAI_COACH_DAILY_LIMIT; set to 0 to disable paid calls.
+const dailyLimit=Math.max(0,Math.min(10000,Number.isFinite(Number(process.env.OPENAI_COACH_DAILY_LIMIT))&&process.env.OPENAI_COACH_DAILY_LIMIT!==undefined?Math.floor(Number(process.env.OPENAI_COACH_DAILY_LIMIT)):120));
+let dailyCalls=0,dailyDate='';
+function refreshDailyBudget(){const today=new Date().toISOString().slice(0,10);if(today!==dailyDate){dailyDate=today;dailyCalls=0;}}
 const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.wasm':'application/wasm','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.ico':'image/x-icon'};
 function json(res,status,value){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(value));}
 async function body(req){
@@ -85,13 +90,17 @@ const server=http.createServer(async(req,res)=>{
  const url=new URL(req.url||'/', 'http://localhost');
  const origin=req.headers.origin;
  if(origin&&origin!=='http://'+host+':'+port){json(res,403,{error:'Wrong origin'});return;}
- if(url.pathname==='/api/coach/status'){json(res,200,{available:!!process.env.OPENAI_API_KEY});return;}
+ if(url.pathname==='/api/coach/status'){refreshDailyBudget();json(res,200,{available:!!process.env.OPENAI_API_KEY,model,dailyLimit,dailyCalls,remaining:Math.max(0,dailyLimit-dailyCalls)});return;}
  if(url.pathname==='/api/coach/insight'&&req.method==='POST'){
   if(!process.env.OPENAI_API_KEY){json(res,503,{error:'AI not configured'});return;}
+  refreshDailyBudget();
+  if(dailyCalls>=dailyLimit){json(res,429,{error:'Daily AI coaching limit reached'});return;}
   const ip=req.socket.remoteAddress||'local',now=Date.now(),state=history.get(ip)||[];
   const recent=state.filter(x=>now-x<60000);
   if(recent.length>=12){json(res,429,{error:'Rate limit'});return;}
   history.set(ip,[...recent,now]);
+  // Count attempts, including API failures, to protect against unexpected spend.
+  dailyCalls++;
   try{json(res,200,await suggest(await body(req)));}catch(err){console.error('AI coaching request:',err.message);json(res,502,{error:'Coaching unavailable'});}
   return;
  }
