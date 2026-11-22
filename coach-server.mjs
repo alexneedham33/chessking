@@ -16,21 +16,50 @@ async function body(req){
  let raw='';for await (const chunk of req){raw+=chunk.toString();if(raw.length>12000)throw Error('Request too large');}
  return JSON.parse(raw);
 }
+function cleanEngineEvidence(input){
+ if(!input||typeof input!=='object'||!Number.isInteger(input.depth)||input.depth<1||input.depth>40||!Array.isArray(input.variations))return null;
+ const variations=input.variations.slice(0,3).map(line=>{
+  if(!line||typeof line!=='object'||!Array.isArray(line.moves))return null;
+  const moves=line.moves.slice(0,6).map(move=>{
+   if(!move||typeof move!=='object'||!/^[a-h][1-8][a-h][1-8][qrbn]?$/.test(move.uci||''))return null;
+   return {uci:move.uci,label:String(move.label||'').slice(0,30),
+    side:move.side==='Black'?'Black':'White',piece:['p','n','b','r','q','k'].includes(move.piece)?move.piece:'',
+    capture:move.capture===true,castle:move.castle===true};
+  }).filter(Boolean);
+  if(!moves.length)return null;
+  const evaluation=Number.isFinite(line.evaluation)&&Math.abs(line.evaluation)<200?line.evaluation:null;
+  return {rank:Number.isInteger(line.rank)?line.rank:1,evaluation,
+   mate:Number.isInteger(line.mate)&&Math.abs(line.mate)<=100?line.mate:null,moves};
+ }).filter(Boolean);
+ if(!variations.length)return null;
+ return {depth:input.depth,sideToMove:input.sideToMove==='Black'?'Black':'White',
+  evaluation:Number.isFinite(input.evaluation)&&Math.abs(input.evaluation)<200?input.evaluation:null,
+  mate:Number.isInteger(input.mate)&&Math.abs(input.mate)<=100?input.mate:null,variations};
+}
 async function suggest(payload){
- const {fen,opening,player,moveHistory,facts,candidates,previous}=payload;
+ const {fen,opening,player,moveHistory,facts,candidates,previous,recentInsights}=payload;
+ const engine=cleanEngineEvidence(payload.engine);
  if(typeof fen!=='string'||fen.length>130||!/^[prnbqkPRNBQK1-8/]+ [wb] /.test(fen))throw Error('Invalid position');
  if(!Array.isArray(candidates)||candidates.length>8||!candidates.every(x=>typeof x.id==='string'&&typeof x.topic==='string'&&typeof x.message==='string'))throw Error('Invalid evidence');
  const instructions=[
   'You are a thoughtful chess coach for a beginner. Choose ONE useful strategic insight from the supplied verified candidate observations, or choose none.',
+  'Stockfish evidence, if available, has evaluations from White\'s perspective (positive favours White) and candidate continuations. These are calculations, not a guaranteed future or an engine declaration of intent.',
+  'Use candidate moves as evidence of possible plans, but a single principal variation does not establish long-term strategy.',
+  'If a position is tactically forcing, avoid generic advice that ignores obvious immediate priorities. When evidence is insufficient, use cautious language or return none.',
   'Treat the FEN and position facts as context, not a license to invent tactical threats, forcing sequences, or engine evaluations.',
   'Do not claim that castling is legal unless the facts say it is. Do not recommend a specific move unless the provided candidate warrants it.',
   'Do not frame an opponent plan as certain; use may, might, or worth watching.',
   'Prefer advice about king safety, castling timing, piece coordination, positional pressure and space, when relevant.',
   'Keep advice natural, calm, actionable and tentative. One or two sentences, maximum 220 characters.',
-  'Avoid repeating the previous insight. If no candidate is worth saying now, return id none.',
+  'Avoid repeating the previous insight or the last few strategic topics. If no candidate is worth saying now, return id none.',
+  'Do not present numerical evaluation, best moves, or forced tactics in the message without direct support from engine evidence. Teach ideas rather than tell the player what to play.',
   'Your output MUST reference an input candidate id, or none. Do not create a new candidate id.'
  ].join(' ');
- const input={fen,opening:String(opening||'').slice(0,100),player:player==='Black'?'Black':'White',moveHistory:Array.isArray(moveHistory)?moveHistory.slice(-12):[],facts,previous:previous||null,candidates:candidates.map(x=>({id:x.id,topic:x.topic,message:x.message}))};
+ const input={fen,opening:String(opening||'').slice(0,100),player:player==='Black'?'Black':'White',
+  moveHistory:Array.isArray(moveHistory)?moveHistory.slice(-12):[],facts,engine,
+  previous:typeof previous==='string'?previous.slice(0,240):null,
+  recentInsights:Array.isArray(recentInsights)?recentInsights.slice(-3).map(x=>({topic:String(x.topic||'').slice(0,80),message:String(x.message||'').slice(0,240)})):[],
+  candidates:candidates.map(x=>({id:x.id,topic:x.topic,message:x.message}))};
  const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),18000);
  try{
   const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',signal:controller.signal,headers:{'Authorization':'Bearer '+process.env.OPENAI_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({
@@ -45,7 +74,7 @@ async function suggest(payload){
   if(!candidate)throw Error('AI chose an unknown insight');
   // Keep verified candidate text as fallback for malformed or overlong results.
   const message=typeof result.message==='string'&&result.message.length>=12&&result.message.length<=240?result.message:candidate.message;
-  return {id:candidate.id,topic:candidate.topic,message,source:'ai'};
+  return {id:candidate.id,topic:candidate.topic,message,source:'ai',engineGrounded:!!engine};
  }finally{clearTimeout(timer);}
 }
 const server=http.createServer(async(req,res)=>{
