@@ -702,8 +702,11 @@ function bootStockfish(){
  });
  return stockfishState.ready;
 }
+const engineInflight=new Map();
 function fetchEngine(s,depth=16){
- const fen=fenOf(s),cacheKey=depth+':'+fen;if(evalCache.has(cacheKey))return Promise.resolve(evalCache.get(cacheKey));
+ const fen=fenOf(s),cacheKey=depth+':'+fen;
+ if(evalCache.has(cacheKey))return Promise.resolve(evalCache.get(cacheKey));
+ if(engineInflight.has(cacheKey))return engineInflight.get(cacheKey);
  const request=stockfishState.chain.catch(()=>{}).then(async()=>{
    const worker=await bootStockfish();
    return new Promise((resolve,reject)=>{
@@ -715,7 +718,10 @@ function fetchEngine(s,depth=16){
      worker.postMessage('go depth '+depth);
    });
  });
- stockfishState.chain=request.catch(()=>{});return request;
+ stockfishState.chain=request.catch(()=>{});
+ engineInflight.set(cacheKey,request);
+ request.finally(()=>engineInflight.delete(cacheKey)).catch(()=>{});
+ return request;
 }
 // Stockfish 17.1 supports native UCI_Elo down to roughly 1320.
 // For lower requested difficulty use its native weakest setting with a
@@ -1469,17 +1475,82 @@ function candidateStrategicInsights(position,ply){
  }
  return out.sort((a,b)=>b.priority-a.priority);
 }
+// Send only actual, legal Stockfish lines from the analysed position.
+function coachEngineEvidence(position,analysis){
+ if(!analysis||!Number.isFinite(analysis.depth)||analysis.depth<1)return null;
+ const variations=[];
+ const lines=(analysis.candidates?.length?analysis.candidates:[{rank:1,pv:analysis.pv,evaluation:analysis.evaluation,mate:analysis.mate,depth:analysis.depth}]);
+ for(const option of lines.slice(0,3)){
+  if(!Array.isArray(option.pv)||!option.pv.length)continue;
+  let board=position;const moves=[];
+  for(const uci of option.pv.slice(0,6)){
+   const move=legal(board).find(m=>key(m)===uci);
+   if(!move)break;
+   moves.push({uci,label:moveLabel(board,move),piece:board.b[move[0]].toLowerCase(),capture:board.b[move[1]]!=='.'||move[3]==='ep',castle:move[3]==='castle',from:sq(move[0]),to:sq(move[1]),side:board.t===1?'White':'Black'});
+   board=apply(board,move);
+  }
+  if(!moves.length)continue;
+  variations.push({
+   rank:Number.isFinite(option.rank)?option.rank:variations.length+1,
+   evaluation:Number.isFinite(option.evaluation)?Number(option.evaluation.toFixed(2)):null,
+   mate:Number.isInteger(option.mate)?option.mate:null,
+   moves
+  });
+ }
+ if(!variations.length)return null;
+ return {
+  depth:analysis.depth,
+  evaluation:Number.isFinite(analysis.evaluation)?Number(analysis.evaluation.toFixed(2)):null,
+  mate:Number.isInteger(analysis.mate)?analysis.mate:null,
+  sideToMove:position.t===1?'White':'Black',
+  variations
+ };
+}
+function coachEngineCandidates(position,player,engine){
+ if(!engine)return [];
+ const ownTurn=position.t===player,first=engine.variations.map(v=>v.moves[0]).filter(Boolean),
+       primary=first[0],suggestions=[];
+ const push=(id,priority,topic,message)=>suggestions.push({id,priority,topic,message});
+ if(!primary)return suggestions;
+ const mover=ownTurn?'you':'your opponent';
+ if(first.some(m=>m.castle)&&ownTurn){
+  push('engine-castling',78,'Consider king safety',
+       'Castling is among the moves Stockfish is examining. Think about whether your king would be safer and your rooks better connected.');
+ }
+ if(first.some(m=>m.piece==='p'&&['d','e'].includes(m.to[0]))){
+  push('engine-central-play',ownTurn?62:68,'Watch the central pawns',
+       (ownTurn?'One of the candidate plans':'Your opponent may consider a plan')+' involves a central pawn advance. Look at what that would open or challenge before committing to a flank.');
+ }
+ if(first.some(m=>m.capture)){
+  push('engine-exchanges',58,'Consider the exchanges',
+       'A capture appears in Stockfish\'s candidate continuations. Think about what would change after the pieces or pawns are exchanged.');
+ }
+ if(first.some(m=>m.piece==='n'||m.piece==='b')&&ownTurn){
+  push('engine-piece-activity',52,'Improve your pieces',
+       'Stockfish is considering moves with a knight or bishop. Think about which piece could take up a more useful square without leaving anything undefended.');
+ }
+ return suggestions;
+}
+
 async function requestAiStrategicInsight(entry){
  if(strategicAiBusy||strategicAiFailed||!strategicAiEnabled||!insightsEnabled||!entry||aiRequestedPly.has(entry.ply))return;
  aiRequestedPly.add(entry.ply);strategicAiBusy=true;
  const ply=entry.ply,position=h[ply],fen=fenOf(position),nonce=strategicAiNonce;
- const facts=strategicFacts(position,openings[selected].side);
- const candidates=candidateStrategicInsights(position,ply).slice(0,6);
+ const player=openings[selected].side;
+ const facts=strategicFacts(position,player);
  try{
+  // This is the very same cached depth-16 analysis used for positional balance.
+  // If Stockfish is unavailable, the existing positional coach still works.
+  let engine=null;
+  try{engine=coachEngineEvidence(position,await fetchEngine(position,16));}catch{}
+  if(nonce!==strategicAiNonce||h[ply]!==position||!insightsEntries.includes(entry))return;
+  const candidates=[...candidateStrategicInsights(position,ply),...coachEngineCandidates(position,player,engine)]
+   .sort((a,b)=>b.priority-a.priority).slice(0,8);
   const response=await fetch('/api/coach/insight',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
    fen,opening:openings[selected].name,player:openings[selected].side===1?'White':'Black',
-   moveHistory:logs.slice(Math.max(0,ply-12),ply),facts,candidates,
-   previous:insightsEntries.length>1?insightsEntries.at(-2)?.message:null
+   moveHistory:logs.slice(Math.max(0,ply-12),ply),facts,candidates,engine,
+   previous:insightsEntries.length>1?insightsEntries.at(-2)?.message:null,
+   recentInsights:insightsEntries.filter(x=>x!==entry&&x.ply<ply).slice(-3).map(x=>({topic:x.topic,message:x.message}))
   })});
   if(!response.ok)throw Error('AI not connected');
   const result=await response.json();
@@ -1487,7 +1558,7 @@ async function requestAiStrategicInsight(entry){
   if(result.id==='none'){insightsEntries=insightsEntries.filter(x=>x!==entry);}
   else if(candidates.some(x=>x.id===result.id)&&typeof result.message==='string'&&result.message.length<=240){
    entry.id=result.id;entry.topic=String(result.topic||entry.topic).slice(0,70);
-   entry.message=result.message;entry.source='AI';
+   entry.message=result.message;entry.source=result.engineGrounded?'AI + Stockfish':'AI';
   }
   render();
  }catch{
@@ -1611,7 +1682,7 @@ if(insight){
  heading.textContent='✦ Strategic idea · '+insight.topic;idea.append(heading);
  const paragraph=document.createElement('p');paragraph.textContent=insight.message;idea.append(paragraph);
  const source=document.createElement('div');source.className='why-strategic-source';
- source.textContent=insight.source==='AI'?'AI-assisted · grounded in position checks':'Based on position checks'+(strategicAiEnabled&&strategicAiFailed?' · AI unavailable':'');
+ source.textContent=insight.source==='AI + Stockfish'?'AI-assisted · Stockfish + position checks':insight.source==='AI'?'AI-assisted · position checks':'Based on position checks'+(strategicAiEnabled&&strategicAiFailed?' · AI unavailable':'');
  idea.append(source);copy.append(idea);
 }
 entry.append(title,copy);$('whyContent').append(entry);});
