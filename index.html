@@ -330,6 +330,7 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 #opponentDropdown #learnEloSetting{margin-top:17px;border-top:1px solid #33425b;padding-top:13px}
 #opponentDropdown #learnEloSetting .opponent-slider-heading{font-size:14px;color:#e0e7f3}
 #opponentDropdown #learnEloSetting .opponent-slider-range{font-size:12px}
+.opening-line-warning{margin:5px 0 10px;padding:11px 14px;border:1px solid #e86b78;background:#542029;color:#ffe5e8;border-radius:10px;font-size:15px;font-weight:700;line-height:1.45}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -359,6 +360,7 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
           <span id="turn" class="board-title">White to move</span>
           <span class="muted" id="player">Playing White</span>
         </div>
+        <div id="openingLineWarning" class="opening-line-warning" role="alert" style="display:none"></div>
 <div class="board-stage">
           <div class="board-wrap">
             <div class="board" id="board" aria-label="Interactive chess board"></div>
@@ -687,6 +689,14 @@ function opponentSearchDepth(rating){
 // (ten half-moves), provided the learner follows that variation.
 // After that—or immediately after a deviation—Stockfish decides replies.
 const SCRIPTED_OPENING_PLIES=10;
+function isLockedOpeningPhase(){
+ return trainingMode==='learn'&&learnOpponent==='guidedEngine'&&!scenario&&h.length-1<SCRIPTED_OPENING_PLIES;
+}
+let outsideLineWarning='';
+function rejectOutsideOpeningLine(){
+ outsideLineWarning='Outside the opening line — try again. Use Hint to see the correct move.';
+ selectedSquare=-1;promotion=null;render();
+}
 function scriptedStockfishOpeningReply(position){
  if(h.length-1>=SCRIPTED_OPENING_PLIES||position.i<0)return null;
  if(position.t===openings[selected].side)return null;
@@ -1081,7 +1091,7 @@ function revealLatestCoachMove(){
  sizeCoachConversation(true);
 }
 function invalidateReview(){comparisonView=null;reviewSerial++;reviewData=null;reviewSelection=0;$('reviewResults').style.display='none';$('reviewStatus').textContent='Game changed. Analyse the current moves to refresh the review.';}
-function reset(){coachScrollPending=false;coachScrollGeneration++;$('chatZone').scrollTop=0;invalidateReview();comparisonView=null;variationPanelOpen=false;gameReviewOpen=false;coachAnswerText='';challengeStarted=false;challengeFinished=false;challengeScore=null;shownEngineFen='';simEvalRequest++;replySelectionToken++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();if(trainingMode==='learn'&&learnOpponent==='adaptive'&&mode==='play'&&current().t!==openings[selected].side)prepareOpponentReply();}
+function reset(){outsideLineWarning='';coachScrollPending=false;coachScrollGeneration++;$('chatZone').scrollTop=0;invalidateReview();comparisonView=null;variationPanelOpen=false;gameReviewOpen=false;coachAnswerText='';challengeStarted=false;challengeFinished=false;challengeScore=null;shownEngineFen='';simEvalRequest++;replySelectionToken++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();if(trainingMode==='learn'&&learnOpponent==='adaptive'&&mode==='play'&&current().t!==openings[selected].side)prepareOpponentReply();}
 function startChallenge(){reset();challengeStarted=true;feedback='Challenge started. Play your opening against Stockfish.';render();if(current().t!==openings[selected].side)prepareOpponentReply();}
 function current(){return h.at(-1)}function suggested(){const s=current();return legal(s).find(m=>key(m)===routeLine()[s.i]?.[0])}
 function readablePv(s,pv){
@@ -1106,7 +1116,7 @@ function shouldUseEngineReply(s){return !!deviationInfo&&(deviationInfo.kind==='
 async function prepareOpponentReply(){
  const s=current();
  const token=++replySelectionToken;
- if(trainingMode==='challenge'||trainingMode==='learn'&&learnOpponent==='adaptive'){
+ if(trainingMode==='challenge'||trainingMode==='learn'&&(learnOpponent==='adaptive'||learnOpponent==='guidedEngine')){
   const scripted=scriptedStockfishOpeningReply(s);
   if(scripted){previewReplyEngine=false;previewAnalysis=null;queueReply(scripted);return;}
  pendingReply={engine:true};feedback='Your Stockfish opponent (~'+opponentElo()+' Elo) is thinking…';render();
@@ -1138,7 +1148,7 @@ async function prepareOpponentReply(){
  render();
 }
 function queueReply(m){pendingReply=m;feedback='Opponent is thinking...';render();replyTimer=setTimeout(()=>startMoveAnimation(m,true),800);}
-function startMoveAnimation(m,isOpponent){
+function startMoveAnimation(m,isOpponent,autoReplyAfterManual=false){
   if(isOpponent){replyTimer=null;pendingReply=null;previewReply=null;}
   const guided=trainingMode==='learn'&&learnOpponent!=='adaptive'&&!scenario;
   const ghost=$('moveGhost');
@@ -1158,22 +1168,27 @@ function startMoveAnimation(m,isOpponent){
     record(m,engineSelected,engineAnalysis);
     animatingMove=null;
     if(trainingMode==='challenge'&&!scenario&&(current().t===1&&current().full>Number($('challengeTarget').value)||gameStatus(h).done)){finalizeChallenge();render();return;}
-    if(!isOpponent&&mode==='play'&&!gameStatus(h).done&&current().t!==openings[selected].side&&(trainingMode==='challenge'||learnOpponent==='adaptive')){
-      await prepareOpponentReply();
-      return;
+    if(!isOpponent&&mode==='play'&&!gameStatus(h).done&&current().t!==openings[selected].side&&(
+      trainingMode==='challenge'||learnOpponent==='adaptive'||
+      (autoReplyAfterManual&&trainingMode==='learn'&&learnOpponent==='guidedEngine'&&h.length-1>=SCRIPTED_OPENING_PLIES))){
+      await prepareOpponentReply();return;
     }
     render();
   },1550);
 }
-function play(m){
+function play(m,manual=false){
   if(trainingMode==='challenge'&&!challengeStarted)return;
   if(challengeFinished||scenario||pendingReply||animatingMove||gameStatus(h).done)return;
   const found=legal(current()).find(x=>key(x)===key(m));
   if(!found){feedback='Illegal move';render();return;}
-  // Player and guided moves start immediately, without any thinking delay.
-  startMoveAnimation(found,false);
+  if(isLockedOpeningPhase()){
+   const expected=suggested();
+   if(!expected||key(found)!==key(expected)){rejectOutsideOpeningLine();return;}
+  }
+  outsideLineWarning='';
+  startMoveAnimation(found,false,manual);
 }
-function clickSquare(i){if(trainingMode==='challenge'&&!challengeStarted)return;if(challengeFinished||scenario||pendingReply||animatingMove)return;if(gameStatus(h).done||promotion||mode==='play'&&current().t!==openings[selected].side)return;const s=current(),moves=legal(s);if(side(s.b[i])===s.t){selectedSquare=selectedSquare===i?-1:i;feedback='';render();return;}const choices=moves.filter(m=>m[0]===selectedSquare&&m[1]===i);if(choices.length>1){promotion=choices;render();return;}if(choices.length===1)play(choices[0]);else{feedback='Choose one of the highlighted legal destinations.';render();}}
+function clickSquare(i){if(trainingMode==='challenge'&&!challengeStarted)return;if(challengeFinished||scenario||pendingReply||animatingMove)return;if(gameStatus(h).done||promotion||mode==='play'&&current().t!==openings[selected].side)return;const s=current(),moves=legal(s);if(side(s.b[i])===s.t){selectedSquare=selectedSquare===i?-1:i;feedback='';render();return;}const choices=moves.filter(m=>m[0]===selectedSquare&&m[1]===i);if(choices.length>1){promotion=choices;render();return;}if(choices.length===1)play(choices[0],true);else{feedback='Choose one of the highlighted legal destinations.';render();}}
 function challengeObjectives(){
  const side=openings[selected].side,pos=current(),old=original(),mine=side===1?x=>x.toUpperCase():x=>x.toLowerCase();
  const moves=logs.filter((_,i)=>h[i]?.t===side).join(' ');
@@ -1219,7 +1234,7 @@ function renderChallenge(){
  $('learnEloValue').textContent=opponentElo()+' Elo (approx.)';
  $('challengeEloValue').textContent=opponentElo()+' Elo (approx.)';
  $('learnElo').value=opponentElo();$('challengeElo').value=opponentElo();
- $('learnOpponentDescription').textContent=learnOpponent==='guided'?'Follows the prepared moves for your selected opening and variation. The same sequence plays each time.':'The first five full moves follow the selected opening when you stay on its line. After that, Stockfish chooses replies at your approximate difficulty. Deviate early and Stockfish takes over immediately.';
+ $('learnOpponentDescription').textContent=learnOpponent==='guided'?'Follows the prepared moves for your selected opening and variation. The same sequence plays each time.':'First 10 half-moves follow the chosen opening exactly. After that, play any legal move and Stockfish responds at your selected Elo.';
  $('challengeSettings').style.display=trainingMode==='challenge'?'block':'none';
  document.querySelectorAll('[data-experience]').forEach(b=>b.classList.toggle('active',b.dataset.experience===(isPlay?'practice':'guided')));
  if(trainingMode!=='challenge')return;
@@ -1305,7 +1320,12 @@ function renderCapturedPieces(){
  }
 }
 
-function render(){syncOpeningChoices();requestAnimationFrame(alignCapturedTrayWithBoard);const s=scenario?scenarioPositions[scenarioIndex]:current(),moves=legal(s),status=gameStatus(h),op=openings[selected],step=op.line[s.i],hint=suggested(),yourTurn=s.t===op.side,ended=status.done;$('openingSelect').value=openingParent(selected);$('variationSelect').value=selected;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x.dataset.mode===mode));$('turn').textContent=scenario?'Illustrative variation · '+(scenarioIndex===0?'Start':('Step '+scenarioIndex)):pendingReply?'Opponent is thinking…':animatingMove?(animatingMove.isOpponent?'Opponent is moving…':'Your move…'):status.text;$('player').textContent=scenario?'Use Next move to explore':pendingReply?'Opponent reply in progress':animatingMove?(animatingMove.isOpponent?'Opponent reply in progress':'Moving piece'):(mode==='play'?'Playing '+(op.side===1?'White':'Black'):'Study both sides');$('openingName').textContent=op.name;$('description').textContent=op.desc;$('tip').textContent=op.tip;$('progressLabel').textContent=s.i<0?'Exploring':Math.max(0,s.i)+' / '+routeLine().length;const progressPct=100*Math.max(0,s.i)/routeLine().length;$('progressBar').style.width=progressPct+'%';$('openingProgress').style.display=trainingMode==='learn'&&learnOpponent!=='adaptive'?'':'none'; const topProgress=$('topProgressFill'); if(topProgress) topProgress.style.width=progressPct+'%';
+function render(){syncOpeningChoices();requestAnimationFrame(alignCapturedTrayWithBoard);const s=scenario?scenarioPositions[scenarioIndex]:current(),moves=legal(s),status=gameStatus(h),op=openings[selected],step=op.line[s.i],hint=learnOpponent==='guidedEngine'&&h.length-1>=SCRIPTED_OPENING_PLIES?null:suggested(),yourTurn=s.t===op.side,ended=status.done;$('openingSelect').value=openingParent(selected);$('variationSelect').value=selected;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x.dataset.mode===mode));$('turn').textContent=scenario?'Illustrative variation · '+(scenarioIndex===0?'Start':('Step '+scenarioIndex)):pendingReply?'Opponent is thinking…':animatingMove?(animatingMove.isOpponent?'Opponent is moving…':'Your move…'):status.text;$('player').textContent=scenario?'Use Next move to explore':pendingReply?'Opponent reply in progress':animatingMove?(animatingMove.isOpponent?'Opponent reply in progress':'Moving piece'):(mode==='play'?'Playing '+(op.side===1?'White':'Black'):'Study both sides');$('openingName').textContent=op.name;$('description').textContent=op.desc;$('tip').textContent=op.tip;const lessonLimit=learnOpponent==='guidedEngine'?SCRIPTED_OPENING_PLIES:routeLine().length;
+const lessonDone=Math.min(lessonLimit,Math.max(0,h.length-1));
+$('progressLabel').textContent=lessonDone+' / '+lessonLimit;const progressPct=100*lessonDone/lessonLimit;$('progressBar').style.width=progressPct+'%';$('openingProgress').style.display=trainingMode==='learn'&&learnOpponent!=='adaptive'?'':'none';
+$('openingLineWarning').textContent=outsideLineWarning;
+$('openingLineWarning').style.display=outsideLineWarning?'block':'none';
+const topProgress=$('topProgressFill'); if(topProgress) topProgress.style.width=progressPct+'%';
 // Update after every completed half-move, including White's move.
  if(!scenario && !animatingMove)requestPositionEval(s);
  $('reviewAnalyse').disabled=animatingMove||pendingReply||h.length<2||reviewBusy;
@@ -1363,7 +1383,7 @@ const revealNewMessage=coachScrollPending;
 coachScrollPending=false;
 sizeCoachConversation(revealNewMessage);
 // Keep the conversation scrollable; never delete earlier explanations to make room.
-$('feedback').textContent=feedback;$('feedback').style.display=feedback?'':'none';$('hintText').textContent=showHint&&hint?'Hint: '+moveLabel(s,hint)+' — '+step[1]:status.claim?'Draw may be claimed: '+status.claim:'';$('hint').textContent=showHint?'Hide hint':'✧ Hint';$('plyCount').textContent=logs.length+' plies';$('history').replaceChildren();if(!logs.length){const e=document.createElement('span');e.style.gridColumn='1/-1';e.textContent='Your moves will appear here.';$('history').append(e);}else logs.forEach(x=>{const e=document.createElement('span');e.textContent=x;$('history').append(e);});$('promotion').style.display=promotion?'grid':'none';$('promoChoices').replaceChildren();if(promotion)promotion.forEach(m=>{const e=document.createElement('button');e.textContent=({q:'♛',r:'♜',b:'♝',n:'♞'})[m[2]];e.onclick=()=>{promotion=null;play(m)};$('promoChoices').append(e);});}
+$('feedback').textContent=feedback;$('feedback').style.display=feedback?'':'none';$('hintText').textContent=showHint&&hint?'Hint: '+moveLabel(s,hint)+' — '+step[1]:status.claim?'Draw may be claimed: '+status.claim:'';$('hint').textContent=showHint?'Hide hint':'✧ Hint';$('plyCount').textContent=logs.length+' plies';$('history').replaceChildren();if(!logs.length){const e=document.createElement('span');e.style.gridColumn='1/-1';e.textContent='Your moves will appear here.';$('history').append(e);}else logs.forEach(x=>{const e=document.createElement('span');e.textContent=x;$('history').append(e);});$('promotion').style.display=promotion?'grid':'none';$('promoChoices').replaceChildren();if(promotion)promotion.forEach(m=>{const e=document.createElement('button');e.textContent=({q:'♛',r:'♜',b:'♝',n:'♞'})[m[2]];e.onclick=()=>{promotion=null;play(m,true)};$('promoChoices').append(e);});}
 for(const name of Object.keys(openings)){let s=original();for(const [uci]of openings[name].line){selected=name;const m=legal(s).find(m=>key(m)===uci);if(!m)throw Error('Invalid opening '+name+' '+uci);s=apply(s,m);}}selected='queenAccepted';
 for(const k of Object.keys(scenarios)){selected=k;setScenario();}selected='queenAccepted';$('learnOpponent').onchange=()=>{learnOpponent=$('learnOpponent').value;mode='play';reset();};
 $('reviewMyMove').onclick=compareWithBestMove;
@@ -1438,11 +1458,11 @@ $('variationSelect').onchange=()=>{selected=$('variationSelect').value;reset();}
 $('next').onclick=()=>{
  if(pendingReply||animatingMove||gameStatus(h).done)return;
  const opponentTurn=current().t!==openings[selected].side;
- if(trainingMode==='learn'&&learnOpponent==='guidedEngine'&&(opponentTurn||!suggested())){
-  advanceLearnStockfishMove();return;
+ if(trainingMode==='learn'&&learnOpponent==='guidedEngine'&&(h.length-1>=SCRIPTED_OPENING_PLIES||opponentTurn)){
+  outsideLineWarning='';advanceLearnStockfishMove();return;
  }
  const m=previewReply||suggested()||(current().i<0&&current().t===openings[selected].side?freeReply(current()):null);
- if(m){if(mode==='play'&&opponentTurn)startMoveAnimation(m,true);else play(m);}
+ if(m){outsideLineWarning='';if(mode==='play'&&opponentTurn)startMoveAnimation(m,true);else play(m);}
 };$('opponent').onclick=()=>{const m=suggested();if(m)play(m)};$('restart').onclick=reset;$('back').onclick=()=>{if(scenario){scenarioIndex=Math.max(0,scenarioIndex-1);render();return;}if(pendingReply||animatingMove){clearReplyState();render();return;}if(h.length<2)return;invalidateReview();const n=(trainingMode==='challenge'||learnOpponent==='adaptive')&&mode==='play'&&h.length>2&&h.at(-1).t===openings[selected].side?2:1;h=h.slice(0,-n);logs=logs.slice(0,-n);notes=notes.slice(0,-n);const restored=routeHistory.length>=n?routeHistory[routeHistory.length-n]:null;routeHistory=routeHistory.slice(0,-n);activeBranch=restored?.branch||null;deviationInfo=restored?.info||null;selectedSquare=-1;showHint=false;feedback='';lastSquares=[];render()};$('cancelPromo').onclick=()=>{promotion=null;render()};// Keep the material card level with the bottom of the 64-square board,
 // not the board shell (which also contains the Undo/Restart/Next buttons).
 function alignCapturedTrayWithBoard(){
