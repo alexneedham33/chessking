@@ -1057,7 +1057,7 @@ function startMoveAnimation(m,isOpponent){
   if(isOpponent){replyTimer=null;pendingReply=null;previewReply=null;}
   const guided=trainingMode==='learn'&&learnOpponent==='guided'&&!scenario;
   const ghost=$('moveGhost');
-  if(ghost)ghost.style.transitionDuration=guided?'400ms':'';
+  if(ghost)ghost.style.transitionDuration='';
   // The coach already has this lesson's explanation; reveal it with the
   // animated move, rather than after the animation is committed.
   if(guided)coachScrollPending=true;
@@ -1078,7 +1078,7 @@ function startMoveAnimation(m,isOpponent){
       return;
     }
     render();
-  },guided?420:1550);
+  },1550);
 }
 function play(m){
   if(trainingMode==='challenge'&&!challengeStarted)return;
