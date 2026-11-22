@@ -243,6 +243,26 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 #moveReviewToolbar>div span{font-size:10px}
 #inlineReviewHost{margin-top:10px}
 @media(max-width:750px){.compact-toolbar .opponent-dropdown{margin-left:0}.play-challenge-panel .challenge-config{flex-direction:column;align-items:stretch}.play-challenge-panel .challenge-config label{max-width:none!important;width:100%}}
+
+/* Show the latest two coaching bubbles at a comfortable reading size.
+   Earlier move explanations stay in the same scrollable conversation. */
+.trainer-panel .chat-zone{
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  min-height:0!important;
+  max-height:min(55dvh,620px)!important;
+  scrollbar-width:thin;
+  scrollbar-color:#56647b #151a27;
+}
+.trainer-panel .why-content{overflow:visible!important;gap:10px!important}
+.trainer-panel .why-entry{padding:14px 16px!important}
+.trainer-panel .why-title{font-size:14px!important;line-height:1.45!important;margin-bottom:7px!important}
+.trainer-panel .why-copy{font-size:16px!important;line-height:1.55!important;overflow-wrap:break-word}
+.trainer-panel .why-content>.why-entry:nth-last-child(-n+2){opacity:1!important}
+@media(max-width:650px){
+ .trainer-panel .why-copy{font-size:15px!important}
+ .trainer-panel .why-title{font-size:14px!important}
+}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -952,15 +972,30 @@ async function openGameReview(){
  renderCoachTools();
 }
 let chatPageStart=0,coachScrollPending=false,coachScrollGeneration=0;
-function revealLatestCoachMove(){
- const zone=$('chatZone');
- if(!zone)return;
- // After DOM layout, show the latest completed move without scrolling the whole page.
+function sizeCoachConversation(scrollToLatest=false){
+ const zone=$('chatZone'),messages=$('whyContent');
+ if(!zone||!messages)return;
+ // Keep the full message history in the DOM, but show about the last two bubbles.
+ // Recalculate after layout so longer explanations and narrower screens fit.
  const generation=++coachScrollGeneration;
  requestAnimationFrame(()=>{
    if(generation!==coachScrollGeneration)return;
-   zone.scrollTop=zone.scrollHeight;
+   const entries=Array.from(messages.children);
+   if(!entries.length){
+     zone.style.setProperty('height','auto','important');
+     zone.scrollTop=0;
+     return;
+   }
+   const visible=entries.slice(-2);
+   const gap=parseFloat(getComputedStyle(messages).rowGap)||0;
+   const wanted=visible.reduce((sum,entry)=>sum+entry.getBoundingClientRect().height,0)+gap*Math.max(0,visible.length-1);
+   const cap=Math.max(170,Math.min(window.innerHeight*0.55,620));
+   zone.style.setProperty('height',Math.ceil(Math.min(wanted+2,cap))+'px','important');
+   if(scrollToLatest)zone.scrollTop=zone.scrollHeight;
  });
+}
+function revealLatestCoachMove(){
+ sizeCoachConversation(true);
 }
 function invalidateReview(){comparisonView=null;reviewSerial++;reviewData=null;reviewSelection=0;$('reviewResults').style.display='none';$('reviewStatus').textContent='Game changed. Analyse the current moves to refresh the review.';}
 function reset(){coachScrollPending=false;coachScrollGeneration++;$('chatZone').scrollTop=0;invalidateReview();comparisonView=null;variationPanelOpen=false;gameReviewOpen=false;coachAnswerText='';challengeStarted=false;challengeFinished=false;challengeScore=null;shownEngineFen='';simEvalRequest++;replySelectionToken++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();if(trainingMode==='learn'&&learnOpponent==='adaptive'&&mode==='play'&&current().t!==openings[selected].side)prepareOpponentReply();}
@@ -1162,10 +1197,9 @@ const copy=document.createElement('div');copy.className='why-copy';if(item.propo
  }
 }else if(chatMode==='quick'){const ul=document.createElement('ul');ul.className='why-bullets';quickBullets(item).slice(0,3).forEach(reason=>{const li=document.createElement('li');li.textContent=reason;ul.append(li)});copy.append(ul);}else{copy.textContent=item.reason;}
 entry.append(title,copy);$('whyContent').append(entry);});
-if(coachScrollPending){
- coachScrollPending=false;
- revealLatestCoachMove();
-}
+const revealNewMessage=coachScrollPending;
+coachScrollPending=false;
+sizeCoachConversation(revealNewMessage);
 // Keep the conversation scrollable; never delete earlier explanations to make room.
 $('feedback').textContent=feedback;$('feedback').style.display=feedback?'':'none';$('hintText').textContent=showHint&&hint?'Hint: '+moveLabel(s,hint)+' — '+step[1]:status.claim?'Draw may be claimed: '+status.claim:'';$('hint').textContent=showHint?'Hide hint':'✧ Hint';$('plyCount').textContent=logs.length+' plies';$('history').replaceChildren();if(!logs.length){const e=document.createElement('span');e.style.gridColumn='1/-1';e.textContent='Your moves will appear here.';$('history').append(e);}else logs.forEach(x=>{const e=document.createElement('span');e.textContent=x;$('history').append(e);});$('promotion').style.display=promotion?'grid':'none';$('promoChoices').replaceChildren();if(promotion)promotion.forEach(m=>{const e=document.createElement('button');e.textContent=({q:'♛',r:'♜',b:'♝',n:'♞'})[m[2]];e.onclick=()=>{promotion=null;play(m)};$('promoChoices').append(e);});}
 for(const name of Object.keys(openings)){let s=original();for(const [uci]of openings[name].line){selected=name;const m=legal(s).find(m=>key(m)===uci);if(!m)throw Error('Invalid opening '+name+' '+uci);s=apply(s,m);}}selected='queenAccepted';
