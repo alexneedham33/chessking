@@ -1047,17 +1047,15 @@ function renderStrategyGuide(){
   strategyOverviewWasCollapsed=false;
  }
  const played=logs.length+(animatingMove?1:0);
- const sameLine=state.i>=0&&!scenario&&(!animatingMove||key(animatingMove.move)===routeLine()[state.i]?.[0]);
+ const sameLine=state.i>=0&&!scenario&&!activeBranch&&(!animatingMove||key(animatingMove.move)===routeLine()[state.i]?.[0]);
  const point=played===0?0:Math.min(played,(strategyMoveCues[selected]||[]).length);
  const cue=point===0?null:strategyMoveCues[selected]?.[point-1];
- const lastState=animatingMove?state:h.at(-2);
- const lastMove=animatingMove?.move||(played&&h.length>1?legal(lastState).find(m=>key(m)===logs.at(-1)?.uci):null);
  const prefix=played===0?'Before the first move':played>0?'After '+(animatingMove?moveLabel(state,animatingMove.move):notes.at(-1)?.text||'move '+played):'Opening';
  $('strategyGuidePhase').textContent=scenario?'Illustrative variation':sameLine?prefix:'Outside the prepared line';
  $('strategyGuideNowHeading').textContent=played===0?'What we are trying to do':'How to think about this position';
  if(!sameLine){
-  $('strategyGuideNow').textContent='The opening has changed. Focus on development, central control and a safe king rather than following the original sequence blindly.';
-  $('strategyGuideWatch').textContent=deviationInfo?.suggestion||'Check the opponent’s latest threat and which pieces are undefended.';
+  $('strategyGuideNow').textContent=activeBranch?'You are following a recognised variation. '+activeBranch.plan:'The opening has changed. Focus on development, central control and a safe king rather than following the original sequence blindly.';
+  $('strategyGuideWatch').textContent=activeBranch?'Check the opponent’s latest threat before carrying out this alternative plan.':deviationInfo?.suggestion||'Check the opponent’s latest threat and which pieces are undefended.';
  }else if(cue){
   $('strategyGuideNow').textContent=cue[0];
   $('strategyGuideWatch').textContent=cue[1];
