@@ -194,6 +194,24 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 .chat-zone{height:auto!important;max-height:min(50dvh,520px);overflow-y:auto;scrollbar-width:thin;scrollbar-color:#45536b #111724}
 @media(max-width:1100px){.trainer-panel{max-height:none;overflow:visible}}
 @media(max-width:600px){.move-review-toolbar{flex-wrap:wrap}.move-review-toolbar .btn{width:100%}}
+
+/* Simplified opening-first interface: one coach, inline review, optional practice strength. */
+.compact-toolbar .training-switch{flex-wrap:wrap}
+.compact-toolbar .training-option{white-space:nowrap}
+.trainer-panel .detail-tabs{display:none!important}
+.coach-tool-row{display:flex;gap:8px;margin:12px 0 8px}
+.coach-tool-row>.btn{flex:1;font-size:12px}
+.coach-variation-panel{background:#121a29;border:1px solid #344358;border-radius:12px;padding:12px;margin:10px 0;color:#cbd6e6;font-size:12px;line-height:1.5}
+.coach-variation-panel .variation-choice{display:flex;gap:8px;align-items:flex-start;justify-content:space-between;padding:10px 0;border-top:1px solid #29384a}
+.coach-variation-panel .variation-choice:first-of-type{margin-top:8px}
+.coach-variation-panel .variation-choice strong{display:block;color:#eff4fb;margin-bottom:4px}
+.coach-variation-panel .variation-choice button{flex-shrink:0;padding:7px 9px;font-size:11px}
+#inlineReviewHost .detail-tab-content,#inlineScenarioHost .detail-tab-content{display:block;margin:12px 0;background:#111827;border:1px solid #304058;border-radius:12px;padding:13px}
+#inlineReviewHost:empty,#inlineScenarioHost:empty{display:none}
+#inlineReviewHost .review-board{width:min(100%,220px)}
+#inlineReviewHost .review-list{max-height:220px}
+#inlineReviewHost .review-help{font-size:11px}
+@media(max-width:600px){.coach-tool-row{flex-wrap:wrap}.coach-tool-row>.btn{flex-basis:100%}}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -204,8 +222,8 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
     <div class="actions"><button class="btn" id="fullscreen">⛶ Expand view</button></div>
   </header>
 <nav class="compact-toolbar" aria-label="Opening and opponent controls">
- <label class="toolbar-field"><span>Opening</span><select id="openingSelect"><option value="italian">Italian Game</option><option value="queen">Queen's Gambit Declined</option><option value="sicilian">Sicilian Defence</option><option value="caro">Caro–Kann Defence</option></select></label>
- <div class="training-switch"><button class="training-option active" data-training="learn">Learn</button><button class="training-option" data-training="challenge">Opening Challenge</button></div>
+ <label class="toolbar-field"><span>Opening</span><select id="openingSelect"><option value="queen">Queen's Gambit Declined</option><option value="italian">Italian Game</option><option value="sicilian">Sicilian Defence</option><option value="caro">Caro–Kann Defence</option></select></label>
+ <div class="training-switch"><button class="training-option active" data-experience="guided">Learn opening</button><button class="training-option" data-experience="practice">Free practice</button><button class="training-option" data-experience="challenge">Opening challenge</button></div>
  <details class="opponent-dropdown" id="opponentDropdown"><summary id="opponentSummary">Opponent · Guided opening</summary><div class="opponent-dropdown-panel"><section id="learnOpponentSettings" class="learn-opponent-settings"><div class="learn-opponent-head"><strong>Opponent</strong><select id="learnOpponent"><option value="guided">Guided opening</option><option value="adaptive">Adaptive Stockfish</option></select></div>
 <div id="learnOpponentDescription" class="learn-opponent-description">Follow the prepared line or practise against Stockfish.</div>
 <label id="learnEloSetting" class="opponent-slider" style="display:none"><span class="opponent-slider-heading">Opponent strength <strong id="learnEloValue">1700 Elo (approx.)</strong></span><input type="range" id="learnElo" min="750" max="2800" step="50" value="1700"><span class="opponent-slider-range"><span>750 · Easier</span><span>2800 · Harder</span></span></label>
@@ -244,20 +262,24 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
  <div class="balance-explain" id="engineCaption">Relative shift in Stockfish expected score, not win probability.</div>
  </div>
       <section class="panel trainer-panel">
-        <div class="detail-tabs" id="detailTabs">
+        <div class="detail-tabs" id="detailTabs" style="display:none" aria-hidden="true">
           <button class="detail-tab active" data-detail-tab="chat">Chat</button>
           <button class="detail-tab" data-detail-tab="strategy">Strategy</button>
           <button class="detail-tab" data-detail-tab="simulator">Simulator</button><button class="detail-tab" data-detail-tab="review">Review</button>
         </div>
         <div class="detail-tab-content active" id="chatTabPane">
-          <div class="panel-header"><div class="learn-kicker">📖 <span>Learn</span></div><span class="learn-meta" id="openingName">Italian Game</span></div><div class="chat-mode-switch" role="group" aria-label="Chat explanation style"><button class="chat-mode-btn active" data-chat-mode="quick" aria-pressed="true">Quick</button><button class="chat-mode-btn" data-chat-mode="learn" aria-pressed="false">Learn</button></div>
-          <div class="commentary-switch" role="group" aria-label="Chat perspective"><button class="commentary-btn active" data-perspective="coach">Opening coach</button><button class="commentary-btn" data-perspective="engine">Engine commentary</button></div><p class="engine-disclaimer" id="engineDisclaimer" style="display:none">Interpretations of engine moves, not Stockfish's actual thoughts.</p>
+          <div class="panel-header"><div class="learn-kicker">📖 <span>Opening coach</span></div><span class="learn-meta" id="openingName">Queen's Gambit Declined</span></div><div class="chat-mode-switch" role="group" aria-label="Chat explanation style"><button class="chat-mode-btn active" data-chat-mode="quick" aria-pressed="true">Quick</button><button class="chat-mode-btn" data-chat-mode="learn" aria-pressed="false">Learn</button></div>
+          <div class="commentary-switch" role="group" aria-label="Chat perspective" style="display:none"><button class="commentary-btn active" data-perspective="coach">Opening coach</button><button class="commentary-btn" data-perspective="engine">Engine commentary</button></div><p class="engine-disclaimer" id="engineDisclaimer" style="display:none">Interpretations of engine moves, not Stockfish's actual thoughts.</p>
 <div class="move-review-toolbar"><div><strong>Understand your last move</strong><span>Position-specific feedback from full-strength Stockfish</span></div><button class="btn primary" id="reviewMyMove">⇄ Review my move</button></div>
 <div class="move-review-result" id="moveReviewResult" style="display:none" aria-live="polite"></div>
 <div class="chat-zone" id="chatZone">
             <div id="whyPanel" class="why-panel" style="display:none"><div id="whyContent" class="why-content"></div></div>
             <div id="chatWelcome" class="chat-welcome">Play a move to see why it works and how Black or White typically responds.</div>
           </div><div class="route-notice" id="routeNotice" style="display:none"></div>
+          <div class="coach-tool-row"><button class="btn" id="coachVariation">↗ Explore an alternative</button><button class="btn" id="coachGameReview">◫ Review game</button></div>
+          <div id="coachVariationPanel" class="coach-variation-panel" style="display:none"></div>
+          <div id="inlineScenarioHost"></div>
+          <div id="inlineReviewHost"></div>
           <div class="row" style="margin-top:16px"><span class="muted">Opening progress</span><span class="badge" id="progressLabel">0 / 11</span></div>
           <div class="progress"><div class="bar" id="progressBar"></div></div>
           <div class="learn-actions"><button class="btn primary" id="opponent" style="display:none;width:100%">Play opponent's move →</button></div>
@@ -827,7 +849,7 @@ async function checkBalanceScale(){
    const note=document.createElement('p');note.textContent='Diagnostic sample positions only. This checks engine integration and scale behaviour; it does not statistically validate the chosen scale.';out.append(note);
  }catch(err){if(currentSerial===reviewSerial)out.textContent='Calibration check unavailable: '+(err?.message||'Stockfish error');}
 }
-let chatMode='quick',chatPerspective='coach',previewReplyEngine=false,previewAnalysis=null,trainingMode='learn',learnOpponent='guided',challengeStarted=false,challengeFinished=false,challengeScore=null;let selected='italian',mode='play',h=[original()],selectedSquare=-1,showHint=false,feedback='',promotion=null,logs=[],notes=[],lastSquares=[],pendingReply=null,previewReply=null,replyTimer=null,animatingMove=null,animationTimer=null;const $=id=>document.getElementById(id);
+let chatMode='quick',chatPerspective='coach',previewReplyEngine=false,previewAnalysis=null,trainingMode='learn',learnOpponent='guided',challengeStarted=false,challengeFinished=false,challengeScore=null;let selected='queen',mode='play',h=[original()],selectedSquare=-1,showHint=false,feedback='',promotion=null,logs=[],notes=[],lastSquares=[],pendingReply=null,previewReply=null,replyTimer=null,animatingMove=null,animationTimer=null;const $=id=>document.getElementById(id);
 function clearReplyState(){if(replyTimer){clearTimeout(replyTimer);replyTimer=null}if(animationTimer){clearTimeout(animationTimer);animationTimer=null}pendingReply=null;previewReply=null;previewReplyEngine=false;previewAnalysis=null;animatingMove=null;const ghost=$('moveGhost');if(ghost){ghost.className='move-ghost';ghost.style.display='none';ghost.textContent='';}}
 let chatPageStart=0;
 function invalidateReview(){comparisonView=null;reviewSerial++;reviewData=null;reviewSelection=0;$('reviewResults').style.display='none';$('reviewStatus').textContent='Game changed. Analyse the current moves to refresh the review.';}
@@ -942,9 +964,10 @@ async function finalizeChallenge(){
  render();
 }
 function renderChallenge(){
- $('learnOpponentSettings').style.display=trainingMode==='learn'?'':'none';
+ $('learnOpponentSettings').style.display='none';
  $('learnOpponent').value=learnOpponent;
- $('opponentSummary').textContent=trainingMode==='challenge'?'Opponent · '+opponentElo()+' Elo':learnOpponent==='guided'?'Opponent · Guided opening':'Opponent · '+opponentElo()+' Elo';
+ $('opponentDropdown').style.display=trainingMode==='learn'&&learnOpponent==='guided'?'none':'';
+ $('opponentSummary').textContent='Stockfish · '+opponentElo()+' Elo';
  $('learnEloSetting').style.display=learnOpponent==='adaptive'?'block':'none';
  $('learnEvalNote').style.display=learnOpponent==='adaptive'?'block':'none';
  $('learnEloValue').textContent=opponentElo()+' Elo (approx.)';
@@ -952,7 +975,7 @@ function renderChallenge(){
  $('learnElo').value=opponentElo();$('challengeElo').value=opponentElo();
  $('learnOpponentDescription').textContent=learnOpponent==='guided'?'The opponent follows the prepared opening sequence. Deviations trigger Stockfish guidance.':'Stockfish plays at your selected approximate strength. Below 1320, extra move variation provides an easier practice opponent; the Elo label is not calibrated.';
  $('challengeSettings').style.display=trainingMode==='challenge'?'':'none';
- document.querySelectorAll('[data-training]').forEach(b=>b.classList.toggle('active',b.dataset.training===trainingMode));
+ document.querySelectorAll('[data-experience]').forEach(b=>b.classList.toggle('active',b.dataset.experience===(trainingMode==='challenge'?'challenge':learnOpponent==='adaptive'?'practice':'guided')));
  if(trainingMode!=='challenge')return;
  $('challengeEloValue').textContent=opponentElo()+' Elo (approx.)';
  const count=Math.max(0,current().full-1),target=Number($('challengeTarget').value);
@@ -1022,11 +1045,16 @@ const copy=document.createElement('div');copy.className='why-copy';if(item.propo
 entry.append(title,copy);$('whyContent').append(entry);});
 // Keep the conversation scrollable; never delete earlier explanations to make room.
 $('feedback').textContent=feedback;$('feedback').style.display=feedback?'':'none';$('hintText').textContent=showHint&&hint?'Hint: '+moveLabel(s,hint)+' — '+step[1]:status.claim?'Draw may be claimed: '+status.claim:'';$('hint').textContent=showHint?'Hide hint':'✧ Hint';$('plyCount').textContent=logs.length+' plies';$('history').replaceChildren();if(!logs.length){const e=document.createElement('span');e.style.gridColumn='1/-1';e.textContent='Your moves will appear here.';$('history').append(e);}else logs.forEach(x=>{const e=document.createElement('span');e.textContent=x;$('history').append(e);});$('promotion').style.display=promotion?'grid':'none';$('promoChoices').replaceChildren();if(promotion)promotion.forEach(m=>{const e=document.createElement('button');e.textContent=({q:'♛',r:'♜',b:'♝',n:'♞'})[m[2]];e.onclick=()=>{promotion=null;play(m)};$('promoChoices').append(e);});}
-for(const name of Object.keys(openings)){let s=original();for(const [uci]of openings[name].line){selected=name;const m=legal(s).find(m=>key(m)===uci);if(!m)throw Error('Invalid opening '+name+' '+uci);s=apply(s,m);}}selected='italian';
-for(const k of Object.keys(scenarios)){selected=k;setScenario();}selected='italian';$('learnOpponent').onchange=()=>{learnOpponent=$('learnOpponent').value;mode='play';reset();};
+for(const name of Object.keys(openings)){let s=original();for(const [uci]of openings[name].line){selected=name;const m=legal(s).find(m=>key(m)===uci);if(!m)throw Error('Invalid opening '+name+' '+uci);s=apply(s,m);}}selected='queen';
+for(const k of Object.keys(scenarios)){selected=k;setScenario();}selected='queen';$('learnOpponent').onchange=()=>{learnOpponent=$('learnOpponent').value;mode='play';reset();};
 $('reviewMyMove').onclick=compareWithBestMove;
 $('learnElo').oninput=()=>{saveOpponentElo($('learnElo').value);renderChallenge();};
-document.querySelectorAll('[data-training]').forEach(b=>b.onclick=()=>{trainingMode=b.dataset.training;mode='play';reset();});
+document.querySelectorAll('[data-experience]').forEach(b=>b.onclick=()=>{
+ const experience=b.dataset.experience;
+ trainingMode=experience==='challenge'?'challenge':'learn';
+ learnOpponent=experience==='practice'?'adaptive':'guided';
+ mode='play';$('opponentDropdown').open=false;reset();
+});
 $('challengeElo').oninput=()=>{saveOpponentElo($('challengeElo').value);renderChallenge();};
 $('challengeTarget').onchange=()=>reset();
 $('challengeGoal').onchange=()=>renderChallenge();
