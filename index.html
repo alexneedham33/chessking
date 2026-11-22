@@ -273,14 +273,14 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
           <div class="commentary-switch" role="group" aria-label="Chat perspective" style="display:none"><button class="commentary-btn active" data-perspective="coach">Opening coach</button><button class="commentary-btn" data-perspective="engine">Engine commentary</button></div><p class="engine-disclaimer" id="engineDisclaimer" style="display:none">Interpretations of engine moves, not Stockfish's actual thoughts.</p>
 <div class="move-review-toolbar"><div><strong>Understand your last move</strong><span>Position-specific feedback from full-strength Stockfish</span></div><button class="btn primary" id="reviewMyMove">⇄ Review my move</button></div>
 <div class="move-review-result" id="moveReviewResult" style="display:none" aria-live="polite"></div>
+<div class="coach-tool-row"><button class="btn" id="coachVariation">↗ Explore an alternative</button><button class="btn" id="coachGameReview">◫ Review game</button></div>
+<div id="coachVariationPanel" class="coach-variation-panel" style="display:none"></div>
+<div id="inlineScenarioHost"></div>
+<div id="inlineReviewHost"></div>
 <div class="chat-zone" id="chatZone">
             <div id="whyPanel" class="why-panel" style="display:none"><div id="whyContent" class="why-content"></div></div>
             <div id="chatWelcome" class="chat-welcome">Play a move to see why it works and how Black or White typically responds.</div>
           </div><div class="route-notice" id="routeNotice" style="display:none"></div>
-          <div class="coach-tool-row"><button class="btn" id="coachVariation">↗ Explore an alternative</button><button class="btn" id="coachGameReview">◫ Review game</button></div>
-          <div id="coachVariationPanel" class="coach-variation-panel" style="display:none"></div>
-          <div id="inlineScenarioHost"></div>
-          <div id="inlineReviewHost"></div>
           <div class="row" style="margin-top:16px"><span class="muted">Opening progress</span><span class="badge" id="progressLabel">0 / 11</span></div>
           <div class="progress"><div class="bar" id="progressBar"></div></div>
           <div class="learn-actions"><button class="btn primary" id="opponent" style="display:none;width:100%">Play opponent's move →</button></div>
