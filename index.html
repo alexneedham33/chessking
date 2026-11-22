@@ -571,14 +571,25 @@ const PREDEFINED_BEHAVIOUR_KEY='openingLab.predefinedBehaviour';
 let predefinedBehaviour='fixed';
 try{predefinedBehaviour=localStorage.getItem(PREDEFINED_BEHAVIOUR_KEY)==='varied'?'varied':'fixed';}catch{}
 let variedOpeningLine=null,variedOpeningName='';
+const lastVariedSelection={};
 function choosePredefinedLine(){
  variedOpeningLine=null;variedOpeningName='';
  if(trainingMode!=='learn'||learnOpponent!=='guided'||predefinedBehaviour!=='varied')return;
  const alternate=predefinedVariations[selected];
  if(!alternate)return;
- if(Math.random()<.5)return; // The standard line is also a valid possible continuation.
+ // Start with either authored line. On subsequent restarts, alternate to
+ // guarantee a different response instead of repeatedly getting the same one.
+ const previous=lastVariedSelection[selected];
+ const useAlternate=previous===undefined?Math.random()>=.5:!previous;
+ lastVariedSelection[selected]=useAlternate;
+ if(!useAlternate)return;
  variedOpeningLine=alternate.moves.map((uci,i)=>[uci,alternate.reasons[i]]);
  variedOpeningName=alternate.name;
+}
+function visibleVariedLineName(){
+ if(!variedOpeningLine)return '';
+ const divergence=variedOpeningLine.findIndex((step,i)=>step[0]!==openings[selected].line[i]?.[0]);
+ return divergence>=0&&h.length-1>divergence?variedOpeningName:'';
 }
 
 let activeBranch=null,routeHistory=[],deviationInfo=null;
@@ -1400,7 +1411,7 @@ function renderCapturedPieces(){
  }
 }
 
-function render(){syncOpeningChoices();requestAnimationFrame(alignCapturedTrayWithBoard);const s=scenario?scenarioPositions[scenarioIndex]:current(),moves=legal(s),status=gameStatus(h),op=openings[selected],step=op.line[s.i],hint=trainingMode==='learn'&&h.length-1>=guidedOpeningLimit()?null:suggested(),yourTurn=s.t===op.side,ended=status.done;$('openingSelect').value=openingParent(selected);$('variationSelect').value=selected;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x.dataset.mode===mode));$('turn').textContent=scenario?'Illustrative variation · '+(scenarioIndex===0?'Start':('Step '+scenarioIndex)):pendingReply?'Opponent is thinking…':animatingMove?(animatingMove.isOpponent?'Opponent is moving…':'Your move…'):status.text;$('player').textContent=scenario?'Use Next move to explore':pendingReply?'Opponent reply in progress':animatingMove?(animatingMove.isOpponent?'Opponent reply in progress':'Moving piece'):(mode==='play'?'Playing '+(op.side===1?'White':'Black'):'Study both sides');$('openingName').textContent=variedOpeningName?op.name+' · '+variedOpeningName:op.name;$('description').textContent=op.desc;$('tip').textContent=op.tip;const lessonLimit=guidedOpeningLimit();
+function render(){syncOpeningChoices();requestAnimationFrame(alignCapturedTrayWithBoard);const s=scenario?scenarioPositions[scenarioIndex]:current(),moves=legal(s),status=gameStatus(h),op=openings[selected],step=op.line[s.i],hint=trainingMode==='learn'&&h.length-1>=guidedOpeningLimit()?null:suggested(),yourTurn=s.t===op.side,ended=status.done;$('openingSelect').value=openingParent(selected);$('variationSelect').value=selected;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x.dataset.mode===mode));$('turn').textContent=scenario?'Illustrative variation · '+(scenarioIndex===0?'Start':('Step '+scenarioIndex)):pendingReply?'Opponent is thinking…':animatingMove?(animatingMove.isOpponent?'Opponent is moving…':'Your move…'):status.text;$('player').textContent=scenario?'Use Next move to explore':pendingReply?'Opponent reply in progress':animatingMove?(animatingMove.isOpponent?'Opponent reply in progress':'Moving piece'):(mode==='play'?'Playing '+(op.side===1?'White':'Black'):'Study both sides');$('openingName').textContent=visibleVariedLineName()?op.name+' · '+visibleVariedLineName():op.name;$('description').textContent=op.desc;$('tip').textContent=op.tip;const lessonLimit=guidedOpeningLimit();
 const lessonDone=Math.min(lessonLimit,Math.max(0,h.length-1));
 $('progressLabel').textContent=lessonDone+' / '+lessonLimit;const progressPct=100*lessonDone/lessonLimit;$('progressBar').style.width=progressPct+'%';$('openingProgress').style.display=trainingMode==='learn'&&learnOpponent!=='adaptive'?'':'none';
 $('openingLineWarning').style.display=outsideLinePreview?'block':'none';
