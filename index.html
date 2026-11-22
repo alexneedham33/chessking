@@ -319,6 +319,17 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 .capture-piece-count{color:#29313e;font-size:14px;font-weight:800;white-space:nowrap}
 .capture-tray-pieces .capture-empty{font-size:14px;color:#596472}
 @media(max-width:650px){.capture-tray-side{padding:10px 11px 13px}.capture-tray-label{font-size:14px}.capture-piece-group .capture-piece{width:30px;height:37px}.capture-piece-count{font-size:12px}}
+
+/* Opponent menu: make the choice and rating clearly visible when expanded. */
+#opponentDropdown[open]>.opponent-dropdown-panel{display:block!important;visibility:visible!important;opacity:1!important}
+#opponentDropdown[open] #learnOpponentSettings{display:block!important;visibility:visible!important}
+#opponentDropdown .learn-opponent-head{display:flex!important;flex-direction:column;align-items:stretch;gap:8px;margin-bottom:7px}
+#opponentDropdown .learn-opponent-head label{font-size:14px;color:#e7eef9;font-weight:750}
+#opponentDropdown #learnOpponent{display:block;width:100%;min-width:0;max-width:none;font-size:16px;padding:12px 13px;color:#f6f7fc;background:#273346;border:1px solid #536984}
+#opponentDropdown .learn-opponent-description{font-size:13px;line-height:1.5;color:#bac8dc;margin-top:8px}
+#opponentDropdown #learnEloSetting{margin-top:17px;border-top:1px solid #33425b;padding-top:13px}
+#opponentDropdown #learnEloSetting .opponent-slider-heading{font-size:14px;color:#e0e7f3}
+#opponentDropdown #learnEloSetting .opponent-slider-range{font-size:12px}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -333,7 +344,7 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
  <label class="toolbar-field"><span>Variation</span><select id="variationSelect" aria-label="Opening variation"><option value="queenAccepted">Main line</option></select></label>
  <div class="training-switch" role="group" aria-label="Learning mode"><button class="training-option active" data-experience="guided">Learn</button><button class="training-option" data-experience="practice">Play</button></div>
  <label id="challengeToggleWrap" class="challenge-toggle" style="display:none"><input type="checkbox" id="challengeToggle"> Opening challenge</label>
- <button class="btn primary" id="challengeQuickStart" style="display:none">Start challenge</button><details class="opponent-dropdown" id="opponentDropdown"><summary id="opponentSummary">Opponent · Guided opening</summary><div class="opponent-dropdown-panel"><section id="learnOpponentSettings" class="learn-opponent-settings"><div class="learn-opponent-head"><strong>Opponent</strong><select id="learnOpponent"><option value="guided">Predefined replies</option><option value="guidedEngine">Stockfish opponent</option></select></div>
+ <button class="btn primary" id="challengeQuickStart" style="display:none">Start challenge</button><details class="opponent-dropdown" id="opponentDropdown"><summary id="opponentSummary">Opponent · Guided opening</summary><div class="opponent-dropdown-panel"><section id="learnOpponentSettings" class="learn-opponent-settings"><div class="learn-opponent-head"><label for="learnOpponent"><strong>Choose opponent</strong></label><select id="learnOpponent"><option value="guided">Predefined moves</option><option value="guidedEngine">Stockfish opponent</option></select></div>
 <div id="learnOpponentDescription" class="learn-opponent-description">Follow the prepared line or practise against Stockfish.</div>
 <label id="learnEloSetting" class="opponent-slider" style="display:none"><span class="opponent-slider-heading">Opponent strength <strong id="learnEloValue">1700 Elo (approx.)</strong></span><input type="range" id="learnElo" min="750" max="2800" step="50" value="1700"><span class="opponent-slider-range"><span>750 · Easier</span><span>2800 · Harder</span></span></label>
 <div class="opponent-assessment" id="learnEvalNote" style="display:none">Position evaluation and review always use full-strength Stockfish.</div></section>
@@ -1199,20 +1210,20 @@ function renderChallenge(){
  const guidedLearn=trainingMode==='learn'&&learnOpponent!=='adaptive';
  $('learnOpponentSettings').style.display=trainingMode==='learn'?'block':'none';
  $('learnOpponent').value=learnOpponent;
- $('learnOpponent').closest('.learn-opponent-head').style.display=guidedLearn?'flex':'none';
+ $('learnOpponent').closest('.learn-opponent-head').style.display=trainingMode==='learn'?'flex':'none';
  $('challengeToggleWrap').style.display=isPlay?'flex':'none';
  $('challengeToggle').checked=trainingMode==='challenge';
  $('playChallengePanel').style.display=trainingMode==='challenge'?'block':'none';
  $('opponentDropdown').style.display=trainingMode==='learn'?'':'none';
  $('challengeQuickStart').style.display='none';
  $('challengeQuickStart').textContent=challengeStarted?'Restart challenge':'Start challenge';
- $('opponentSummary').textContent=learnOpponent==='guided'?'Opponent · Predefined': 'Opponent · Stockfish · '+opponentElo()+' Elo';
+ $('opponentSummary').textContent=learnOpponent==='guided'?'Opponent · Predefined':'Opponent · Stockfish · '+opponentElo()+' Elo';
  $('learnEloSetting').style.display=trainingMode==='learn'&&learnOpponent!=='guided'?'block':'none';
  $('learnEvalNote').style.display=trainingMode==='learn'&&learnOpponent!=='guided'?'block':'none';
  $('learnEloValue').textContent=opponentElo()+' Elo (approx.)';
  $('challengeEloValue').textContent=opponentElo()+' Elo (approx.)';
  $('learnElo').value=opponentElo();$('challengeElo').value=opponentElo();
- $('learnOpponentDescription').textContent=learnOpponent==='guided'?'Study a fixed, illustrative opening sequence. Replies are predefined, not calculated by Stockfish.':'The opponent chooses its replies at your selected difficulty. Next still advances one move at a time.';
+ $('learnOpponentDescription').textContent=learnOpponent==='guided'?'Follows the prepared moves for your selected opening and variation. The same sequence plays each time.':'Stockfish chooses replies from the actual board position at your selected Elo. In Learn, use Next to advance each reply.';
  $('challengeSettings').style.display=trainingMode==='challenge'?'block':'none';
  document.querySelectorAll('[data-experience]').forEach(b=>b.classList.toggle('active',b.dataset.experience===(isPlay?'practice':'guided')));
  if(trainingMode!=='challenge')return;
