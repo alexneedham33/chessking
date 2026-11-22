@@ -1,27 +1,35 @@
-# Optional AI coaching (local prototype)
+# Optional AI move coaching (local prototype)
 
-The existing Opening Lab still works as a static website. Its position-based Strategic Insights are the default and do not require an API key.
+Opening Lab works without an API key, using its built-in move-by-move explanations. AI coaching optionally replaces those explanations with a single contextual message grounded in the actual played move and Stockfish calculations.
 
-To try natural-language AI coaching locally:
+## Start locally
 
 1. Install Node.js 20 or newer.
-2. Create an OpenAI API key and make it available to **your terminal environment**. Never put a key in `index.html`, commit it, or paste it into browser DevTools.
-3. From the repository directory, start the local server:
+2. Create an OpenAI API key. Never put it in the repository, HTML, screenshots or browser DevTools.
+3. Run these commands from the repository directory:
 
    ```bash
    export OPENAI_API_KEY='YOUR_KEY_HERE'
    node coach-server.mjs
    ```
 
-4. Open **http://127.0.0.1:8787** (not `file://` and not a separate static-file server).
-5. In **Learn**, enable **Ideas** and **AI** in the Opening Coach header. AI coaching now starts during the guided opening (from the second half-move) and considers insights about every two half-moves. It may choose not to interrupt when there's nothing useful to say.
+4. Open **http://127.0.0.1:8787**.
+5. Enable **AI** in the Opening Coach header.
 
-The AI feature now sends the current FEN, recent move labels, strategic facts, a few earlier insights, and **cached depth-16 Stockfish analysis** (White-perspective evaluation plus up to three legal principal variations) to the OpenAI Responses API. The model chooses a grounded candidate idea or remains silent, and explains it in natural language. The AI sees Stockfish's calculated possibilities, not its intentions or a guaranteed plan; the chat is educational, not a best-move instruction. Stockfish results are shared from the existing engine cache where available, so AI coaching should not cause unnecessary duplicate analyses. If Stockfish is unavailable, position-based guidance remains; if AI is offline, the existing non-AI insights remain.
+When enabled, the app requests an AI explanation starting at the second half-move, generally once every two half-moves, up to the per-game allowance. The original explanation appears immediately. While Stockfish and the API work, the same message says **Refining with AI + Stockfish…**, then the explanation is replaced in place. There is **no separate Strategic Idea box** or Ideas switch.
 
-Set `OPENAI_COACH_MODEL` to override the default `gpt-4.1-mini` model. `PORT` changes the local port. No extra npm dependencies are required.
+Each request includes the **actual move played** (UCI, notation, mover, piece, capture, check and castling), the positions before and after, the original explanation, recent move and coaching history, and the existing cached depth-16 Stockfish evaluation with up to three legal candidate continuations. The AI is instructed not to confuse an engine continuation with the move actually played and not to invent chess threats. Stockfish calculates possible continuations; it does not literally describe its strategic intentions. If AI is unavailable, the original explanation remains.
 
-**Cost controls:** AI requests are capped at **24 per game** in the browser and **120 per UTC day** by the local server, alongside a 12-request-per-minute limit. Set `OPENAI_COACH_DAILY_LIMIT` to lower the daily allowance (for example `OPENAI_COACH_DAILY_LIMIT=30`), or `0` to block API calls. The server's daily counter is in memory and resets when the server restarts; it is **not** a hard monetary spending limit. For a durable spend limit, configure billing alerts and usage limits on your API account. API usage is billed separately from ChatGPT subscriptions.
+The optional `OPENAI_COACH_MODEL` setting overrides the default `gpt-4.1-mini` model. `PORT` changes the local port. No npm dependencies are required.
 
-**Security:** The prototype binds only to `127.0.0.1`, with same-origin checks and a small in-memory request limit. Do **not** deploy `coach-server.mjs` publicly without authentication, proper rate limiting, usage limits, abuse protection, and monitoring. Any exposed endpoint that uses your API key can incur charges. Hosting the frontend publicly without this backend leaves the existing offline coaching intact.
+## Costs and security
 
-**Next step:** compare scripted and AI insights on the same saved positions before extending the model to the existing move-by-move coach chat; consider a separate Stockfish assessment for tactical claims.
+Requests are capped at **24 per game** in the browser, **120 per UTC day** in the local server, and **12 per minute**. You can lower the daily allowance using `OPENAI_COACH_DAILY_LIMIT=30` (or set 0 to disable paid calls). The server counter is **in memory and resets when restarted**, not a permanent monetary cap. Set API usage alerts and account limits separately. API charges are separate from ChatGPT subscriptions.
+
+The prototype binds to `127.0.0.1` with same-origin checking. **Do not expose this unauthenticated server publicly.** Production use requires authentication, persistent budgets, monitoring, rate limiting and abuse safeguards.
+
+The API route for the unified coach is `POST /api/coach/move`; `GET /api/coach/status` reports configuration and the current server budget.
+
+## Validation
+
+Compare the unified AI explanation with the scripted fallback and the board for a variety of normal developing moves, captures, checks and mistakes. Confirm that it always describes the actual played move, not one of Stockfish's proposed next moves.
