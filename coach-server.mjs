@@ -66,7 +66,7 @@ const server=http.createServer(async(req,res)=>{
  const requested=decodeURIComponent(url.pathname==='/'?'/index.html':url.pathname);
  const name=requested.slice(1);
  // Only serve root assets and the checked-in chess piece images.
- const pieceImage=/^assets\\/pieces\\/cburnett\\/[wb][KQRBNP]\\.svg$/.test(name);
+ const pieceImage=/^assets\/pieces\/cburnett\/[wb][KQRBNP]\.svg$/.test(name);
  if(!name||name.startsWith('.')||name.includes('..')||name.includes('\\')||name.includes('/')&&!pieceImage){json(res,404,{error:'Not found'});return;}
  const ext=path.extname(name).toLowerCase();
  if(!mime[ext]){json(res,404,{error:'Not found'});return;}
