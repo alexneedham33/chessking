@@ -650,7 +650,7 @@ function renderMoveReview(){
  if(c.status==='loading'){status.textContent='Analysing your move at depth 20…';return;}
  if(c.status==='error'){status.textContent='Analysis unavailable';appendReviewLine(root,'Stockfish',c.message);return;}
  let verdict;
- if(c.same||c.loss!==null&&c.loss<0.15)verdict='Best or near-best move';
+ if(c.same||c.loss!==null&&c.loss<0.15)verdict=c.same?'Stockfish’s top move':'Best or near-best move';
  else if(c.loss!==null&&c.loss<0.35)verdict='Good move · sound alternative';
  else if(c.loss!==null&&c.loss<0.5)verdict='Inaccuracy · better move available';
  else if(c.loss!==null&&c.loss<1.5)verdict='Mistake · stronger move available';
@@ -659,7 +659,7 @@ function renderMoveReview(){
  status.textContent=verdict;
  status.classList.toggle('review-warning',c.loss!==null&&c.loss>=0.5);
  const subtitle=document.createElement('p');subtitle.className='move-review-meta';
- subtitle.textContent=c.played+(c.loss===null?' · engine depth '+c.depth:' · approx. '+(c.loss*100).toFixed(0)+' centipawns behind Stockfish’s top choice · depth '+c.depth);root.append(subtitle);
+ subtitle.textContent=c.played+(c.loss===null?' · engine depth '+c.depth:c.same?' · matches Stockfish · depth '+c.depth:' · approx. '+(c.loss*100).toFixed(0)+' centipawns behind Stockfish’s top choice · depth '+c.depth);root.append(subtitle);
  appendReviewLine(root,'What your move achieves',c.playedPurpose);
  if(!c.same&&c.bestMove){
   const meaningful=c.loss!==null&&c.loss>=0.35;
@@ -993,9 +993,9 @@ recent.push({text:moveLabel(s0,m0),color:s0.t,opening:selected,index:inLine&&!ac
 const speakingColor=animatingMove?current().t:(notes.length?notes[notes.length-1].color:0);
 const nav=$('routeNotice');const incoming=animatingMove?planAssessment(current(),animatingMove.move):null;
 const info=incoming&&current().t===openings[selected].side&&((current().i<0)||key(animatingMove.move)!==routeLine()[current().i]?.[0])?incoming:deviationInfo;
-if(info){nav.style.display='block';nav.className='route-notice route-compact '+(info.kind==='variation'?'route-variation':info.kind==='warning'?'route-unmapped':'route-detour');nav.replaceChildren();
+if(info){nav.style.display='block';nav.className='route-notice route-compact '+(info.kind==='variation'?'route-variation':'route-detour');nav.replaceChildren();
  const top=document.createElement('div');top.className='route-heading';
- const title=document.createElement('strong');title.textContent=info.kind==='variation'?'↗ Recognised variation':info.kind==='warning'?'⚠ Outside opening plan':'↪ Alternative approach';top.append(title);
+ const title=document.createElement('strong');title.textContent=info.kind==='variation'?'↗ Recognised opening variation':'↪ Outside the prepared line';top.append(title);
  nav.append(top);
  // Move review is available at the top of Chat, rather than buried in this notice.
 }else nav.style.display='none';
