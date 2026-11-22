@@ -45,6 +45,7 @@ function cleanEngineEvidence(input){
 // Principal variations start AFTER the move; they are not the played move.
 async function explainMove(payload){
  const {beforeFen,afterFen,opening,player,played,scripted,history,recentCoaching}=payload;
+ const detail=['brief','standard','detailed'].includes(payload.detail)?payload.detail:'standard';
  const fenOk=x=>typeof x==='string'&&x.length<=130&&/^[prnbqkPRNBQK1-8/]+ [wb] /.test(x);
  if(!fenOk(beforeFen)||!fenOk(afterFen))throw Error('Invalid move position');
  if(!played||typeof played!=='object'||!/^[a-h][1-8][a-h][1-8][qrbn]?$/.test(played.uci||'')||
@@ -65,13 +66,19 @@ async function explainMove(payload){
   stockfishAfter:engine,
   stockfishBefore:prior&&Number.isFinite(prior.evaluation)?{evaluation:prior.evaluation,depth:prior.depth}:null
  };
+ const detailGuidance={
+  brief:'BRIEF: One or two short sentences, approximately 15-30 words, maximum 40. Give only the main reason for the move, without an unnecessary follow-up.',
+  standard:'STANDARD: Two concise sentences, usually 30-55 words, maximum 65. Explain the central strategic idea and one meaningful consequence or next consideration.',
+  detailed:'DETAILED: Three or four useful sentences, usually 65-105 words, maximum 120. Explain the core idea, its positional or tactical consequence, and a sensible continuation when justified by the board. Never pad or repeat.'
+ };
  const instructions=[
   'You are an expert chess teacher for an early-intermediate learner. Produce ONE coherent explanation of the ACTUAL played move, not a separate strategic insight.',
   'FIRST anchor in played.label, played.piece, the beforeFen and afterFen. Name the correct side and the piece that just moved. A Stockfish principal variation starts AFTER the played move; NEVER describe an engine candidate as though it was the played move.',
   'Use the originalExplanation as potentially helpful lesson context, but it may be generic, outdated or wrong; correct it if it conflicts with the board.',
   'Use Stockfish evaluations and continuations only as supporting evidence for concrete consequences. They are calculations, not a statement of intent, and must not be confused with the move that was played.',
   'Explain what changed, why it matters, and one appropriate next consideration. Avoid repetition, unsupported threats or false confidence. Do not claim an advantage is decisive from a small evaluation change.',
-  'For routine opening moves, write exactly two concise, natural sentences, normally 30-55 words total, with a hard limit of 65 words. Explain the most useful strategic idea and, only if helpful, one relevant next consideration. For genuinely critical tactical positions, you may use up to three sentences and 85 words.',
+  detailGuidance[detail],
+  'Adjust the level of detail for genuine tactical complexity, but obey the selected length cap. Prioritise clarity over hitting word targets.',
   'Do not narrate obvious piece movement or repeat the move notation in prose (for example, avoid White has just played 1. d4, moving the pawn from d2 to d4). The move title already provides this. Mention origin or destination only if it teaches something important.',
   'Prioritise one clear lesson over exhaustive coverage. No filler, repetitive development advice, or speculative follow-ups. Use the actual resulting position to keep the explanation accurate.',
   'Prefer plain-language ideas such as the centre, kingside, pawn support, piece development and king safety. Avoid square coordinates unless knowing a particular square is essential to the lesson. Normally mention zero or one coordinate; never more than two distinct coordinates in a routine explanation. Avoid listing routes like c2 to c4, which the board already shows. When a coordinate is necessary, weave it naturally into the explanation.',
