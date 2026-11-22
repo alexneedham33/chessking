@@ -1271,10 +1271,14 @@ function startMoveAnimation(m,isOpponent,autoReplyAfterManual=false){
   const guided=trainingMode==='learn'&&learnOpponent!=='adaptive'&&!scenario;
   const ghost=$('moveGhost');
   if(ghost)ghost.style.transitionDuration='';
-  // The coach already has this lesson's explanation; reveal it with the
-  // animated move, rather than after the animation is committed.
+  // Show the pending coach bubble as the piece moves.
   if(guided)coachScrollPending=true;
   const piece=current().b[m[0]];
+  // Prepare Stockfish coaching evidence during the animation rather than
+  // making the AI wait until the piece finishes moving.
+  if(guided&&strategicAiEnabled&&!strategicAiFailed&&aiRequestedPly.size<AI_COACH_GAME_LIMIT){
+    fetchEngine(apply(current(),m),12).catch(()=>{});
+  }
   const engineSelected=!!(isOpponent&&previewReplyEngine),engineAnalysis=engineSelected?previewAnalysis:null;previewReplyEngine=false;previewAnalysis=null;
   animatingMove={move:m,piece,from:m[0],to:m[1],isOpponent};
   selectedSquare=-1;showHint=false;
@@ -1503,9 +1507,9 @@ async function requestUnifiedMoveCoaching(ply){
  if(aiStatus){aiStatus.hidden=false;aiStatus.textContent='Preparing…';aiStatus.classList.remove('error');}
  try{
   let engine=null;
-  try{engine=coachEngineEvidence(after,await fetchEngine(after,16));}catch{}
+  try{engine=coachEngineEvidence(after,await fetchEngine(after,12));}catch{}
   if(nonce!==strategicAiNonce||h[ply]!==after||coachMoveMessages.get(ply)!==record||selected!==openingAtRequest)return;
-  const prior=evalCache.get('16:'+fenOf(before));
+  const prior=evalCache.get('16:'+fenOf(before))||evalCache.get('12:'+fenOf(before));
   const recentCoaching=[...coachMoveMessages.entries()]
    .filter(([at,item])=>at<ply&&!item.pending&&item.message).slice(-3).map(([,item])=>item.message);
   const response=await fetch('/api/coach/move',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
