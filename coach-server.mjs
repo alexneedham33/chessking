@@ -86,12 +86,67 @@ async function suggest(payload){
   return {id:candidate.id,topic:candidate.topic,message,source:'ai',engineGrounded:!!engine};
  }finally{clearTimeout(timer);}
 }
+// Explain the move that was actually played, using the board before/after it.
+// Principal variations start AFTER the move; they are not the played move.
+async function explainMove(payload){
+ const {beforeFen,afterFen,opening,player,played,scripted,history,recentCoaching}=payload;
+ const fenOk=x=>typeof x==='string'&&x.length<=130&&/^[prnbqkPRNBQK1-8/]+ [wb] /.test(x);
+ if(!fenOk(beforeFen)||!fenOk(afterFen))throw Error('Invalid move position');
+ if(!played||typeof played!=='object'||!/^[a-h][1-8][a-h][1-8][qrbn]?$/.test(played.uci||'')||
+    typeof played.label!=='string'||played.label.length>35||!['White','Black'].includes(played.side)||
+    !['p','n','b','r','q','k'].includes(played.piece))throw Error('Invalid played move');
+ if(typeof scripted!=='string'||scripted.length>900)throw Error('Invalid lesson text');
+ const engine=cleanEngineEvidence(payload.engine);
+ const prior=payload.priorEngine&&typeof payload.priorEngine==='object'?payload.priorEngine:null;
+ const context={
+  opening:String(opening||'').slice(0,100),student:player==='Black'?'Black':'White',
+  beforeFen,afterFen,
+  played:{uci:played.uci,label:played.label,side:played.side,piece:played.piece,
+   from:String(played.from||'').slice(0,2),to:String(played.to||'').slice(0,2),
+   capture:played.capture===true,castle:played.castle===true,check:played.check===true},
+  originalExplanation:scripted,
+  moveHistory:Array.isArray(history)?history.slice(-10).map(x=>String(x).slice(0,40)):[],
+  recentCoaching:Array.isArray(recentCoaching)?recentCoaching.slice(-3).map(x=>String(x).slice(0,500)):[],
+  stockfishAfter:engine,
+  stockfishBefore:prior&&Number.isFinite(prior.evaluation)?{evaluation:prior.evaluation,depth:prior.depth}:null
+ };
+ const instructions=[
+  'You are an expert chess teacher for an early-intermediate learner. Produce ONE coherent explanation of the ACTUAL played move, not a separate strategic insight.',
+  'FIRST anchor in played.label, played.piece, the beforeFen and afterFen. Name the correct side and the piece that just moved. A Stockfish principal variation starts AFTER the played move; NEVER describe an engine candidate as though it was the played move.',
+  'Use the originalExplanation as potentially helpful lesson context, but it may be generic, outdated or wrong; correct it if it conflicts with the board.',
+  'Use Stockfish evaluations and continuations only as supporting evidence for concrete consequences. They are calculations, not a statement of intent, and must not be confused with the move that was played.',
+  'Explain what changed, why it matters, and one appropriate next consideration. Avoid repetition, unsupported threats or false confidence. Do not claim an advantage is decisive from a small evaluation change.',
+  'On a simple opening move, write two natural sentences. On a critical capture, check, tactical mistake or decisive shift, use up to four. Use 50-110 words at most.',
+  'If the provided evidence cannot justify a tactical claim, omit it. Keep plain, encouraging language rather than generic stock phrases. Do not invent an unseen move.',
+  'Output only a JSON object with a single message string. No separate insights or numbered lists.'
+ ].join(' ');
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),18000);
+ try{
+  const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',signal:controller.signal,headers:{
+   'Authorization':'Bearer '+process.env.OPENAI_API_KEY,'Content-Type':'application/json'
+  },body:JSON.stringify({model,store:false,instructions,input:JSON.stringify(context),max_output_tokens:350,
+   text:{format:{type:'json_schema',name:'chess_move_explanation',strict:true,
+    schema:{type:'object',additionalProperties:false,properties:{message:{type:'string'}},required:['message']}}}
+  })});
+  if(!response.ok){
+   const errorBody=(await response.text()).slice(0,1200);
+   console.error('OpenAI API response',response.status,errorBody.replace(/sk-[A-Za-z0-9_-]+/g,'[redacted key]'));
+   throw Error('AI service returned '+response.status);
+  }
+  const data=await response.json(),raw=(data.output||[]).flatMap(x=>x.content||[])
+   .filter(x=>x.type==='output_text').map(x=>x.text).join('');
+  const result=JSON.parse(raw);
+  if(typeof result.message!=='string'||result.message.trim().length<30||result.message.length>900)throw Error('Invalid coach message');
+  return {message:result.message.trim(),engineGrounded:!!engine};
+ }finally{clearTimeout(timer);}
+}
+
 const server=http.createServer(async(req,res)=>{
  const url=new URL(req.url||'/', 'http://localhost');
  const origin=req.headers.origin;
  if(origin&&origin!=='http://'+host+':'+port){json(res,403,{error:'Wrong origin'});return;}
  if(url.pathname==='/api/coach/status'){refreshDailyBudget();json(res,200,{available:!!process.env.OPENAI_API_KEY,model,dailyLimit,dailyCalls,remaining:Math.max(0,dailyLimit-dailyCalls)});return;}
- if(url.pathname==='/api/coach/insight'&&req.method==='POST'){
+ if((url.pathname==='/api/coach/move'||url.pathname==='/api/coach/insight')&&req.method==='POST'){
   if(!process.env.OPENAI_API_KEY){json(res,503,{error:'AI not configured'});return;}
   refreshDailyBudget();
   if(dailyCalls>=dailyLimit){json(res,429,{error:'Daily AI coaching limit reached'});return;}
@@ -101,7 +156,7 @@ const server=http.createServer(async(req,res)=>{
   history.set(ip,[...recent,now]);
   // Count attempts, including API failures, to protect against unexpected spend.
   dailyCalls++;
-  try{json(res,200,await suggest(await body(req)));}catch(err){console.error('AI coaching request:',err.message);json(res,502,{error:'Coaching unavailable'});}
+  try{const payload=await body(req);json(res,200,url.pathname==='/api/coach/move'?await explainMove(payload):await suggest(payload));}catch(err){console.error('AI coaching request:',err.message);json(res,502,{error:'Coaching unavailable'});}
   return;
  }
  if(req.method!=='GET'&&req.method!=='HEAD'){json(res,405,{error:'Method not allowed'});return;}
