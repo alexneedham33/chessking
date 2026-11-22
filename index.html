@@ -269,6 +269,36 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
  .trainer-panel .why-title{font-size:15px!important}
 }
 
+
+/* Readable desktop typography across the coach and positional-balance sidebar.
+   Preserve the board's size and the existing move / chat behaviour. */
+.side>.engine-panel{padding:14px 16px!important}
+.side>.engine-panel .engine-line{font-size:17px!important;line-height:1.4;gap:12px}
+.side>.engine-panel .engine-line small{font-size:14px!important}
+.side>.engine-panel .balance-summary{font-size:17px!important}
+.side>.engine-panel .position-balance{margin:10px 0 7px}
+.side>.engine-panel .balance-numbers{font-size:15px!important;line-height:1.45}
+.side>.engine-panel .balance-change{font-size:14px!important}
+.side>.engine-panel .balance-numbers strong{font-size:17px!important}
+.trainer-panel .learn-kicker{font-size:20px!important;line-height:1.4}
+.trainer-panel .learn-meta{font-size:15px!important;line-height:1.4}
+.trainer-panel .panel-header{gap:12px;flex-wrap:wrap}
+.trainer-panel .chat-welcome{font-size:18px!important;line-height:1.65!important;padding:24px 26px!important}
+.trainer-panel .coach-prompts{gap:9px!important;margin:13px 0 18px!important}
+.trainer-panel .coach-prompt{font-size:15px!important;line-height:1.4;padding:10px 14px!important}
+.trainer-panel #openingProgress .muted{font-size:16px!important}
+.trainer-panel #openingProgress .badge{font-size:16px!important;padding:6px 12px}
+.trainer-panel #openingProgress .progress{margin-top:13px}
+.trainer-panel .coach-answer{font-size:16px!important;line-height:1.6!important;padding:15px 17px!important}
+@media(max-width:650px){
+ .side>.engine-panel .engine-line{font-size:15px!important}
+ .side>.engine-panel .balance-numbers{font-size:13px!important}
+ .side>.engine-panel .balance-change{font-size:12px!important}
+ .trainer-panel .learn-kicker{font-size:18px!important}
+ .trainer-panel .learn-meta{font-size:14px!important}
+ .trainer-panel .chat-welcome{font-size:17px!important;padding:19px 20px!important}
+ .trainer-panel .coach-prompt{font-size:14px!important;padding:9px 12px!important}
+}
 </style></head><body>
 <div class="app">
   <header class="top">
