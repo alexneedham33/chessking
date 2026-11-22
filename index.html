@@ -450,9 +450,7 @@ function simulateFromPosition(){
  if(!moves.length)return;
  scenario={title:'Possible continuation from your position',summary:'A six-ply illustration from your actual position, not a best-move analysis.',moves,dynamic:true};
  scenarioPositions=positions;scenarioIndex=0;
- document.querySelectorAll('[data-detail-tab]').forEach(b=>b.classList.toggle('active',b.dataset.detailTab==='simulator'));
- document.querySelectorAll('.detail-tab-content').forEach(el=>el.classList.toggle('active',el.id==='simulatorTabPane'));
- render();
+ variationPanelOpen=true;render();
 }
 
 // Real Stockfish via UCI Web Worker. Requires the Stockfish JS/WASM engine bundle.
@@ -723,7 +721,7 @@ async function simulateWithEngine(){if(simBuilding||pendingReply||animatingMove)
   const analysis=k===0?startEval:await fetchEngine(st);
   if(!analysis.best)break;
   pv.push(analysis.best);
-  const uci=analysis.best;const move=legal(st).find(m=>key(m)===uci);if(!move)break;const name=moveLabel(st,move);moves.push([uci,(st.t===openings[selected].side?'Strong continuation for your side: ':'Strong opponent response: ')+name+'. Watch how Stockfish’s position evaluation changes.']);st=apply(st,move);positions.push(st);}if(!moves.length)throw Error('No legal principal variation returned');scenario={title:'Stockfish: what could happen next',summary:'Stockfish selects a strong move for each player from this position. This is an illustrative continuation, not a forced outcome.',moves,dynamic:true,engine:true};scenarioPositions=positions;scenarioIndex=0;lastSimShown=-1;document.querySelectorAll('[data-detail-tab]').forEach(b=>b.classList.toggle('active',b.dataset.detailTab==='simulator'));document.querySelectorAll('.detail-tab-content').forEach(el=>el.classList.toggle('active',el.id==='simulatorTabPane'));render();}catch(error){engineStatus='unavailable';alert('Stockfish could not analyse this position. Install the engine assets beside the HTML file and serve them from a local web server.');}finally{simBuilding=false;if(b)b.disabled=false;}}
+  const uci=analysis.best;const move=legal(st).find(m=>key(m)===uci);if(!move)break;const name=moveLabel(st,move);moves.push([uci,(st.t===openings[selected].side?'Strong continuation for your side: ':'Strong opponent response: ')+name+'. Watch how Stockfish’s position evaluation changes.']);st=apply(st,move);positions.push(st);}if(!moves.length)throw Error('No legal principal variation returned');scenario={title:'Stockfish: what could happen next',summary:'Stockfish selects a strong move for each player from this position. This is an illustrative continuation, not a forced outcome.',moves,dynamic:true,engine:true};scenarioPositions=positions;scenarioIndex=0;lastSimShown=-1;variationPanelOpen=true;render();}catch(error){engineStatus='unavailable';alert('Stockfish could not analyse this position. Install the engine assets beside the HTML file and serve them from a local web server.');}finally{simBuilding=false;if(b)b.disabled=false;}}
 
 // Review is a non-destructive snapshot of the game. It never modifies move history.
 let reviewSerial=0,reviewData=null,reviewSelection=0,reviewBusy=false;
@@ -851,9 +849,55 @@ async function checkBalanceScale(){
 }
 let chatMode='quick',chatPerspective='coach',previewReplyEngine=false,previewAnalysis=null,trainingMode='learn',learnOpponent='guided',challengeStarted=false,challengeFinished=false,challengeScore=null;let selected='queen',mode='play',h=[original()],selectedSquare=-1,showHint=false,feedback='',promotion=null,logs=[],notes=[],lastSquares=[],pendingReply=null,previewReply=null,replyTimer=null,animatingMove=null,animationTimer=null;const $=id=>document.getElementById(id);
 function clearReplyState(){if(replyTimer){clearTimeout(replyTimer);replyTimer=null}if(animationTimer){clearTimeout(animationTimer);animationTimer=null}pendingReply=null;previewReply=null;previewReplyEngine=false;previewAnalysis=null;animatingMove=null;const ghost=$('moveGhost');if(ghost){ghost.className='move-ghost';ghost.style.display='none';ghost.textContent='';}}
+let variationPanelOpen=false,gameReviewOpen=false;
+function showCoachVariation(){
+ variationPanelOpen=!variationPanelOpen;
+ if(!variationPanelOpen&&scenario)leaveScenario();
+ renderCoachTools();
+}
+function renderCoachTools(){
+ const varRoot=$('coachVariationPanel'),reviewHost=$('inlineReviewHost'),simHost=$('inlineScenarioHost');
+ varRoot.style.display=variationPanelOpen?'block':'none';
+ reviewHost.style.display=gameReviewOpen?'block':'none';
+ simHost.style.display=scenario?'block':'none';
+ $('coachVariation').textContent=variationPanelOpen?'Close variations':'↗ Explore an alternative';
+ $('coachGameReview').textContent=gameReviewOpen?'Hide game review':'◫ Review game';
+ if(!variationPanelOpen)return;
+ varRoot.replaceChildren();
+ const help=document.createElement('p');
+ help.textContent='Explore a different opening plan or follow a continuation analysed by Stockfish. Variations do not change your game unless you choose to play a move.';
+ varRoot.append(help);
+ const explore=document.createElement('button');explore.type='button';explore.className='btn primary';
+ explore.textContent=simBuilding?'Analysing variation…':'Explore Stockfish continuation';
+ explore.disabled=!!pendingReply||!!animatingMove||!!simBuilding;
+ explore.onclick=()=>simulateWithEngine();varRoot.append(explore);
+ const branches=routeBranches[selected]||[];
+ for(const branch of branches){
+  const row=document.createElement('div');row.className='variation-choice';
+  const text=document.createElement('div');const name=document.createElement('strong');
+  name.textContent=branch.name;text.append(name,document.createTextNode(branch.plan));
+  row.append(text);
+  if(!scenario&&current().i===branch.at){
+    const move=legal(current()).find(m=>key(m)===branch.uci);
+    if(move){
+      const tryBtn=document.createElement('button');tryBtn.type='button';tryBtn.className='btn';
+      tryBtn.textContent='Play '+san(current(),move);
+      tryBtn.disabled=!!pendingReply||!!animatingMove;
+      tryBtn.onclick=()=>{variationPanelOpen=false;play(move);};
+      row.append(tryBtn);
+    }
+  }
+  varRoot.append(row);
+ }
+}
+async function openGameReview(){
+ gameReviewOpen=!gameReviewOpen;
+ if(gameReviewOpen&&h.length>1&&!reviewBusy&&!reviewData)analysePlayedGame();
+ renderCoachTools();
+}
 let chatPageStart=0;
 function invalidateReview(){comparisonView=null;reviewSerial++;reviewData=null;reviewSelection=0;$('reviewResults').style.display='none';$('reviewStatus').textContent='Game changed. Analyse the current moves to refresh the review.';}
-function reset(){invalidateReview();comparisonView=null;challengeStarted=false;challengeFinished=false;challengeScore=null;shownEngineFen='';simEvalRequest++;replySelectionToken++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();if(trainingMode==='learn'&&learnOpponent==='adaptive'&&mode==='play'&&current().t!==openings[selected].side)prepareOpponentReply();}
+function reset(){invalidateReview();comparisonView=null;variationPanelOpen=false;gameReviewOpen=false;challengeStarted=false;challengeFinished=false;challengeScore=null;shownEngineFen='';simEvalRequest++;replySelectionToken++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();if(trainingMode==='learn'&&learnOpponent==='adaptive'&&mode==='play'&&current().t!==openings[selected].side)prepareOpponentReply();}
 function startChallenge(){reset();challengeStarted=true;feedback='Challenge started. Play your opening against Stockfish.';render();if(current().t!==openings[selected].side)prepareOpponentReply();}
 function current(){return h.at(-1)}function suggested(){const s=current();return legal(s).find(m=>key(m)===routeLine()[s.i]?.[0])}
 function readablePv(s,pv){
@@ -996,6 +1040,7 @@ function render(){const s=scenario?scenarioPositions[scenarioIndex]:current(),mo
  if(!scenario && !animatingMove)requestPositionEval(s);
  $('reviewAnalyse').disabled=animatingMove||pendingReply||h.length<2||reviewBusy;
 renderChallenge();
+renderCoachTools();
 if(!scenario)$('simEnginePanel').style.display='none';const st=strategies[selected];$('strategyIntro').textContent=st.intro;const objectives=$('objectiveList');objectives.replaceChildren();let count=scenario?(scenario.dynamic?Math.max(0,current().i):scenarios[selected].setup):Math.max(0,current().i);for(const [name,at,detail] of st.objectives){const row=document.createElement('div');row.className='strategy-item';const mark=document.createElement('span');mark.className='strategy-mark';mark.textContent=count>=at?'✓':'○';const body=document.createElement('div');const heading=document.createElement('div');heading.className='strategy-name';heading.textContent=name;const copy=document.createElement('div');copy.className='strategy-detail';copy.textContent=detail;body.append(heading,copy);row.append(mark,body);objectives.append(row);} $('phaseBadge').textContent=scenario?'Scenario':current().i<0?'Free play':current().i>=op.line.length?'Line complete':'Opening';$('strategyToggle').textContent=strategyOn?'◉ Hide strategy':'◉ Show strategy';$('scenarioIntro').textContent=scenario?.dynamic?scenario.summary:scenarios[selected].summary;const sm=$('comparisonSummary');sm.replaceChildren();sm.style.display=scenario?.comparison?'flex':'none';if(scenario?.comparison){const c=scenario.comparison;for(const [k,v] of [['Your move',c.played+' · '+c.scorePlayed],['Stockfish prefers',c.preferred+' · '+c.scoreBest]]){const row=document.createElement('div');row.className='compare-pair';const label=document.createElement('span');label.textContent=k;const value=document.createElement('strong');value.textContent=v;row.append(label,value);sm.append(row);}const note=document.createElement('div');note.className='compare-result';note.textContent=c.difference;sm.append(note);}$('scenarioStart').style.display=scenario?'none':'';$('scenarioControls').style.display=scenario?'':'none';if(scenario){if(scenario.dynamic&&lastSimShown!==scenarioIndex){lastSimShown=scenarioIndex;updateSimulationScore(scenarioIndex);} $('scenarioStepTitle').textContent=scenario?.comparison?(scenarioIndex===0?'Your original move':scenarioIndex===1?'Back at the decision':'Stockfish recommendation'):scenarioIndex===0?'Starting position':('Step '+scenarioIndex+' of '+scenario.moves.length);$('scenarioStepCopy').textContent=scenario?.comparison?(scenarioIndex===0?'Your original '+scenario.comparison.played+' · press Replay comparison':scenarioIndex===1?'Your move has been rewound. Watch Stockfish’s choice.':scenario.moves[1][1]):scenarioIndex===0?scenario.title:scenario.moves[scenarioIndex-1][1];$('scenarioNext').disabled=!!animatingMove||scenarioIndex>=scenario.moves.length;$('scenarioNext').textContent=scenario?.comparison?(scenarioIndex===0?'Replay comparison →':scenarioIndex===1?'Show best move →':'Comparison complete'):scenarioIndex>=scenario.moves.length?'End of illustration':'Next move →';}
 const board=$('board');board.replaceChildren();for(let j=0;j<64;j++){const i=(j>>3)*16+(j&7),b=document.createElement('button');b.type='button';b.className='square'+(((j>>3)+(j&7))%2?' dark':'');b.setAttribute('aria-label',sq(i)+' '+(s.b[i]==='.'?'empty':s.b[i]));if(strategyOn&&st.targets.includes(sq(i)))b.classList.add('strategic');if(!scenario&&comparisonView?.bestMove){if(i===comparisonView.bestMove[0])b.classList.add('compare-from');if(i===comparisonView.bestMove[1])b.classList.add('compare-to');}if(animatingMove&&animatingMove.isOpponent&&(i===animatingMove.from||i===animatingMove.to))b.classList.add('thinking');if(!scenario&&i===selectedSquare)b.classList.add('sel');else if(lastSquares.includes(i))b.classList.add('last');const movingAway=animatingMove&&i===animatingMove.from;const displayPiece=movingAway?'.':s.b[i];const pieceNode=pieceImage(displayPiece);if(pieceNode){if(!scenario&&comparisonView?.bestMove&&i===comparisonView.bestMove[0])pieceNode.classList.add('proposed-piece');b.append(pieceNode);}if(!scenario&&selectedSquare>=0&&moves.some(m=>m[0]===selectedSquare&&m[1]===i)||showHint&&selectedSquare<0&&hint&&hint[1]===i){const dot=document.createElement('span');dot.className=s.b[i]==='.'?'dot':'capture';b.append(dot);}if(!scenario&&showHint&&selectedSquare<0&&hint&&hint[0]===i)b.classList.add('sel');if((i&7)===0){const c=document.createElement('span');c.className='coord';c.textContent=8-(i>>4);b.append(c);}if((i>>4)===7){const c=document.createElement('span');c.className='file';c.textContent=sq(i)[0];b.append(c);}b.onclick=()=>clickSquare(i);board.append(b);}
 const ghost=$('moveGhost');if(ghost){if(animatingMove){const from=squarePct(animatingMove.from),to=squarePct(animatingMove.to),piece=animatingMove.piece;ghost.style.display='flex';ghost.className='move-ghost active';ghost.style.setProperty('--from-x',from.x);ghost.style.setProperty('--from-y',from.y);ghost.style.setProperty('--to-x',to.x);ghost.style.setProperty('--to-y',to.y);ghost.innerHTML='';const gp=pieceImage(piece);if(gp){gp.alt='';ghost.append(gp);}}else{ghost.className='move-ghost';ghost.style.display='none';ghost.innerHTML='';}}
@@ -1049,8 +1094,14 @@ for(const name of Object.keys(openings)){let s=original();for(const [uci]of open
 for(const k of Object.keys(scenarios)){selected=k;setScenario();}selected='queen';$('learnOpponent').onchange=()=>{learnOpponent=$('learnOpponent').value;mode='play';reset();};
 $('reviewMyMove').onclick=compareWithBestMove;
 $('learnElo').oninput=()=>{saveOpponentElo($('learnElo').value);renderChallenge();};
+$('coachVariation').onclick=showCoachVariation;
+$('coachGameReview').onclick=openGameReview;
+const reviewPane=$('reviewTabPane'),simPane=$('simulatorTabPane');
+$('inlineReviewHost').append(reviewPane);
+$('inlineScenarioHost').append(simPane);
 document.querySelectorAll('[data-experience]').forEach(b=>b.onclick=()=>{
  const experience=b.dataset.experience;
+ variationPanelOpen=false;gameReviewOpen=false;
  trainingMode=experience==='challenge'?'challenge':'learn';
  learnOpponent=experience==='practice'?'adaptive':'guided';
  mode='play';$('opponentDropdown').open=false;reset();
