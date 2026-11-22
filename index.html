@@ -366,6 +366,9 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 .coach-inline-settings[hidden]{display:none!important}
 .coach-inline-toggle{display:inline-flex;align-items:center;gap:4px;color:#b8c7dc;font-size:11px;white-space:nowrap;cursor:pointer}
 .coach-inline-toggle input{width:13px;height:13px;accent-color:#ae7ae9}
+.coach-ai-status{font-size:10px;color:#b8c7dc;white-space:nowrap}
+.coach-ai-status[hidden]{display:none!important}
+.coach-ai-status.error{color:#f0ad94}
 @media(max-width:700px){.coach-header-right{gap:5px}.coach-inline-settings{gap:6px}}
 </style></head><body>
 <div class="app">
@@ -426,7 +429,7 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
           <button class="detail-tab" data-detail-tab="simulator">Simulator</button><button class="detail-tab" data-detail-tab="review">Review</button>
         </div>
         <div class="detail-tab-content active" id="chatTabPane">
-          <div class="panel-header"><div class="learn-kicker">📖 <span>Opening coach</span></div><div class="coach-header-right"><span class="learn-meta" id="openingName">Queen's Gambit Accepted</span><div class="coach-inline-settings" id="strategicInsights" hidden><label class="coach-inline-toggle" title="Show occasional strategic ideas in the chat"><input type="checkbox" id="strategicInsightsToggle" checked> Ideas</label><label class="coach-inline-toggle" title="Use the optional AI coach when available"><input type="checkbox" id="strategicAiToggle"> AI</label></div></div></div><div class="chat-mode-switch" role="group" aria-label="Chat explanation style" style="display:none"><button class="chat-mode-btn active" data-chat-mode="quick" aria-pressed="true">Quick</button><button class="chat-mode-btn" data-chat-mode="learn" aria-pressed="false">Learn</button></div>
+          <div class="panel-header"><div class="learn-kicker">📖 <span>Opening coach</span></div><div class="coach-header-right"><span class="learn-meta" id="openingName">Queen's Gambit Accepted</span><div class="coach-inline-settings" id="strategicInsights" hidden><label class="coach-inline-toggle" title="Show occasional strategic ideas in the chat"><input type="checkbox" id="strategicInsightsToggle" checked> Ideas</label><label class="coach-inline-toggle" title="Use the optional AI coach when available"><input type="checkbox" id="strategicAiToggle"> AI</label><span id="aiCoachStatus" class="coach-ai-status" role="status" aria-live="polite" hidden></span></div></div></div><div class="chat-mode-switch" role="group" aria-label="Chat explanation style" style="display:none"><button class="chat-mode-btn active" data-chat-mode="quick" aria-pressed="true">Quick</button><button class="chat-mode-btn" data-chat-mode="learn" aria-pressed="false">Learn</button></div>
           <div class="commentary-switch" role="group" aria-label="Chat perspective" style="display:none"><button class="commentary-btn active" data-perspective="coach">Opening coach</button><button class="commentary-btn" data-perspective="engine">Engine commentary</button></div><p class="engine-disclaimer" id="engineDisclaimer" style="display:none">Interpretations of engine moves, not Stockfish's actual thoughts.</p>
 <div class="move-review-toolbar" id="moveReviewToolbar"><div><strong>Understand your move</strong><span>Full-strength Stockfish checks meaningful differences</span></div><button class="btn" id="reviewMyMove">Review move</button></div>
 <div class="chat-zone" id="chatZone">
@@ -1170,7 +1173,7 @@ function revealLatestCoachMove(){
  sizeCoachConversation(true);
 }
 function invalidateReview(){comparisonView=null;reviewSerial++;reviewData=null;reviewSelection=0;$('reviewResults').style.display='none';$('reviewStatus').textContent='Game changed. Analyse the current moves to refresh the review.';}
-function reset(){strategicAiNonce++;strategicAiBusy=false;aiRequestedPly.clear();insightsEntries=[];insightsSeenHistory=0;clearOutsideLinePreview();coachScrollPending=false;coachScrollGeneration++;$('chatZone').scrollTop=0;invalidateReview();comparisonView=null;variationPanelOpen=false;gameReviewOpen=false;coachAnswerText='';challengeStarted=false;challengeFinished=false;challengeScore=null;shownEngineFen='';simEvalRequest++;replySelectionToken++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();if(trainingMode==='learn'&&learnOpponent==='adaptive'&&mode==='play'&&current().t!==openings[selected].side)prepareOpponentReply();}
+function reset(){strategicAiNonce++;strategicAiBusy=false;strategicAiStatus='';strategicAiFailed=false;aiRequestedPly.clear();insightsEntries=[];insightsSeenHistory=0;clearOutsideLinePreview();coachScrollPending=false;coachScrollGeneration++;$('chatZone').scrollTop=0;invalidateReview();comparisonView=null;variationPanelOpen=false;gameReviewOpen=false;coachAnswerText='';challengeStarted=false;challengeFinished=false;challengeScore=null;shownEngineFen='';simEvalRequest++;replySelectionToken++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();if(trainingMode==='learn'&&learnOpponent==='adaptive'&&mode==='play'&&current().t!==openings[selected].side)prepareOpponentReply();}
 function startChallenge(){reset();challengeStarted=true;feedback='Challenge started. Play your opening against Stockfish.';render();if(current().t!==openings[selected].side)prepareOpponentReply();}
 function current(){return h.at(-1)}function suggested(){const s=current();return legal(s).find(m=>key(m)===routeLine()[s.i]?.[0])}
 function readablePv(s,pv){
@@ -1404,7 +1407,7 @@ function renderCapturedPieces(){
 
 const INSIGHTS_KEY='openingLab.strategicInsights';
 let insightsEnabled=true,insightsEntries=[],insightsSeenHistory=0;
-let strategicAiEnabled=false,strategicAiBusy=false,strategicAiFailed=false,strategicAiNonce=0;
+let strategicAiEnabled=false,strategicAiBusy=false,strategicAiFailed=false,strategicAiNonce=0,strategicAiStatus='';
 const aiRequestedPly=new Set();
 try{strategicAiEnabled=localStorage.getItem('openingLab.aiInsights')==='on';}catch{}
 try{insightsEnabled=localStorage.getItem(INSIGHTS_KEY)!=='off';}catch{}
@@ -1512,29 +1515,33 @@ function coachEngineCandidates(position,player,engine){
        primary=first[0],suggestions=[];
  const push=(id,priority,topic,message)=>suggestions.push({id,priority,topic,message});
  if(!primary)return suggestions;
- const mover=ownTurn?'you':'your opponent';
+ const engineMove=m=>m.label+' ('+m.from+'–'+m.to+')';
  if(first.some(m=>m.castle)&&ownTurn){
+  const move=first.find(m=>m.castle);
   push('engine-castling',78,'Consider king safety',
-       'Castling is among the moves Stockfish is examining. Think about whether your king would be safer and your rooks better connected.');
+       'Stockfish considers '+engineMove(move)+'. Consider how castling here would affect your king safety and the coordination of your rooks.');
  }
  if(first.some(m=>m.piece==='p'&&['d','e'].includes(m.to[0]))){
+  const move=first.find(m=>m.piece==='p'&&['d','e'].includes(m.to[0]));
   push('engine-central-play',ownTurn?62:68,'Watch the central pawns',
-       (ownTurn?'One of the candidate plans':'Your opponent may consider a plan')+' involves a central pawn advance. Look at what that would open or challenge before committing to a flank.');
+       'Stockfish examines '+engineMove(move)+' for '+move.side+'. Consider which central squares and pawn relationships that move would change.');
  }
  if(first.some(m=>m.capture)){
+  const move=first.find(m=>m.capture);
   push('engine-exchanges',58,'Consider the exchanges',
-       'A capture appears in Stockfish\'s candidate continuations. Think about what would change after the pieces or pawns are exchanged.');
+       'One analysed option is '+engineMove(move)+'. Consider whether that exchange improves piece activity or leaves a useful square behind.');
  }
  if(first.some(m=>m.piece==='n'||m.piece==='b')&&ownTurn){
+  const move=first.find(m=>m.piece==='n'||m.piece==='b');
   push('engine-piece-activity',52,'Improve your pieces',
-       'Stockfish is considering moves with a knight or bishop. Think about which piece could take up a more useful square without leaving anything undefended.');
+       'Stockfish examines '+engineMove(move)+'. Consider what the '+(move.piece==='n'?'knight':'bishop')+' would influence on its new square and what it leaves behind.');
  }
  return suggestions;
 }
 
 async function requestAiStrategicInsight(entry){
  if(strategicAiBusy||strategicAiFailed||!strategicAiEnabled||!insightsEnabled||!entry||aiRequestedPly.has(entry.ply))return;
- aiRequestedPly.add(entry.ply);strategicAiBusy=true;
+ aiRequestedPly.add(entry.ply);strategicAiBusy=true;strategicAiStatus='analysing';
  const ply=entry.ply,position=h[ply],fen=fenOf(position),nonce=strategicAiNonce;
  const player=openings[selected].side;
  const facts=strategicFacts(position,player);
@@ -1559,6 +1566,7 @@ async function requestAiStrategicInsight(entry){
   if(!response.ok)throw Error('AI not connected');
   const result=await response.json();
   if(nonce!==strategicAiNonce||h[ply]!==position||!insightsEntries.includes(entry))return;
+  strategicAiFailed=false;strategicAiStatus=engine?'engine':'position';
   if(result.id==='none'){insightsEntries=insightsEntries.filter(x=>x!==entry);}
   else if(candidates.some(x=>x.id===result.id)&&typeof result.message==='string'&&result.message.length<=240){
    entry.id=result.id;entry.topic=String(result.topic||entry.topic).slice(0,70);
@@ -1567,19 +1575,23 @@ async function requestAiStrategicInsight(entry){
   render();
  }catch{
   if(nonce===strategicAiNonce){
-   strategicAiFailed=true;
+   strategicAiFailed=true;strategicAiStatus='error';
    if(entry.id==='pending-ai')insightsEntries=insightsEntries.filter(x=>x!==entry);
    render();
   }
  }finally{if(nonce===strategicAiNonce)strategicAiBusy=false;}
 }
 function refreshStrategicInsights(){
- const root=$('strategicInsights'),toggle=$('strategicInsightsToggle');
+ const root=$('strategicInsights'),toggle=$('strategicInsightsToggle'),status=$('aiCoachStatus');
  const visible=trainingMode==='learn'&&!scenario;
  root.hidden=!visible;
  if(!visible)return;
  toggle.checked=insightsEnabled;
  $('strategicAiToggle').checked=strategicAiEnabled;
+ status.hidden=!strategicAiEnabled||!strategicAiStatus;
+ status.classList.toggle('error',strategicAiStatus==='error');
+ status.textContent=({analysing:'Analysing…',engine:'AI + Stockfish',position:'AI · position only',error:'AI unavailable'})[strategicAiStatus]||'';
+ status.title=strategicAiStatus==='error'?'AI coaching request failed. Check the server Terminal for the API error.':'AI response status; this does not alter the standard move explanations.';
  // Rebuild after rewind, restart, or a newly selected opening. Recorded
  // insights follow their actual board positions, not wall-clock timers.
  if(insightsSeenHistory>h.length){
@@ -1722,7 +1734,7 @@ $('coachWhy').onclick=()=>explainCoachQuestion('why');
 $('coachPlan').onclick=()=>explainCoachQuestion('plan');
 $('strategicAiToggle').onchange=()=>{
  strategicAiEnabled=$('strategicAiToggle').checked;
- strategicAiFailed=false;strategicAiNonce++;strategicAiBusy=false;aiRequestedPly.clear();
+ strategicAiFailed=false;strategicAiStatus='';strategicAiNonce++;strategicAiBusy=false;aiRequestedPly.clear();
  try{localStorage.setItem('openingLab.aiInsights',strategicAiEnabled?'on':'off');}catch{}
  render();
 };
