@@ -1466,10 +1466,12 @@ function rewindOpeningTreeTo(ply){
  if(scenario||pendingReply||animatingMove||!Number.isInteger(ply)||ply<0||ply>=h.length)return;
  clearOutsideLinePreview();clearReplyState();invalidateReview();
  h=h.slice(0,ply+1);logs=logs.slice(0,ply);notes=notes.slice(0,ply);
- const previous=routeHistory[ply-1]||null;
+ // routeHistory[k] describes the route before move k+1. For a rewind to
+ // position ply, restore the snapshot taken immediately before its next move.
+ const restored=ply<routeHistory.length?routeHistory[ply]:{branch:activeBranch,info:deviationInfo};
  routeHistory=routeHistory.slice(0,ply);
- activeBranch=ply?routeHistory[ply-1]?.branch||null:null;
- deviationInfo=ply?routeHistory[ply-1]?.info||null:null;
+ activeBranch=ply?restored?.branch||null:null;
+ deviationInfo=ply?restored?.info||null:null;
  // A curated branch remains the selected lesson when rewinding; the learner
  // can follow the same path again. Nothing in the opening choices is reset.
  selectedSquare=-1;promotion=null;showHint=false;lastSquares=[];
@@ -1486,7 +1488,7 @@ function renderOpeningTree(){
  const busy=!!pendingReply||!!animatingMove;
  caption.textContent=branch?'The opponent has chosen a different recognised continuation.':predefinedBehaviour==='varied'&&learnOpponent==='guided'?'Follow the opening; a recognised branch may appear.':'Follow the prepared opening. Select a node to revisit a position.';
  reveal.hidden=!branch||openingTreeRevealed;
- reveal.onclick=()=>{openingTreeRevealed=true;renderOpeningTree();};
+ reveal.onclick=()=>{openingTreeRevealed=true;render();};
  details.hidden=!branch||!openingTreeRevealed;
  if(branch&&openingTreeRevealed){
   const standard=branch.standard?moveLabel(branch.position,branch.standard):'Not available';
@@ -1537,7 +1539,7 @@ function renderOpeningTree(){
  }
 }
 
-function render(){syncOpeningChoices();requestAnimationFrame(alignCapturedTrayWithBoard);const s=scenario?scenarioPositions[scenarioIndex]:current(),moves=legal(s),status=gameStatus(h),op=openings[selected],step=op.line[s.i],hint=trainingMode==='learn'&&h.length-1>=guidedOpeningLimit()?null:suggested(),yourTurn=s.t===op.side,ended=status.done;$('openingSelect').value=openingParent(selected);$('variationSelect').value=selected;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x.dataset.mode===mode));$('turn').textContent=scenario?'Illustrative variation · '+(scenarioIndex===0?'Start':('Step '+scenarioIndex)):pendingReply?'Opponent is thinking…':animatingMove?(animatingMove.isOpponent?'Opponent is moving…':'Your move…'):status.text;$('player').textContent=scenario?'Use Next move to explore':pendingReply?'Opponent reply in progress':animatingMove?(animatingMove.isOpponent?'Opponent reply in progress':'Moving piece'):(mode==='play'?'Playing '+(op.side===1?'White':'Black'):'Study both sides');$('openingName').textContent=visibleVariedLineName()?op.name+' · '+visibleVariedLineName():op.name;$('description').textContent=op.desc;$('tip').textContent=op.tip;const lessonLimit=guidedOpeningLimit();
+function render(){syncOpeningChoices();requestAnimationFrame(alignCapturedTrayWithBoard);const s=scenario?scenarioPositions[scenarioIndex]:current(),moves=legal(s),status=gameStatus(h),op=openings[selected],step=op.line[s.i],hint=trainingMode==='learn'&&h.length-1>=guidedOpeningLimit()?null:suggested(),yourTurn=s.t===op.side,ended=status.done;$('openingSelect').value=openingParent(selected);$('variationSelect').value=selected;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x.dataset.mode===mode));$('turn').textContent=scenario?'Illustrative variation · '+(scenarioIndex===0?'Start':('Step '+scenarioIndex)):pendingReply?'Opponent is thinking…':animatingMove?(animatingMove.isOpponent?'Opponent is moving…':'Your move…'):status.text;$('player').textContent=scenario?'Use Next move to explore':pendingReply?'Opponent reply in progress':animatingMove?(animatingMove.isOpponent?'Opponent reply in progress':'Moving piece'):(mode==='play'?'Playing '+(op.side===1?'White':'Black'):'Study both sides');$('openingName').textContent=openingTreeRevealed&&visibleVariedLineName()?op.name+' · '+visibleVariedLineName():op.name;$('description').textContent=op.desc;$('tip').textContent=op.tip;const lessonLimit=guidedOpeningLimit();
 const lessonDone=Math.min(lessonLimit,Math.max(0,h.length-1));
 $('progressLabel').textContent=lessonDone+' / '+lessonLimit;const progressPct=100*lessonDone/lessonLimit;$('progressBar').style.width=progressPct+'%';$('openingProgress').style.display=trainingMode==='learn'&&learnOpponent!=='adaptive'?'':'none';
 $('openingLineWarning').style.display=outsideLinePreview?'block':'none';
