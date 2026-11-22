@@ -250,7 +250,7 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
   overflow-y:auto!important;
   overflow-x:hidden!important;
   min-height:0!important;
-  max-height:min(72dvh,800px)!important;
+  max-height:min(82dvh,960px)!important;
   scrollbar-width:thin;
   scrollbar-color:#56647b #151a27;
 }
@@ -436,12 +436,6 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
             <div id="whyPanel" class="why-panel" style="display:none"><div id="whyContent" class="why-content"></div></div>
             <div id="chatWelcome" class="chat-welcome">Learn why each opening move is played.</div>
           </div>
-<div class="coach-prompts" id="coachPrompts">
- <button type="button" class="coach-prompt" id="coachWhy">Why this move?</button>
- <button type="button" class="coach-prompt" id="coachPlan">What's the plan?</button>
- <button type="button" class="coach-prompt" id="coachVariation">Show a variation</button>
- <button type="button" class="coach-prompt" id="coachGameReview">Review game</button>
-</div>
 <div id="coachAnswer" class="coach-answer" style="display:none"></div>
 <div class="move-review-result" id="moveReviewResult" style="display:none" aria-live="polite"></div>
 <div id="coachVariationPanel" class="coach-variation-panel" style="display:none"></div>
@@ -1106,12 +1100,9 @@ function renderCoachTools(){
  varRoot.style.display=variationPanelOpen?'block':'none';
  reviewHost.style.display=gameReviewOpen?'block':'none';
  simHost.style.display=scenario?'block':'none';
- $('coachVariation').textContent=variationPanelOpen?'Close variation':'Show a variation';
- $('coachGameReview').textContent=gameReviewOpen?'Hide review':'Review game';
  const playMode=trainingMode==='challenge'||learnOpponent==='adaptive';
  $('moveReviewToolbar').style.display=playMode&&h.length>1?'flex':'none';
- $('coachGameReview').style.display=h.length>1?'':'none';
- $('coachAnswer').textContent=coachAnswerText;
+$('coachAnswer').textContent=coachAnswerText;
  $('coachAnswer').style.display=coachAnswerText?'block':'none';
  if(!variationPanelOpen)return;
  varRoot.replaceChildren();
@@ -1150,8 +1141,9 @@ let chatPageStart=0,coachScrollPending=false,coachScrollGeneration=0;
 function sizeCoachConversation(scrollToLatest=false){
  const zone=$('chatZone'),messages=$('whyContent');
  if(!zone||!messages)return;
- // Keep the full message history in the DOM, but show the latest bubble only.
- // Recalculate after layout so longer explanations and narrower screens fit.
+ // Keep the full history scrollable, but fit the complete latest move bubble:
+ // both the move explanation and its asynchronous strategic idea.
+ // Never scroll to the bottom of that bubble and hide the explanation.
  const generation=++coachScrollGeneration;
  requestAnimationFrame(()=>{
    if(generation!==coachScrollGeneration)return;
@@ -1164,9 +1156,12 @@ function sizeCoachConversation(scrollToLatest=false){
    const visible=entries.slice(-1);
    const gap=parseFloat(getComputedStyle(messages).rowGap)||0;
    const wanted=visible.reduce((sum,entry)=>sum+entry.getBoundingClientRect().height,0)+gap*Math.max(0,visible.length-1);
-   const cap=Math.max(220,Math.min(window.innerHeight*0.72,800));
-   zone.style.setProperty('height',Math.ceil(Math.min(wanted+2,cap))+'px','important');
-   if(scrollToLatest)zone.scrollTop=zone.scrollHeight;
+   const cap=Math.max(260,Math.min(window.innerHeight*0.82,960));
+   zone.style.setProperty('height',Math.ceil(Math.min(wanted+4,cap))+'px','important');
+   // Always align to the beginning of the newest move, even when an AI
+   // response arrives later. The insight must not steal focus from the move.
+   const latest=entries[entries.length-1];
+   if(latest)zone.scrollTop=Math.max(0,latest.getBoundingClientRect().top-zone.getBoundingClientRect().top+zone.scrollTop);
  });
 }
 function revealLatestCoachMove(){
@@ -1721,9 +1716,8 @@ if(insight){
  idea.append(source);copy.append(idea);
 }
 entry.append(title,copy);$('whyContent').append(entry);});
-const revealNewMessage=coachScrollPending;
 coachScrollPending=false;
-sizeCoachConversation(revealNewMessage);
+sizeCoachConversation(true);
 // Keep the conversation scrollable; never delete earlier explanations to make room.
 $('feedback').textContent=feedback;$('feedback').style.display=feedback?'':'none';$('hintText').textContent=showHint&&hint?'Hint: '+moveLabel(s,hint)+' — '+step[1]:status.claim?'Draw may be claimed: '+status.claim:'';$('hint').textContent=showHint?'Hide hint':'✧ Hint';$('plyCount').textContent=logs.length+' plies';$('history').replaceChildren();if(!logs.length){const e=document.createElement('span');e.style.gridColumn='1/-1';e.textContent='Your moves will appear here.';$('history').append(e);}else logs.forEach(x=>{const e=document.createElement('span');e.textContent=x;$('history').append(e);});$('promotion').style.display=promotion?'grid':'none';$('promoChoices').replaceChildren();if(promotion)promotion.forEach(m=>{const e=document.createElement('button');e.textContent=({q:'♛',r:'♜',b:'♝',n:'♞'})[m[2]];e.onclick=()=>{promotion=null;play(m,true)};$('promoChoices').append(e);});}
 for(const name of Object.keys(openings)){let s=original();for(const [uci]of openings[name].line){selected=name;const m=legal(s).find(m=>key(m)===uci);if(!m)throw Error('Invalid opening '+name+' '+uci);s=apply(s,m);}}selected='queenAccepted';
@@ -1737,10 +1731,6 @@ $('guidedOpeningLength').onchange=()=>{
  try{localStorage.setItem(GUIDED_LENGTH_KEY,String(next));}catch{}
  reset();
 };
-$('coachVariation').onclick=showCoachVariation;
-$('coachGameReview').onclick=openGameReview;
-$('coachWhy').onclick=()=>explainCoachQuestion('why');
-$('coachPlan').onclick=()=>explainCoachQuestion('plan');
 $('strategicAiToggle').onchange=()=>{
  strategicAiEnabled=$('strategicAiToggle').checked;
  strategicAiFailed=false;strategicAiStatus='';strategicAiNonce++;strategicAiBusy=false;aiRequestedPly.clear();
