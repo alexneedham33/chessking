@@ -1538,7 +1538,7 @@ if(pendingReply||animatingMove?.isOpponent){$('promptLabel').textContent='OPPONE
 if(scenario){$('promptLabel').textContent='SCENARIO';$('prompt').textContent=scenario.title;$('explanation').textContent=scenarioIndex===0?scenario.summary:scenario.moves[scenarioIndex-1][1];}// One chronological conversation page. A new page begins when the messages reach the board's bottom.
 if(chatPageStart>notes.length)chatPageStart=0;
 let recent=notes.slice(chatPageStart).map((item,k)=>({...item,__i:chatPageStart+k}));
-// Preview the moving piece's reasoning right as the animation begins.
+// Preview the move label during animation; show its explanation only when AI is ready.
 if(chatPerspective==='engine')recent=recent.filter(x=>x.engineSelected);
 if(false&&previewReply&&!scenario&&chatPerspective==='coach'){
  recent.push({text:moveLabel(current(),previewReply)+' · proposed',color:current().t,opening:selected,index:-1,
@@ -1584,10 +1584,11 @@ if(item.proposed){const summary=document.createElement('div');summary.className=
   coachMoveMessages.get(item.__i+1):null;
  // If the student advances while a previous request is in flight, keep the
  // newest move in a waiting state until its own complete response is ready.
+ const previewAi=!!animatingMove&&item.__i===notes.length&&strategicAiEnabled&&trainingMode==='learn'&&!scenario&&chatPerspective==='coach';
  const queuedAi=!ai&&strategicAiEnabled&&!strategicAiFailed&&trainingMode==='learn'&&!scenario&&chatPerspective==='coach'&&!item.proposed&&
   item.__i+1===h.length-1&&item.__i+1>=AI_COACH_MIN_PLY&&aiRequestedPly.size<AI_COACH_GAME_LIMIT;
- if(ai||queuedAi)entry.classList.add('coach-ai-message');
- if(ai?.pending||queuedAi){
+ if(ai||queuedAi||previewAi)entry.classList.add('coach-ai-message');
+ if(ai?.pending||queuedAi||previewAi){
   analysisLabel.textContent='Preparing explanation';
   const pending=document.createElement('div');pending.className='unified-coach-pending';
   pending.setAttribute('role','status');
