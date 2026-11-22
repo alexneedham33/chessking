@@ -300,23 +300,20 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
  .trainer-panel .coach-prompt{font-size:14px!important;padding:9px 12px!important}
 }
 
-/* Captured pieces sit outside the playing squares, near their respective sides. */
-.board-stage{grid-template-rows:28px auto 28px auto!important;row-gap:4px!important}
-.board-stage>.board-rail{grid-column:1;grid-row:2}
-.board-stage>.board-wrap{grid-column:2;grid-row:2}
-.board-stage>.capture-strip{grid-column:2;display:flex;align-items:center;justify-content:flex-end;gap:11px;min-width:0;padding:0 3px}
-.board-stage>.capture-strip-black{grid-row:1}
-.board-stage>.capture-strip-white{grid-row:3}
-.board-stage>.board-controls{grid-column:2;grid-row:4}
-.capture-strip .capture-label{font-size:12px;font-weight:650;color:#96a2b6;white-space:nowrap}
-.capture-strip .capture-pieces{display:flex;align-items:center;justify-content:flex-end;flex-wrap:nowrap;gap:1px;min-width:0;min-height:23px}
-.capture-strip .capture-piece{height:25px;width:22px;object-fit:contain;flex:0 1 22px}
-.capture-strip .capture-empty{font-size:13px;color:#657185}
-@media(max-width:700px){
- .board-stage{grid-template-rows:25px auto 25px auto!important}
- .capture-strip .capture-label{font-size:11px}
- .capture-strip .capture-piece{height:22px;width:19px;flex-basis:19px}
-}
+/* A single material tray beneath Opening progress. No board-side rail. */
+.board-stage{grid-template-columns:minmax(0,1fr)!important;grid-template-rows:auto auto!important;row-gap:0!important;gap:0!important;width:min(100%,var(--board-fit,720px))!important}
+.board-stage>.board-wrap{grid-column:1!important;grid-row:1!important}
+.board-stage>.board-controls{grid-column:1!important;grid-row:2!important}
+.capture-tray{margin:17px 0 0;background:#2a303c;border:1px solid #454c5c;border-radius:14px;overflow:hidden}
+.capture-tray-title{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#cbd2dd;padding:12px 15px 0}
+.capture-tray-columns{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.capture-tray-side{min-width:0;padding:11px 14px 16px}
+.capture-tray-side+.capture-tray-side{border-left:1px solid #515867}
+.capture-tray-label{display:block;font-size:15px;font-weight:750;color:#f0f2f7;margin-bottom:9px}
+.capture-tray-pieces{display:flex;align-items:center;align-content:flex-start;gap:3px;flex-wrap:wrap;min-height:44px}
+.capture-tray-pieces .capture-piece{width:39px;height:44px;object-fit:contain;flex:none}
+.capture-tray-pieces .capture-empty{font-size:14px;color:#c1c8d3}
+@media(max-width:650px){.capture-tray-side{padding:10px 11px 13px}.capture-tray-label{font-size:13px}.capture-tray-pieces .capture-piece{width:31px;height:37px}}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -347,13 +344,10 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
           <span class="muted" id="player">Playing White</span>
         </div>
 <div class="board-stage">
-          <div class="capture-strip capture-strip-black" aria-label="Pieces taken by Black"><span class="capture-label">Black captured</span><div class="capture-pieces" id="blackCapturedPieces"></div></div>
-          <div class="board-rail" aria-hidden="true"></div>
           <div class="board-wrap">
             <div class="board" id="board" aria-label="Interactive chess board"></div>
             <div class="move-ghost" id="moveGhost" style="display:none"></div>
           </div>
-          <div class="capture-strip capture-strip-white" aria-label="Pieces taken by White"><span class="capture-label">White captured</span><div class="capture-pieces" id="whiteCapturedPieces"></div></div>
           <div class="controls board-controls">
             <button class="btn" id="strategyToggle" style="display:none" aria-hidden="true" tabindex="-1">◉ Show strategy</button>
             <button class="btn" id="back">↶ Undo</button>
@@ -397,6 +391,13 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 <div id="inlineScenarioHost"></div>
 <div id="inlineReviewHost"></div><div class="route-notice" id="routeNotice" style="display:none"></div>
           <div id="openingProgress"><div class="row" style="margin-top:12px"><span class="muted">Opening progress</span><span class="badge" id="progressLabel">0 / 11</span></div><div class="progress"><div class="bar" id="progressBar"></div></div></div>
+<div class="capture-tray" aria-label="Captured pieces">
+ <div class="capture-tray-title">Captured pieces</div>
+ <div class="capture-tray-columns">
+  <div class="capture-tray-side"><span class="capture-tray-label">White lost</span><div class="capture-tray-pieces" id="blackCapturedPieces"></div></div>
+  <div class="capture-tray-side"><span class="capture-tray-label">Black lost</span><div class="capture-tray-pieces" id="whiteCapturedPieces"></div></div>
+ </div>
+</div>
           <div class="learn-actions"><button class="btn primary" id="opponent" style="display:none;width:100%">Play opponent's move →</button></div>
           <div style="display:none" aria-hidden="true"><span id="phaseBadge"></span><p id="description"></p><span id="promptLabel"></span><span id="prompt"></span><span id="explanation"></span><span id="hintText"></span><span id="feedback"></span></div>
         </div>
@@ -1278,7 +1279,7 @@ function renderCapturedPieces(){
  for(const [color,id] of [['black','blackCapturedPieces'],['white','whiteCapturedPieces']]){
   const root=$(id);root.replaceChildren();
   const pieces=taken[color].sort((a,b)=>capturedPieceOrder[a.toLowerCase()]-capturedPieceOrder[b.toLowerCase()]);
-  if(!pieces.length){const empty=document.createElement('span');empty.className='capture-empty';empty.textContent='—';root.append(empty);continue;}
+  if(!pieces.length){const empty=document.createElement('span');empty.className='capture-empty';empty.textContent='None yet';root.append(empty);continue;}
   for(const piece of pieces){const icon=pieceImage(piece);if(icon){icon.className='capture-piece';root.append(icon);}}
  }
 }
