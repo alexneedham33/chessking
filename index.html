@@ -119,6 +119,12 @@ html.app-fullscreen .panel,html:fullscreen .panel{padding:14px}
 .learn-opponent-settings .opponent-level{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .learn-opponent-settings .opponent-level select{min-width:170px}
 .opponent-assessment{font-size:11px;color:#a2afc4;line-height:1.45;margin-top:8px}
+.opponent-slider{min-width:0!important;display:block;flex:1 1 250px}
+.opponent-slider-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.opponent-slider-heading strong{float:none!important;white-space:nowrap;color:#eef2f7}
+.opponent-slider input[type="range"]{display:block;width:100%;margin:10px 0 4px;accent-color:#9952ee}
+.opponent-slider-range{display:flex;justify-content:space-between;gap:8px;color:#92a1b6;font-size:10px}
+.challenge-opponent-slider{min-width:240px!important}
 .challenge-config label:first-child{min-width:210px;flex:0 1 auto}
 .challenge-config label select{min-width:180px}
 .proposed-reply{margin:10px 0;padding:11px 12px;border:1px solid #468e89;border-radius:10px;background:#1b3039;color:#e3f2ef}.proposed-reply strong{display:block;font-size:13px}.proposed-reply p{font-size:12px;line-height:1.5;margin:7px 0}.proposed-reply small{font-size:11px;color:#aed4cb}.route-notice.route-compact{padding:12px 14px;border-radius:13px;margin-bottom:12px}.route-compact .route-heading{margin-bottom:0;gap:8px}.route-compact .route-heading strong{font-size:13px;letter-spacing:0}.route-compact .route-simulate{margin-top:10px;padding:10px;font-size:12px}.route-compact .proposed-reply{margin:10px 0 0;padding:10px;border-radius:9px}.why-entry{padding:14px 16px;border-radius:16px}.why-title{font-size:13px;margin-bottom:6px}.why-copy{font-size:13px;line-height:1.5}.why-bullets{margin:5px 0;padding-left:18px}.why-bullets li{margin:0 0 4px}
@@ -146,10 +152,9 @@ html.app-fullscreen .panel,html:fullscreen .panel{padding:14px}
   <div class="training-switch"><button class="training-option active" data-training="learn">Learn</button><button class="training-option" data-training="challenge">Opening Challenge</button></div><section id="learnOpponentSettings" class="learn-opponent-settings">
   <div class="learn-opponent-head"><strong>Opponent</strong><select id="learnOpponent"><option value="guided">Guided opening</option><option value="adaptive">Adaptive Stockfish</option></select></div>
   <div id="learnOpponentDescription" class="learn-opponent-description">The opponent follows the prepared opening sequence. Deviations trigger Stockfish guidance.</div>
-  <label class="opponent-level" id="learnEloSetting" style="display:none">Difficulty <select id="learnDifficulty"><option value="beginner">Beginner · ~1350 Elo</option><option value="intermediate" selected>Intermediate · ~1700 Elo</option><option value="advanced">Advanced · ~2200 Elo</option><option value="master">Master · ~2600 Elo</option><option value="custom">Custom Elo…</option></select></label>
-  <label class="opponent-custom" id="learnCustomSetting" style="display:none">Custom strength <strong id="learnEloValue">1700 Elo (approx.)</strong><input type="range" id="learnElo" min="1350" max="2800" step="50" value="1700"></label>
-  <div class="opponent-assessment" id="learnEvalNote" style="display:none">Stockfish position evaluation always stays at full strength, regardless of opponent difficulty.</div>
- </section><section id="challengeSettings" class="challenge-settings" style="display:none"><div class="challenge-config"><label>Opponent difficulty <select id="challengeDifficulty"><option value="beginner">Beginner · ~1350 Elo</option><option value="intermediate" selected>Intermediate · ~1700 Elo</option><option value="advanced">Advanced · ~2200 Elo</option><option value="master">Master · ~2600 Elo</option><option value="custom">Custom Elo…</option></select></label><label id="challengeCustomSetting" style="display:none">Custom strength <strong id="challengeEloValue">1700 Elo (approx.)</strong><input type="range" id="challengeElo" min="1350" max="2800" step="50" value="1700"></label><label>Reach move <select id="challengeTarget"><option value="10">10</option><option value="15" selected>15</option><option value="20">20</option><option value="25">25</option></select></label><label>Position goal <select id="challengeGoal"><option value="equal">Equal or better</option><option value="slight">Slight disadvantage or better</option></select></label><button class="btn primary" id="challengeRestart">Start challenge ↻</button></div><div id="challengeStatus" class="challenge-status" aria-live="polite"></div><div id="challengeResults" class="challenge-results" style="display:none"></div></section><div class="top-progress"><div class="top-progress-fill" id="topProgressFill"></div></div>
+  <label id="learnEloSetting" class="opponent-slider" style="display:none"><span class="opponent-slider-heading">Opponent strength <strong id="learnEloValue">1700 Elo (approx.)</strong></span><input type="range" id="learnElo" min="1350" max="2800" step="50" value="1700"><span class="opponent-slider-range"><span>1350 · Easier</span><span>2800 · Harder</span></span></label>
+  <div class="opponent-assessment" id="learnEvalNote" style="display:none">Positional balance and game review always use full-strength Stockfish.</div>
+ </section><section id="challengeSettings" class="challenge-settings" style="display:none"><div class="challenge-config"><label class="opponent-slider challenge-opponent-slider"><span class="opponent-slider-heading">Opponent strength <strong id="challengeEloValue">1700 Elo (approx.)</strong></span><input type="range" id="challengeElo" min="1350" max="2800" step="50" value="1700"><span class="opponent-slider-range"><span>1350 · Easier</span><span>2800 · Harder</span></span></label><label>Reach move <select id="challengeTarget"><option value="10">10</option><option value="15" selected>15</option><option value="20">20</option><option value="25">25</option></select></label><label>Position goal <select id="challengeGoal"><option value="equal">Equal or better</option><option value="slight">Slight disadvantage or better</option></select></label><button class="btn primary" id="challengeRestart">Start challenge ↻</button></div><div id="challengeStatus" class="challenge-status" aria-live="polite"></div><div id="challengeResults" class="challenge-results" style="display:none"></div></section><div class="top-progress"><div class="top-progress-fill" id="topProgressFill"></div></div>
   <main class="main">
     <section class="left">
       <div class="board-shell">
@@ -355,10 +360,13 @@ function simulateFromPosition(){
 // No homemade chess evaluation or invented percentages.
 const evalCache=new Map();let evalRequest=0,evalTimer=null,shownEngineFen='',engineStatus='loading';
 const engineSource='Stockfish · browser engine';
-const opponentPresets={beginner:1350,intermediate:1700,advanced:2200,master:2600};
-let opponentDifficulty='intermediate',customOpponentElo=1700;
-function opponentElo(){return opponentDifficulty==='custom'?customOpponentElo:opponentPresets[opponentDifficulty]||1700;}
-function opponentName(){return opponentDifficulty==='custom'?'Custom':opponentDifficulty.charAt(0).toUpperCase()+opponentDifficulty.slice(1);}
+const OPPONENT_ELO_KEY='openingLab.opponentElo';
+function clampOpponentElo(value){const n=Number(value);return Number.isFinite(n)?Math.max(1350,Math.min(2800,Math.round(n/50)*50)):1700;}
+function loadOpponentElo(){try{return clampOpponentElo(localStorage.getItem(OPPONENT_ELO_KEY)??1700);}catch{return 1700;}}
+let chosenOpponentElo=loadOpponentElo();
+function opponentElo(){return chosenOpponentElo;}
+function saveOpponentElo(value){chosenOpponentElo=clampOpponentElo(value);try{localStorage.setItem(OPPONENT_ELO_KEY,String(chosenOpponentElo));}catch{}}
+function opponentName(){return 'Stockfish';}
 function fenOf(s){let ranks=[];for(let r=0;r<8;r++){let row='',empty=0;for(let c=0;c<8;c++){const p=s.b[r*16+c];if(p==='.')empty++;else{if(empty)row+=empty;empty=0;row+=p;}}if(empty)row+=empty;ranks.push(row);}let rights=(s.c&1?'K':'')+(s.c&2?'Q':'')+(s.c&4?'k':'')+(s.c&8?'q':'');return ranks.join('/')+' '+(s.t===1?'w':'b')+' '+(rights||'-')+' '+(s.ep<0?'-':sq(s.ep))+' '+s.half+' '+s.full;}
 function engineText(r){if(r.mate!==null&&r.mate!==undefined)return 'Mate '+(r.mate>0?'+':'')+r.mate;return (r.evaluation>=0?'+':'')+Number(r.evaluation).toFixed(2);}
 const stockfishState={worker:null,ready:null,chain:Promise.resolve(),task:null};
@@ -664,7 +672,7 @@ async function prepareOpponentReply(){
  const s=current();
  const token=++replySelectionToken;
  if(trainingMode==='challenge'||trainingMode==='learn'&&learnOpponent==='adaptive'){
- pendingReply={engine:true};feedback='Your '+opponentName()+' Stockfish opponent (~'+opponentElo()+' Elo) is thinking…';render();
+ pendingReply={engine:true};feedback='Your Stockfish opponent (~'+opponentElo()+' Elo) is thinking…';render();
  try{const analysis=await fetchChallengeMove(s);if(token!==replySelectionToken||current()!==s)return;const move=analysis.best?legal(s).find(m=>key(m)===analysis.best):null;pendingReply=null;if(move){previewReplyEngine=true;previewAnalysis=analysis;queueReply(move);return;}feedback='Stockfish returned no legal response.';}catch(err){if(token!==replySelectionToken||current()!==s)return;pendingReply=null;feedback='Stockfish unavailable. The challenge cannot continue without engine files.';}render();return;
  }
  const useEngine=shouldUseEngineReply(s);
@@ -751,24 +759,19 @@ async function finalizeChallenge(){
 function renderChallenge(){
  $('learnOpponentSettings').style.display=trainingMode==='learn'?'':'none';
  $('learnOpponent').value=learnOpponent;
- $('learnEloSetting').style.display=learnOpponent==='adaptive'?'flex':'none';
- $('learnCustomSetting').style.display=learnOpponent==='adaptive'&&opponentDifficulty==='custom'?'block':'none';
+ $('learnEloSetting').style.display=learnOpponent==='adaptive'?'block':'none';
  $('learnEvalNote').style.display=learnOpponent==='adaptive'?'block':'none';
- $('learnDifficulty').value=opponentDifficulty;
- $('challengeDifficulty').value=opponentDifficulty;
- $('learnEloValue').textContent=customOpponentElo+' Elo (approx.)';
- $('challengeEloValue').textContent=customOpponentElo+' Elo (approx.)';
- $('learnElo').value=customOpponentElo;
- $('challengeElo').value=customOpponentElo;
- $('challengeCustomSetting').style.display=opponentDifficulty==='custom'?'flex':'none';
+ $('learnEloValue').textContent=opponentElo()+' Elo (approx.)';
+ $('challengeEloValue').textContent=opponentElo()+' Elo (approx.)';
+ $('learnElo').value=opponentElo();$('challengeElo').value=opponentElo();
  $('learnOpponentDescription').textContent=learnOpponent==='guided'?'The opponent follows the prepared opening sequence. Deviations trigger Stockfish guidance.':'Stockfish chooses every opponent move at your selected approximate Elo. You choose your own moves while the opening coach tracks the plan.';
  $('challengeSettings').style.display=trainingMode==='challenge'?'':'none';
  document.querySelectorAll('[data-training]').forEach(b=>b.classList.toggle('active',b.dataset.training===trainingMode));
  if(trainingMode!=='challenge')return;
- $('challengeEloValue').textContent=customOpponentElo+' Elo (approx.)';
+ $('challengeEloValue').textContent=opponentElo()+' Elo (approx.)';
  const count=Math.max(0,current().full-1),target=Number($('challengeTarget').value);
  $('challengeRestart').textContent=challengeStarted?'Restart challenge ↻':'Start challenge →';
- $('challengeStatus').textContent=(challengeStarted?'Challenge underway. ':'Configure your settings and select Start challenge. ')+'Complete move '+target+' with '+$('challengeGoal').selectedOptions[0].text+' position against a '+opponentName()+' opponent (~'+opponentElo()+' Elo). Progress: '+count+' / '+target+' complete move pairs. Engine strength is approximate; analysis stays full strength.';
+ $('challengeStatus').textContent=(challengeStarted?'Challenge underway. ':'Configure your settings and select Start challenge. ')+'Complete move '+target+' with '+$('challengeGoal').selectedOptions[0].text+' position against Stockfish at approximately '+opponentElo()+' Elo. Progress: '+count+' / '+target+' complete move pairs. Engine strength is approximate; analysis stays full strength.';
  const root=$('challengeResults');root.replaceChildren();root.style.display=challengeFinished?'':'none';if(!challengeFinished||!challengeScore)return;
  const h3=document.createElement('h3');h3.textContent='Challenge result';root.append(h3);
  const rows=challengeScore.rows,e=challengeScore.eval,score=e?(e.mate!==null?(e.mate*openings[selected].side>0?100:-100):e.evaluation*openings[selected].side):null;
@@ -849,12 +852,9 @@ requestAnimationFrame(()=>{
 $('feedback').textContent=feedback;$('feedback').style.display=feedback?'':'none';$('hintText').textContent=showHint&&hint?'Hint: '+moveLabel(s,hint)+' — '+step[1]:status.claim?'Draw may be claimed: '+status.claim:'';$('hint').textContent=showHint?'Hide hint':'✧ Hint';$('plyCount').textContent=logs.length+' plies';$('history').replaceChildren();if(!logs.length){const e=document.createElement('span');e.style.gridColumn='1/-1';e.textContent='Your moves will appear here.';$('history').append(e);}else logs.forEach(x=>{const e=document.createElement('span');e.textContent=x;$('history').append(e);});$('promotion').style.display=promotion?'grid':'none';$('promoChoices').replaceChildren();if(promotion)promotion.forEach(m=>{const e=document.createElement('button');e.textContent=({q:'♛',r:'♜',b:'♝',n:'♞'})[m[2]];e.onclick=()=>{promotion=null;play(m)};$('promoChoices').append(e);});}
 for(const name of Object.keys(openings)){let s=original();for(const [uci]of openings[name].line){selected=name;const m=legal(s).find(m=>key(m)===uci);if(!m)throw Error('Invalid opening '+name+' '+uci);s=apply(s,m);}}selected='italian';
 for(const k of Object.keys(scenarios)){selected=k;setScenario();}selected='italian';$('learnOpponent').onchange=()=>{learnOpponent=$('learnOpponent').value;mode='play';reset();};
-$('learnDifficulty').onchange=()=>{opponentDifficulty=$('learnDifficulty').value;reset();};
-$('challengeDifficulty').onchange=()=>{opponentDifficulty=$('challengeDifficulty').value;reset();};
-$('learnElo').oninput=()=>{customOpponentElo=Number($('learnElo').value);renderChallenge();};
-$('learnElo').onchange=()=>{if(trainingMode==='learn'&&learnOpponent==='adaptive')reset();};
+$('learnElo').oninput=()=>{saveOpponentElo($('learnElo').value);renderChallenge();};
 document.querySelectorAll('[data-training]').forEach(b=>b.onclick=()=>{trainingMode=b.dataset.training;mode='play';reset();});
-$('challengeElo').oninput=()=>{customOpponentElo=Number($('challengeElo').value);renderChallenge();};$('challengeElo').onchange=()=>reset();
+$('challengeElo').oninput=()=>{saveOpponentElo($('challengeElo').value);renderChallenge();};
 $('challengeTarget').onchange=()=>reset();
 $('challengeGoal').onchange=()=>renderChallenge();
 $('challengeRestart').onclick=startChallenge;$('reviewAnalyse').onclick=analysePlayedGame;$('reviewCheckScale').onclick=checkBalanceScale;
