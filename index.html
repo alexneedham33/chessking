@@ -330,7 +330,7 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 #opponentDropdown #learnEloSetting{margin-top:17px;border-top:1px solid #33425b;padding-top:13px}
 #opponentDropdown #learnEloSetting .opponent-slider-heading{font-size:14px;color:#e0e7f3}
 #opponentDropdown #learnEloSetting .opponent-slider-range{font-size:12px}
-.opening-line-warning{margin:5px 0 10px;padding:11px 14px;border:1px solid #e86b78;background:#542029;color:#ffe5e8;border-radius:10px;font-size:15px;font-weight:700;line-height:1.45}
+.opening-line-warning{margin:14px 0 12px;padding:14px 16px;border:1px solid #f07d89;background:#58212c;color:#ffe5e8;border-radius:12px;font-size:16px;font-weight:750;line-height:1.5;box-shadow:inset 4px 0 0 #fa6979}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -360,7 +360,6 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
           <span id="turn" class="board-title">White to move</span>
           <span class="muted" id="player">Playing White</span>
         </div>
-        <div id="openingLineWarning" class="opening-line-warning" role="alert" style="display:none"></div>
 <div class="board-stage">
           <div class="board-wrap">
             <div class="board" id="board" aria-label="Interactive chess board"></div>
@@ -408,6 +407,7 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 <div id="coachVariationPanel" class="coach-variation-panel" style="display:none"></div>
 <div id="inlineScenarioHost"></div>
 <div id="inlineReviewHost"></div><div class="route-notice" id="routeNotice" style="display:none"></div>
+          <div id="openingLineWarning" class="opening-line-warning" role="alert" style="display:none"></div>
           <div id="openingProgress"><div class="row" style="margin-top:12px"><span class="muted">Opening progress</span><span class="badge" id="progressLabel">0 / 11</span></div><div class="progress"><div class="bar" id="progressBar"></div></div></div>
 
           <div class="learn-actions"><button class="btn primary" id="opponent" style="display:none;width:100%">Play opponent's move →</button></div>
@@ -690,11 +690,15 @@ function opponentSearchDepth(rating){
 // After that—or immediately after a deviation—Stockfish decides replies.
 const SCRIPTED_OPENING_PLIES=10;
 function isLockedOpeningPhase(){
- return trainingMode==='learn'&&learnOpponent==='guidedEngine'&&!scenario&&h.length-1<SCRIPTED_OPENING_PLIES;
+ if(trainingMode!=='learn'||scenario)return false;
+ return learnOpponent==='guidedEngine'?
+  h.length-1<SCRIPTED_OPENING_PLIES:
+  learnOpponent==='guided'&&h.length-1<routeLine().length;
 }
 let outsideLineWarning='';
 function rejectOutsideOpeningLine(){
- outsideLineWarning='Outside the opening line — try again. Use Hint to see the correct move.';
+ const expected=suggested();
+ outsideLineWarning='Not part of this opening variation. That move was not played. '+(expected?'Try '+moveLabel(current(),expected)+' instead, or use Hint.':'Use Hint to find the correct move.');
  selectedSquare=-1;promotion=null;render();
 }
 function scriptedStockfishOpeningReply(position){
