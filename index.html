@@ -268,6 +268,19 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
  .trainer-panel .why-copy{font-size:17px!important}
  .trainer-panel .why-title{font-size:15px!important}
 }
+
+/* Forward-looking opening strategy, independent of retrospective chat. */
+.strategy-guide{display:grid;gap:11px;margin:16px 0 14px}
+.strategy-guide-card{background:#141b29;border:1px solid #303c52;border-radius:15px;padding:18px 19px}
+.strategy-guide-overview{background:#172033;border-color:#35455e}
+.strategy-guide-label{font-size:10px;font-weight:800;letter-spacing:1.15px;color:#9daece;margin-bottom:9px}
+.strategy-guide-card h3{font-size:16px;line-height:1.35;margin:0 0 9px;font-weight:800;color:#f0f4fc}
+.strategy-guide-card p{font-size:14px;line-height:1.65;color:#d7e1f2;margin:0}
+.strategy-guide-principle{font-size:12px;line-height:1.6;color:#aebfda;margin-top:10px;padding-top:10px;border-top:1px solid #344157}
+.strategy-guide-phase{display:inline-flex;margin:0 0 10px;font-size:11px;font-weight:700;color:#acd3dc}
+.strategy-guide-watch,.strategy-guide-next{display:grid;gap:4px;font-size:13px;line-height:1.55;margin-top:12px;padding-top:10px;border-top:1px solid #2a354a;color:#bccadd}
+.strategy-guide-watch strong,.strategy-guide-next strong{font-size:11px;color:#e2e9f7}
+@media(max-width:650px){.strategy-guide-card{padding:15px 16px}.strategy-guide-card p{font-size:14px}}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -340,6 +353,22 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
  <button type="button" class="coach-prompt" id="coachGameReview">Review game</button>
 </div>
 <div id="coachAnswer" class="coach-answer" style="display:none"></div>
+<section class="strategy-guide" id="strategyGuide" aria-label="Opening strategy guidance">
+ <div class="strategy-guide-card strategy-guide-overview">
+  <div class="strategy-guide-label">THE BIG PICTURE</div>
+  <h3 id="strategyGuideHeading">Understand the plan</h3>
+  <p id="strategyGuideOverview"></p>
+  <div class="strategy-guide-principle" id="strategyGuidePrinciple"></div>
+ </div>
+ <div class="strategy-guide-card strategy-guide-current" aria-live="polite">
+  <div class="strategy-guide-label">HOW THE PLAN DEVELOPS</div>
+  <div class="strategy-guide-phase" id="strategyGuidePhase"></div>
+  <h3 id="strategyGuideNowHeading">What to focus on</h3>
+  <p id="strategyGuideNow"></p>
+  <div class="strategy-guide-watch"><strong>Keep in mind</strong><span id="strategyGuideWatch"></span></div>
+  <div class="strategy-guide-next"><strong>Coming up</strong><span id="strategyGuideNext"></span></div>
+ </div>
+</section>
 <div class="move-review-result" id="moveReviewResult" style="display:none" aria-live="polite"></div>
 <div id="coachVariationPanel" class="coach-variation-panel" style="display:none"></div>
 <div id="inlineScenarioHost"></div>
@@ -931,6 +960,80 @@ function showCoachVariation(){
  if(!variationPanelOpen&&scenario)leaveScenario();
  renderCoachTools();
 }
+
+// Strategy teaching notes are editorial, not engine evaluations or claims that a
+// position has objectively met a goal. Follow the actual selected opening and
+// update the plan as the position moves through each stage.
+const strategyGuidance={
+ queenAccepted:{
+  idea:"Black takes the c4 pawn, but that does not mean White must rush to win it back. Your advantage is the chance to develop pieces and build a useful centre while recovering the pawn naturally.",
+  principle:"Think: recover c4 through development, then prepare central play. Don't send the queen on a pawn chase.",
+  phases:[
+   {at:0,title:"Build your central foothold",focus:"Begin by taking space with your queen's pawn. The c-pawn can then challenge Black's d5 pawn and ask Black to make a decision in the centre.",watch:"Black may defend d5 or capture on c4. These require different plans."},
+   {at:3,title:"The pawn has been offered",focus:"If Black takes on c4, think about how to regain it while developing useful pieces. The bishop on f1 can eventually reach c4 once the e-pawn advances.",watch:"Don't assume a quick queen move is needed. Development is often the simplest answer."},
+   {at:6,title:"Recover the pawn naturally",focus:"Prepare e3 and Bxc4, keeping your central pawn on d4 secure. When you regain c4, your bishop should be developed rather than merely recapturing.",watch:"Black can hit d4 with ...c5 or try to hold the pawn with ...b5."},
+   {at:9,title:"Secure your king, meet counterplay",focus:"With c4 recovered, castle and develop with an eye on Black's central challenge. Keep the bishop active if Black pushes queenside pawns.",watch:"When ...c5 arrives, ask what it attacks and whether your d4 pawn needs support."},
+   {at:13,title:"Convert development into a plan",focus:"Look for safe development and a timely e4 advance, but only if your central pawns and king are adequately supported.",watch:"Black's queenside pawns and long-diagonal bishop can create pressure. Respond to real threats before expanding."}
+  ]},
+ queen:{
+  idea:"Black declines the gambit and holds on to d5. You are trying to put steady pressure on that pawn chain, develop your pieces, and eventually create a useful central pawn break.",
+  principle:"Think: pressure on d5, smooth development, king safety, and an e4 break when it is properly supported.",
+  phases:[
+   {at:0,title:"Challenge the centre",focus:"Establish d4 and consider c4 to question Black's d5 pawn. The goal is central influence, not an immediate pawn win.",watch:"If Black takes on c4, you have moved into an Accepted-type structure and may need to change plans."},
+   {at:4,title:"Increase the pressure",focus:"Develop a knight towards d5 and e4. Make each developing move help control the centre.",watch:"Black's ...e6 strengthens d5 but can restrict Black's light-squared bishop."},
+   {at:6,title:"Coordinate your pieces",focus:"Develop the bishop to create pressure on Black's f6 knight, and use e3 to support d4 and open your other bishop.",watch:"A pin only matters while the relevant piece is actually pinned; don't build the whole plan around it."},
+   {at:9,title:"Finish development",focus:"Bring out your remaining pieces and castle before forcing the centre open. Prepare e4 only when the pieces support it.",watch:"Check Black's breaks and piece activity before pushing another central pawn."}
+  ]},
+ italian:{
+  idea:"The Italian Game builds fast, natural development. Your bishop looks toward f7, but the deeper idea is to castle safely and then challenge Black's centre with d4.",
+  principle:"Think: develop, castle, and open the centre when your pieces are ready.",
+  phases:[
+   {at:0,title:"Claim space and develop",focus:"Use e4, Nf3 and Bc4 to build central control while bringing pieces towards active squares.",watch:"Black contests e4 and e5; keep track of which central pawns are defended."},
+   {at:4,title:"Make the bishop useful",focus:"The bishop on c4 looks towards f7. Combine that pressure with normal development rather than attempting an attack with undeveloped pieces.",watch:"f7 is sensitive, but that does not make every early attack sound."},
+   {at:6,title:"Prepare the pawn break",focus:"c3 can support d4, letting you challenge Black's pawn on e5 with a prepared central expansion.",watch:"Black may threaten e4 while you prepare d4. Count defenders before pushing."},
+   {at:9,title:"Play with the open centre",focus:"After central exchanges, recapture sensibly, finish development, and use open lines for your pieces.",watch:"Once files open, king safety becomes especially important."}
+  ]},
+ sicilian:{
+  idea:"As Black, your c-pawn challenges White's d4 square from the flank. The aim is to create an unbalanced position, exchange a flank pawn for a central pawn, and develop with counterplay.",
+  principle:"Think: contest d4, develop without falling behind, and watch White's strong centre.",
+  phases:[
+   {at:0,title:"Question White's centre",focus:"White usually begins with e4. Your ...c5 challenges d4 without simply copying White's pawn structure.",watch:"White can choose an Open Sicilian or a quieter Closed system."},
+   {at:3,title:"Prepare the central exchange",focus:"Watch for White's d4 push. In an Open Sicilian, ...cxd4 trades your flank pawn for White's central pawn.",watch:"Don't exchange automatically if White has chosen a different structure."},
+   {at:6,title:"Develop with a purpose",focus:"Bring the knight to f6, attacking e4 while developing a piece. Coordinate your other pieces before seeking tactics.",watch:"White may defend e4 with Nc3; pressure does not guarantee a pawn win."},
+   {at:9,title:"Prepare queenside counterplay",focus:"...a6 can control b5 and prepare further queenside expansion, but only when the central position allows it.",watch:"Keep the king safe and watch for tactical breaks in the centre."}
+  ]},
+ caro:{
+  idea:"The Caro–Kann is a solid answer to e4. Support a central ...d5 advance with ...c6, then develop your light-squared bishop before a later ...e6 can shut it in.",
+  principle:"Think: sturdy central structure, useful bishop development, and steady piece coordination.",
+  phases:[
+   {at:0,title:"Prepare a solid centre",focus:"After White's e4, ...c6 prepares ...d5 so you can contest the centre without an early weakness.",watch:"White may advance e5, exchange pawns, or develop while keeping tension."},
+   {at:3,title:"Challenge e4",focus:"Use ...d5 to question White's central pawn. Decide how to develop based on White's response, not on a fixed script alone.",watch:"White's e5 advance changes the space and the location of your bishop."},
+   {at:5,title:"Develop the light bishop",focus:"Find a useful square for the light-squared bishop before closing its diagonal with ...e6.",watch:"The bishop can become a target; consider where it can safely retreat."},
+   {at:9,title:"Finish the structure",focus:"Support the centre and complete development, including king safety. Look for opportunities to challenge White's space.",watch:"A solid structure still needs active pieces; don't leave everything on the back rank."}
+  ]}
+};
+function renderStrategyGuide(){
+ const guide=strategyGuidance[selected],op=openings[selected],state=current();
+ if(!guide)return;
+ $('strategyGuideHeading').textContent=op.name+' · the plan';
+ $('strategyGuideOverview').textContent=guide.idea;
+ $('strategyGuidePrinciple').textContent=guide.principle;
+ // During animation the explanation may preview a move, but the strategy
+ // remains anchored to the actual board until that move has landed.
+ const inBook=state.i>=0&&!scenario,stage=inBook?state.i:Math.max(0,logs.length);
+ let phase=guide.phases[0],next=null;
+ for(let i=0;i<guide.phases.length;i++){
+  if(guide.phases[i].at<=stage){phase=guide.phases[i];next=guide.phases[i+1]||null;}
+ }
+ const turn=state.t===op.side?'Your side to move':'Opponent to move';
+ $('strategyGuidePhase').textContent=scenario?'Illustrative variation':inBook?'Opening stage · '+turn:'Adapted position · '+turn;
+ $('strategyGuideNowHeading').textContent=phase.title;
+ $('strategyGuideNow').textContent=inBook?phase.focus:'The moves have moved away from the prepared opening. Keep the main ideas in mind, but reassess the actual pawn structure, king safety and immediate threats before choosing a plan. '+phase.focus;
+ $('strategyGuideWatch').textContent=inBook?phase.watch:'Check threats and piece safety in this position. '+phase.watch;
+ const nextText=next?'Later: '+next.title+'. '+next.focus:'Use your development and central control to choose a sensible middlegame plan.';
+ $('strategyGuideNext').textContent=inBook?nextText:'Possible direction, not a forced line: '+nextText;
+}
+
 function renderCoachTools(){
  const varRoot=$('coachVariationPanel'),reviewHost=$('inlineReviewHost'),simHost=$('inlineScenarioHost');
  varRoot.style.display=variationPanelOpen?'block':'none';
@@ -1161,6 +1264,7 @@ function render(){const s=scenario?scenarioPositions[scenarioIndex]:current(),mo
  $('reviewAnalyse').disabled=animatingMove||pendingReply||h.length<2||reviewBusy;
 renderChallenge();
 renderCoachTools();
+renderStrategyGuide();
 if(!scenario)$('simEnginePanel').style.display='none';const st=strategies[selected];$('strategyIntro').textContent=st.intro;const objectives=$('objectiveList');objectives.replaceChildren();let count=scenario?(scenario.dynamic?Math.max(0,current().i):scenarios[selected].setup):Math.max(0,current().i);for(const [name,at,detail] of st.objectives){const row=document.createElement('div');row.className='strategy-item';const mark=document.createElement('span');mark.className='strategy-mark';mark.textContent=count>=at?'✓':'○';const body=document.createElement('div');const heading=document.createElement('div');heading.className='strategy-name';heading.textContent=name;const copy=document.createElement('div');copy.className='strategy-detail';copy.textContent=detail;body.append(heading,copy);row.append(mark,body);objectives.append(row);} $('phaseBadge').textContent=scenario?'Scenario':current().i<0?'Free play':current().i>=op.line.length?'Line complete':'Opening';$('strategyToggle').textContent=strategyOn?'◉ Hide strategy':'◉ Show strategy';$('scenarioIntro').textContent=scenario?.dynamic?scenario.summary:scenarios[selected].summary;const sm=$('comparisonSummary');sm.replaceChildren();sm.style.display=scenario?.comparison?'flex':'none';if(scenario?.comparison){const c=scenario.comparison;for(const [k,v] of [['Your move',c.played+' · '+c.scorePlayed],['Stockfish prefers',c.preferred+' · '+c.scoreBest]]){const row=document.createElement('div');row.className='compare-pair';const label=document.createElement('span');label.textContent=k;const value=document.createElement('strong');value.textContent=v;row.append(label,value);sm.append(row);}const note=document.createElement('div');note.className='compare-result';note.textContent=c.difference;sm.append(note);}$('scenarioStart').style.display=scenario?'none':'';$('scenarioControls').style.display=scenario?'':'none';if(scenario){if(scenario.dynamic&&lastSimShown!==scenarioIndex){lastSimShown=scenarioIndex;updateSimulationScore(scenarioIndex);} $('scenarioStepTitle').textContent=scenario?.comparison?(scenarioIndex===0?'Your original move':scenarioIndex===1?'Back at the decision':'Stockfish recommendation'):scenarioIndex===0?'Starting position':('Step '+scenarioIndex+' of '+scenario.moves.length);$('scenarioStepCopy').textContent=scenario?.comparison?(scenarioIndex===0?'Your original '+scenario.comparison.played+' · press Replay comparison':scenarioIndex===1?'Your move has been rewound. Watch Stockfish’s choice.':scenario.moves[1][1]):scenarioIndex===0?scenario.title:scenario.moves[scenarioIndex-1][1];$('scenarioNext').disabled=!!animatingMove||scenarioIndex>=scenario.moves.length;$('scenarioNext').textContent=scenario?.comparison?(scenarioIndex===0?'Replay comparison →':scenarioIndex===1?'Show best move →':'Comparison complete'):scenarioIndex>=scenario.moves.length?'End of illustration':'Next move →';}
 const board=$('board');board.replaceChildren();for(let j=0;j<64;j++){const i=(j>>3)*16+(j&7),b=document.createElement('button');b.type='button';b.className='square'+(((j>>3)+(j&7))%2?' dark':'');b.setAttribute('aria-label',sq(i)+' '+(s.b[i]==='.'?'empty':s.b[i]));if(strategyOn&&st.targets.includes(sq(i)))b.classList.add('strategic');if(!scenario&&comparisonView?.bestMove){if(i===comparisonView.bestMove[0])b.classList.add('compare-from');if(i===comparisonView.bestMove[1])b.classList.add('compare-to');}if(animatingMove&&animatingMove.isOpponent&&(i===animatingMove.from||i===animatingMove.to))b.classList.add('thinking');if(!scenario&&i===selectedSquare)b.classList.add('sel');else if(lastSquares.includes(i))b.classList.add('last');const movingAway=animatingMove&&i===animatingMove.from;const displayPiece=movingAway?'.':s.b[i];const pieceNode=pieceImage(displayPiece);if(pieceNode){if(!scenario&&comparisonView?.bestMove&&i===comparisonView.bestMove[0])pieceNode.classList.add('proposed-piece');b.append(pieceNode);}if(!scenario&&selectedSquare>=0&&moves.some(m=>m[0]===selectedSquare&&m[1]===i)||showHint&&selectedSquare<0&&hint&&hint[1]===i){const dot=document.createElement('span');dot.className=s.b[i]==='.'?'dot':'capture';b.append(dot);}if(!scenario&&showHint&&selectedSquare<0&&hint&&hint[0]===i)b.classList.add('sel');if((i&7)===0){const c=document.createElement('span');c.className='coord';c.textContent=8-(i>>4);b.append(c);}if((i>>4)===7){const c=document.createElement('span');c.className='file';c.textContent=sq(i)[0];b.append(c);}b.onclick=()=>clickSquare(i);board.append(b);}
 const ghost=$('moveGhost');if(ghost){if(animatingMove){const from=squarePct(animatingMove.from),to=squarePct(animatingMove.to),piece=animatingMove.piece;ghost.style.display='flex';ghost.className='move-ghost active';ghost.style.setProperty('--from-x',from.x);ghost.style.setProperty('--from-y',from.y);ghost.style.setProperty('--to-x',to.x);ghost.style.setProperty('--to-y',to.y);ghost.innerHTML='';const gp=pieceImage(piece);if(gp){gp.alt='';ghost.append(gp);}}else{ghost.className='move-ghost';ghost.style.display='none';ghost.innerHTML='';}}
