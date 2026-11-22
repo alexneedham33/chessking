@@ -79,14 +79,15 @@ html.app-fullscreen .panel,html:fullscreen .panel{padding:14px}
 .engine-panel{margin:7px 0 10px;padding:9px 12px;background:#121726;border:1px solid #293246;border-radius:10px;color:#e9edf8}
 .engine-line{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:12px;font-weight:750;margin-bottom:6px}
 .engine-line small{color:#929bb0;font-weight:500}
-.outlook-label{color:#e9edf8;font-size:13px;font-weight:750}
-.outlook-track{height:9px;display:flex;overflow:hidden;border-radius:6px;background:#444a5b}
-.outlook-white{background:#e5dfd0;transition:width .4s ease}
-.outlook-draw{background:#9299a9;transition:width .4s ease}
-.outlook-black{background:#434c60;transition:width .4s ease}
-.outlook-stats{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:6px;color:#b6c0d1;font-size:11px;font-variant-numeric:tabular-nums}
-.outlook-stats strong{color:#f0f3fa;font-weight:750}
-.outlook-caption{font-size:10px;line-height:1.3;color:#8995aa;margin-top:5px}
+.balance-summary{font-size:12px;font-weight:750;color:#e9edf8}
+.position-balance{height:12px;border-radius:6px;overflow:hidden;display:flex;position:relative;background:#465166}
+.balance-white-side{height:100%;background:#e5dfd0;transition:width .4s ease}
+.balance-black-side{height:100%;background:#465166;flex:1}
+.position-balance:after{content:"";position:absolute;top:0;bottom:0;left:50%;width:2px;background:#9ca5b5;opacity:.65;transform:translateX(-1px);pointer-events:none}
+.balance-numbers{display:flex;justify-content:space-between;gap:12px;margin-top:5px;font-size:11px;color:#b4bfd0;font-variant-numeric:tabular-nums}
+.balance-numbers strong{color:#eef2fa}
+.balance-change{color:#b4bfd0;font-size:11px}
+.balance-explain{font-size:10px;color:#909cb1;margin-top:5px;line-height:1.3}
 .balance-track{height:12px;background:#444a5b;border-radius:5px;overflow:hidden;display:flex}
 .balance-white{width:50%;background:#e5dfd0;transition:width .45s ease}
 .balance-foot{font-size:11px;color:#a4adbf;margin-top:6px;line-height:1.4}
@@ -137,11 +138,11 @@ html.app-fullscreen .panel,html:fullscreen .panel{padding:14px}
           <span id="turn" class="board-title">White to move</span>
           <span class="muted" id="player">Playing White</span>
         </div>
-        <div class="engine-panel" id="enginePanel" aria-label="Position outlook based on Stockfish engine self-play estimates">
- <div class="engine-line"><span>Position outlook · <small id="engineDepth">Stockfish analysis</small></span><span class="outlook-label" id="engineScore" aria-live="polite">Connecting…</span></div>
- <div class="outlook-track" role="img" id="outlookTrack" aria-label="Win, draw and loss estimates unavailable"><div class="outlook-white" id="outlookWhite" style="width:0%"></div><div class="outlook-draw" id="outlookDraw" style="width:100%"></div><div class="outlook-black" id="outlookBlack" style="width:0%"></div></div>
- <div class="outlook-stats"><span>White <strong id="outlookWhitePct">—</strong></span><span>Draw <strong id="outlookDrawPct">—</strong></span><span>Black <strong id="outlookBlackPct">—</strong></span></div>
- <div class="outlook-caption" id="engineCaption">Engine self-play estimates, not human win probabilities.</div>
+        <div class="engine-panel" id="enginePanel" aria-label="Stockfish positional balance relative to starting position">
+ <div class="engine-line"><span>Positional balance · <small id="engineDepth">Stockfish</small></span><span class="balance-summary" id="engineScore" aria-live="polite">Even position</span></div>
+ <div class="position-balance" role="img" id="outlookTrack" aria-label="White 50, Black 50"><div class="balance-white-side" id="balanceWhite" style="width:50%"></div><div class="balance-black-side"></div></div>
+ <div class="balance-numbers"><span>White <strong id="balanceWhitePct">50.0</strong></span><span class="balance-change" id="balanceMoveChange">Starting balance · 50/50</span><span>Black <strong id="balanceBlackPct">50.0</strong></span></div>
+ <div class="balance-explain" id="engineCaption">Relative shift in Stockfish expected score, not win probability.</div>
  </div><div class="board-stage">
           <div class="board-rail" aria-hidden="true"></div>
           <div class="board-wrap">
@@ -380,38 +381,42 @@ function fetchEngine(s){
 function fetchChallengeMove(s){const rating=Number($('challengeElo').value),fen=fenOf(s);
  const taskPromise=stockfishState.chain.catch(()=>{}).then(async()=>{const worker=await bootStockfish();return new Promise((resolve,reject)=>{const task={side:s.t,score:null,resolve:r=>{clearTimeout(timer);resolve(r);}};const timer=setTimeout(()=>{if(stockfishState.task===task){stockfishState.task=null;reject(Error('Opponent engine timed out'));}},18000);stockfishState.task=task;worker.postMessage('setoption name MultiPV value 1');worker.postMessage('setoption name UCI_LimitStrength value true');worker.postMessage('setoption name UCI_Elo value '+rating);worker.postMessage('position fen '+fen);worker.postMessage('go depth 10');});});stockfishState.chain=taskPromise.catch(()=>{});return taskPromise;}
 function engineValue(e){if(!e)return 50;if(e.mate!==null)return e.mate>0?99:1;return Math.max(1,Math.min(99,100/(1+Math.exp(-e.evaluation/1.55))));}
-function outlookAssessment(wdl){
- const [white,draw,black]=wdl;
- if(draw>=650&&Math.abs(white-black)<160)return 'Draw looks likely';
- const lead=Math.abs(white-black),winner=white>black?'White':'Black';
- if(lead<120)return 'Balanced position';
- return winner+(lead>=650?' is heavily favoured':lead>=350?' has a strong advantage':' is favoured');
+// White expected score: wins + half of draws, on Stockfish's 0..1000 scale.
+function expectedWhite(e){
+ const w=e?.wdl;
+ return Array.isArray(w)&&w.length===3&&w.every(n=>Number.isInteger(n)&&n>=0)&&w.reduce((a,b)=>a+b,0)===1000?w[0]+w[1]/2:null;
 }
-function setStrength(e,err){
- const label=$('engineScore'),cap=$('engineCaption'),depth=$('engineDepth'),track=$('outlookTrack');
- const wdl=e?.wdl,valid=Array.isArray(wdl)&&wdl.length===3&&wdl.every(n=>Number.isInteger(n)&&n>=0)&&wdl.reduce((a,b)=>a+b,0)===1000;
- if(valid){
-   const [white,draw,black]=wdl;
-   $('outlookWhite').style.width=white/10+'%';
-   $('outlookDraw').style.width=draw/10+'%';
-   $('outlookBlack').style.width=black/10+'%';
-   $('outlookWhitePct').textContent=(white/10).toFixed(1)+'%';
-   $('outlookDrawPct').textContent=(draw/10).toFixed(1)+'%';
-   $('outlookBlackPct').textContent=(black/10).toFixed(1)+'%';
-   label.textContent=outlookAssessment(wdl);
-   depth.textContent='Stockfish · depth '+e.depth;
-   cap.textContent='Estimated outcomes for strong-engine self-play; not human win probabilities.';
-   track.setAttribute('aria-label','White wins '+white/10+'%, draws '+draw/10+'%, Black wins '+black/10+'%');
- }else{
-   $('outlookWhite').style.width='0%';$('outlookDraw').style.width='100%';$('outlookBlack').style.width='0%';
-   for(const id of ['outlookWhitePct','outlookDrawPct','outlookBlackPct'])$(id).textContent='—';
-   label.textContent=err?'Engine unavailable':e?'Outlook unavailable':'Analysing…';
-   depth.textContent=e?'Stockfish · depth '+e.depth:err?'Stockfish not loaded':engineSource;
-   cap.textContent=err?'Stockfish could not be loaded. Check the engine files and use a local HTTP server.':e?'This engine did not provide win/draw/loss estimates for this position.':'Engine self-play estimates, not human win probabilities.';
-   track.setAttribute('aria-label','Win, draw and loss estimates unavailable');
+function displayBalance(value,change,depth,error){
+ const white=Math.max(0,Math.min(100,value)),black=100-white,lead=white-50;
+ $('balanceWhite').style.width=white.toFixed(2)+'%';
+ $('balanceWhitePct').textContent=white.toFixed(1);$('balanceBlackPct').textContent=black.toFixed(1);
+ $('engineScore').textContent=error?'Balance unavailable':depth===null?'Even position':Math.abs(lead)<0.5?'Even position':(lead>0?'White':'Black')+' '+(Math.abs(lead)>=15?'strongly favoured':'slightly favoured');
+ $('engineDepth').textContent=depth===null?'Stockfish':'Stockfish · depth '+depth;
+ $('balanceMoveChange').textContent=error?'Engine unavailable':depth===null?'Starting balance · 50/50':change===null?'Move change unavailable':Math.abs(change)<0.05?'No change this move':(change>0?'White':'Black')+' +'+Math.abs(change).toFixed(1)+' this move';
+ $('engineCaption').textContent=error?'Stockfish evaluation unavailable; check local engine files.':'Shift in estimated engine expected score since the starting position; not win probability.';
+ $('outlookTrack').setAttribute('aria-label','Positional balance: White '+white.toFixed(1)+', Black '+black.toFixed(1));
+}
+function requestPositionEval(s){
+ const fen=fenOf(s);if(fen===shownEngineFen)return;
+ shownEngineFen=fen;clearTimeout(evalTimer);
+ const token=++evalRequest;
+ if(h.length===1){
+   displayBalance(50,null,null,false);
+   evalTimer=setTimeout(()=>{fetchEngine(original()).catch(()=>{});},250);
+   return;
  }
+ $('engineScore').textContent='Analysing…';$('balanceMoveChange').textContent='Checking this move…';
+ const previous=h[h.length-2],first=original();
+ evalTimer=setTimeout(async()=>{
+   try{
+     const [base,prior,now]=await Promise.all([fetchEngine(first),fetchEngine(previous),fetchEngine(s)]);
+     if(token!==evalRequest||scenario)return;
+     const baseScore=expectedWhite(base),priorScore=expectedWhite(prior),nowScore=expectedWhite(now);
+     if(baseScore===null||nowScore===null){displayBalance(50,null,now?.depth??null,true);return;}
+     displayBalance(50+(nowScore-baseScore)/10,priorScore===null?null:(nowScore-priorScore)/10,now.depth,false);
+   }catch(error){if(token===evalRequest&&!scenario)displayBalance(50,null,null,true);}
+ },250);
 }
-function requestPositionEval(s){const fen=fenOf(s);if(fen===shownEngineFen)return;shownEngineFen=fen;clearTimeout(evalTimer);const token=++evalRequest;setStrength(null,false);evalTimer=setTimeout(async()=>{try{const e=await fetchEngine(s);if(token!==evalRequest)return;engineStatus='ready';setStrength(e,false);if(scenario?.dynamic)updateSimulationScore(scenarioIndex);}catch(err){if(token!==evalRequest)return;engineStatus='unavailable';setStrength(null,true);}},250);}
 function updateSimulationScore(i){const panel=$('simEnginePanel');if(!scenario?.dynamic){panel.style.display='none';return;}panel.style.display='block';const s=scenarioPositions[i],score=$('simEngineScore'),fill=$('simBalanceWhite'),caption=$('simEngineCaption');score.textContent='Analysing step '+i+'…';caption.textContent='Stockfish is evaluating this position.';const id=++simEvalRequest;fetchEngine(s).then(e=>{if(id!==simEvalRequest)return;const n=engineValue(e);fill.style.width=n+'%';score.textContent='Stockfish: '+(e.mate!==null?engineText(e):engineText(e)+' pawns');caption.textContent='Engine depth '+e.depth+' · visualised evaluation, not win odds';}).catch(()=>{if(id!==simEvalRequest)return;score.textContent='Stockfish unavailable';caption.textContent='Cannot evaluate without the Stockfish engine files.';});}
 let simEvalRequest=0,simBuilding=false,lastSimShown=-1,replySelectionToken=0;
 let comparisonBusy=false;
@@ -591,9 +596,8 @@ function renderChallenge(){
  for(const ob of rows){const line=document.createElement('div');line.className='challenge-objective';const mark=document.createElement('b');mark.className=ob.state;mark.textContent=ob.state==='achieved'?'✓':ob.state==='adapted'?'~':'×';const text=document.createElement('div');const title=document.createElement('strong');title.textContent=ob.name+' · '+(ob.state==='missed'?'Needs work':ob.state);const detail=document.createElement('span');detail.textContent=ob.detail;text.append(title,detail);line.append(mark,text);root.append(line);}
 }
 function render(){const s=scenario?scenarioPositions[scenarioIndex]:current(),moves=legal(s),status=gameStatus(h),op=openings[selected],step=op.line[s.i],hint=suggested(),yourTurn=s.t===op.side,ended=status.done;document.querySelectorAll('[data-opening]').forEach(x=>x.classList.toggle('active',x.dataset.opening===selected));document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x.dataset.mode===mode));$('turn').textContent=scenario?'Illustrative variation · '+(scenarioIndex===0?'Start':('Step '+scenarioIndex)):pendingReply?'Opponent is thinking…':animatingMove?(animatingMove.isOpponent?'Opponent is moving…':'Your move…'):status.text;$('player').textContent=scenario?'Use Next move to explore':pendingReply?'Opponent reply in progress':animatingMove?(animatingMove.isOpponent?'Opponent reply in progress':'Moving piece'):(mode==='play'?'Playing '+(op.side===1?'White':'Black'):'Study both sides');$('openingName').textContent=op.name;$('description').textContent=op.desc;$('tip').textContent=op.tip;$('progressLabel').textContent=s.i<0?'Exploring':Math.max(0,s.i)+' / '+routeLine().length;const progressPct=100*Math.max(0,s.i)/routeLine().length;$('progressBar').style.width=progressPct+'%'; const topProgress=$('topProgressFill'); if(topProgress) topProgress.style.width=progressPct+'%';
-// Refresh the main strength bar only after a full move (White and Black have both played).
-// During the intervening half-move, preserve the last completed pair's evaluation.
-if(!scenario && s.t===1 && !animatingMove && !pendingReply)requestPositionEval(s);
+// Update after every completed half-move, including White's move.
+ if(!scenario && !animatingMove && !pendingReply)requestPositionEval(s);
 renderChallenge();
 if(!scenario)$('simEnginePanel').style.display='none';const st=strategies[selected];$('strategyIntro').textContent=st.intro;const objectives=$('objectiveList');objectives.replaceChildren();let count=scenario?(scenario.dynamic?Math.max(0,current().i):scenarios[selected].setup):Math.max(0,current().i);for(const [name,at,detail] of st.objectives){const row=document.createElement('div');row.className='strategy-item';const mark=document.createElement('span');mark.className='strategy-mark';mark.textContent=count>=at?'✓':'○';const body=document.createElement('div');const heading=document.createElement('div');heading.className='strategy-name';heading.textContent=name;const copy=document.createElement('div');copy.className='strategy-detail';copy.textContent=detail;body.append(heading,copy);row.append(mark,body);objectives.append(row);} $('phaseBadge').textContent=scenario?'Scenario':current().i<0?'Free play':current().i>=op.line.length?'Line complete':'Opening';$('strategyToggle').textContent=strategyOn?'◉ Hide strategy':'◉ Show strategy';$('scenarioIntro').textContent=scenario?.dynamic?scenario.summary:scenarios[selected].summary;const sm=$('comparisonSummary');sm.replaceChildren();sm.style.display=scenario?.comparison?'flex':'none';if(scenario?.comparison){const c=scenario.comparison;for(const [k,v] of [['Your move',c.played+' · '+c.scorePlayed],['Stockfish prefers',c.preferred+' · '+c.scoreBest]]){const row=document.createElement('div');row.className='compare-pair';const label=document.createElement('span');label.textContent=k;const value=document.createElement('strong');value.textContent=v;row.append(label,value);sm.append(row);}const note=document.createElement('div');note.className='compare-result';note.textContent=c.difference;sm.append(note);}$('scenarioStart').style.display=scenario?'none':'';$('scenarioControls').style.display=scenario?'':'none';if(scenario){if(scenario.dynamic&&lastSimShown!==scenarioIndex){lastSimShown=scenarioIndex;updateSimulationScore(scenarioIndex);} $('scenarioStepTitle').textContent=scenario?.comparison?(scenarioIndex===0?'Your original move':scenarioIndex===1?'Back at the decision':'Stockfish recommendation'):scenarioIndex===0?'Starting position':('Step '+scenarioIndex+' of '+scenario.moves.length);$('scenarioStepCopy').textContent=scenario?.comparison?(scenarioIndex===0?'Your original '+scenario.comparison.played+' · press Replay comparison':scenarioIndex===1?'Your move has been rewound. Watch Stockfish’s choice.':scenario.moves[1][1]):scenarioIndex===0?scenario.title:scenario.moves[scenarioIndex-1][1];$('scenarioNext').disabled=!!animatingMove||scenarioIndex>=scenario.moves.length;$('scenarioNext').textContent=scenario?.comparison?(scenarioIndex===0?'Replay comparison →':scenarioIndex===1?'Show best move →':'Comparison complete'):scenarioIndex>=scenario.moves.length?'End of illustration':'Next move →';}
 const board=$('board');board.replaceChildren();for(let j=0;j<64;j++){const i=(j>>3)*16+(j&7),b=document.createElement('button');b.type='button';b.className='square'+(((j>>3)+(j&7))%2?' dark':'');b.setAttribute('aria-label',sq(i)+' '+(s.b[i]==='.'?'empty':s.b[i]));if(strategyOn&&st.targets.includes(sq(i)))b.classList.add('strategic');if(!scenario&&comparisonView?.bestMove){if(i===comparisonView.bestMove[0])b.classList.add('compare-from');if(i===comparisonView.bestMove[1])b.classList.add('compare-to');}if(animatingMove&&animatingMove.isOpponent&&(i===animatingMove.from||i===animatingMove.to))b.classList.add('thinking');if(!scenario&&i===selectedSquare)b.classList.add('sel');else if(lastSquares.includes(i))b.classList.add('last');const movingAway=animatingMove&&i===animatingMove.from;const displayPiece=movingAway?'.':s.b[i];const p=document.createElement('span');p.className='piece'+(side(displayPiece)===1?' white':'')+(displayPiece.toLowerCase()==='p'?' pawn':displayPiece.toLowerCase()==='b'?' bishop':'');p.textContent=glyph[displayPiece];if(!scenario&&comparisonView?.bestMove&&i===comparisonView.bestMove[0])p.classList.add('proposed-piece');b.append(p);if(!scenario&&selectedSquare>=0&&moves.some(m=>m[0]===selectedSquare&&m[1]===i)||showHint&&selectedSquare<0&&hint&&hint[1]===i){const dot=document.createElement('span');dot.className=s.b[i]==='.'?'dot':'capture';b.append(dot);}if(!scenario&&showHint&&selectedSquare<0&&hint&&hint[0]===i)b.classList.add('sel');if((i&7)===0){const c=document.createElement('span');c.className='coord';c.textContent=8-(i>>4);b.append(c);}if((i>>4)===7){const c=document.createElement('span');c.className='file';c.textContent=sq(i)[0];b.append(c);}b.onclick=()=>clickSquare(i);board.append(b);}
