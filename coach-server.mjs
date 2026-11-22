@@ -74,6 +74,7 @@ async function explainMove(payload){
   'For routine opening moves, write exactly two concise, natural sentences, normally 30-55 words total, with a hard limit of 65 words. Explain the most useful strategic idea and, only if helpful, one relevant next consideration. For genuinely critical tactical positions, you may use up to three sentences and 85 words.',
   'Do not narrate obvious piece movement or repeat the move notation in prose (for example, avoid White has just played 1. d4, moving the pawn from d2 to d4). The move title already provides this. Mention origin or destination only if it teaches something important.',
   'Prioritise one clear lesson over exhaustive coverage. No filler, repetitive development advice, or speculative follow-ups. Use the actual resulting position to keep the explanation accurate.',
+  'Prefer plain-language ideas such as the centre, kingside, pawn support, piece development and king safety. Avoid square coordinates unless knowing a particular square is essential to the lesson. Normally mention zero or one coordinate; never more than two distinct coordinates in a routine explanation. Avoid listing routes like c2 to c4, which the board already shows. When a coordinate is necessary, weave it naturally into the explanation.',
   'If the provided evidence cannot justify a tactical claim, omit it. Keep plain, encouraging language rather than generic stock phrases. Do not invent an unseen move.',
   'Output only a JSON object with a single message string. No separate insights or numbered lists.'
  ].join(' ');
