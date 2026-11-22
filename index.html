@@ -384,17 +384,12 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 .why-strategic-source{font-size:10px;opacity:.7;margin-top:7px}
 .why-entry.white-side .why-strategic-idea{background:#fff3df;border-color:#ead0a9;border-left-color:#b37b23;color:#3c2c15}
 .why-entry.white-side .why-strategic-heading{color:#8e5916}
-/* Occasional, position-grounded coaching below the move chat. */
-.insights-coach{margin-top:11px;border:1px solid #344055;border-radius:11px;background:#151e2e;padding:9px 12px}
-.insights-coach[hidden],.insights-coach-message[hidden]{display:none!important}
-.insights-coach-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.insights-coach-head strong{font-size:14px;color:#f0f3fb}
-.insights-coach-toggle{display:inline-flex;align-items:center;gap:6px;cursor:pointer;color:#adbed5;font-size:12px;white-space:nowrap}
-.insights-coach-toggle input{accent-color:#a777ed;width:15px;height:15px}
-.insights-coach-message{margin-top:10px;border-left:3px solid #b391e3;padding:2px 0 2px 11px;color:#dce6f5;line-height:1.5}
-.insights-coach-topic{font-size:13px;font-weight:750;color:#f0dcff}
-.insights-coach-message p{margin:5px 0 0;font-size:14px;line-height:1.5}
-.insights-coach-meta{font-size:11px;color:#98a9c1;margin-top:7px}
+.coach-header-right{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:9px}
+.coach-inline-settings{display:flex;align-items:center;gap:9px}
+.coach-inline-settings[hidden]{display:none!important}
+.coach-inline-toggle{display:inline-flex;align-items:center;gap:4px;color:#b8c7dc;font-size:11px;white-space:nowrap;cursor:pointer}
+.coach-inline-toggle input{width:13px;height:13px;accent-color:#ae7ae9}
+@media(max-width:700px){.coach-header-right{gap:5px}.coach-inline-settings{gap:6px}}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -454,7 +449,7 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
           <button class="detail-tab" data-detail-tab="simulator">Simulator</button><button class="detail-tab" data-detail-tab="review">Review</button>
         </div>
         <div class="detail-tab-content active" id="chatTabPane">
-          <div class="panel-header"><div class="learn-kicker">📖 <span>Opening coach</span></div><span class="learn-meta" id="openingName">Queen's Gambit Accepted</span></div><div class="chat-mode-switch" role="group" aria-label="Chat explanation style" style="display:none"><button class="chat-mode-btn active" data-chat-mode="quick" aria-pressed="true">Quick</button><button class="chat-mode-btn" data-chat-mode="learn" aria-pressed="false">Learn</button></div>
+          <div class="panel-header"><div class="learn-kicker">📖 <span>Opening coach</span></div><div class="coach-header-right"><span class="learn-meta" id="openingName">Queen's Gambit Accepted</span><div class="coach-inline-settings" id="strategicInsights" hidden><label class="coach-inline-toggle" title="Show occasional strategic ideas in the chat"><input type="checkbox" id="strategicInsightsToggle" checked> Ideas</label><label class="coach-inline-toggle" title="Use the optional AI coach when available"><input type="checkbox" id="strategicAiToggle"> AI</label></div></div></div><div class="chat-mode-switch" role="group" aria-label="Chat explanation style" style="display:none"><button class="chat-mode-btn active" data-chat-mode="quick" aria-pressed="true">Quick</button><button class="chat-mode-btn" data-chat-mode="learn" aria-pressed="false">Learn</button></div>
           <div class="commentary-switch" role="group" aria-label="Chat perspective" style="display:none"><button class="commentary-btn active" data-perspective="coach">Opening coach</button><button class="commentary-btn" data-perspective="engine">Engine commentary</button></div><p class="engine-disclaimer" id="engineDisclaimer" style="display:none">Interpretations of engine moves, not Stockfish's actual thoughts.</p>
 <div class="move-review-toolbar" id="moveReviewToolbar"><div><strong>Understand your move</strong><span>Full-strength Stockfish checks meaningful differences</span></div><button class="btn" id="reviewMyMove">Review move</button></div>
 <div class="chat-zone" id="chatZone">
@@ -468,14 +463,6 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
  <button type="button" class="coach-prompt" id="coachGameReview">Review game</button>
 </div>
 <div id="coachAnswer" class="coach-answer" style="display:none"></div>
-<div class="insights-coach" id="strategicInsights" hidden>
- <div class="insights-coach-head"><strong>✦ Strategic ideas in chat</strong><div style="display:flex;gap:12px"><label class="insights-coach-toggle"><input type="checkbox" id="strategicAiToggle"> AI</label><label class="insights-coach-toggle"><input type="checkbox" id="strategicInsightsToggle" checked> On</label></div></div>
- <div class="insights-coach-message" id="strategicInsightsMessage" hidden>
-  <div class="insights-coach-topic" id="strategicInsightsTopic"></div>
-  <p id="strategicInsightsText"></p>
-  <div class="insights-coach-meta" id="strategicInsightsMeta"></div>
- </div>
-</div>
 <div class="move-review-result" id="moveReviewResult" style="display:none" aria-live="polite"></div>
 <div id="coachVariationPanel" class="coach-variation-panel" style="display:none"></div>
 <div id="inlineScenarioHost"></div>
@@ -1583,7 +1570,7 @@ async function requestAiStrategicInsight(entry){
  }finally{if(nonce===strategicAiNonce)strategicAiBusy=false;}
 }
 function refreshStrategicInsights(){
- const root=$('strategicInsights'),toggle=$('strategicInsightsToggle'),body=$('strategicInsightsMessage');
+ const root=$('strategicInsights'),toggle=$('strategicInsightsToggle');
  const visible=trainingMode==='learn'&&!scenario;
  root.hidden=!visible;
  if(!visible)return;
@@ -1609,8 +1596,7 @@ function refreshStrategicInsights(){
   }
   insightsSeenHistory=h.length;
  }
- // Insights now live inside the relevant move bubble, not in a second card.
- body.hidden=true;
+
  if(insightsEnabled&&strategicAiEnabled&&!strategicAiFailed){
   const target=newest||insightsEntries.at(-1);
   if(target&&!aiRequestedPly.has(target.ply))requestAiStrategicInsight(target);
