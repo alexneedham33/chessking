@@ -674,29 +674,23 @@ function fetchEngine(s,depth=16){
  });
  stockfishState.chain=request.catch(()=>{});return request;
 }
-// Stockfish 17.1's native UCI_Elo minimum is approximately 1320.
-// Lower settings supplement its lowest strength with imperfect legal moves.
-// The displayed ratings are approximate difficulty targets, not measured human Elo.
-function chooseBeginnerMove(s,engineMove,rating){
- const moves=legal(s);
- if(!moves.length)return engineMove;
- const nativeChance=0.32+0.60*(rating-750)/(1320-750);
- if(engineMove&&Math.random()<nativeChance)return engineMove;
- const options=moves.map(m=>{
-   const piece=s.b[m[0]].toLowerCase(),target=s.b[m[1]],next=apply(s,m);
-   let weight=1;
-   if(target!=='.'||m[3]==='ep')weight*=2.1;
-   if(piece==='n'||piece==='b')weight*=1.65;
-   if(piece==='p'&&['d','e'].includes(sq(m[1])[0]))weight*=1.5;
-   if(m[3]==='castle')weight*=2.2;
-   if(piece==='k'&&m[3]!=='castle')weight*=0.18;
-   if(piece==='q'&&s.full<8)weight*=0.65;
-   if(checked(next))weight*=1.3;
-   return {m,weight};
- });
- let pick=Math.random()*options.reduce((sum,o)=>sum+o.weight,0);
- for(const option of options){pick-=option.weight;if(pick<=0)return key(option.m);}
- return key(options[options.length-1].m);
+// Stockfish 17.1 supports native UCI_Elo down to roughly 1320.
+// For lower requested difficulty use its native weakest setting with a
+// shorter search. Never substitute randomly picked legal moves: these
+// often ignore threats and defeat the educational purpose.
+// Ratings below the native floor are approximate difficulty levels, not
+// calibrated human Elo ratings.
+function opponentSearchDepth(rating){
+ return rating>=1320?10:Math.max(6,Math.min(9,Math.round(6+3*(rating-750)/(1320-750))));
+}
+// The selected prepared variation supplies the first five full moves
+// (ten half-moves), provided the learner follows that variation.
+// After that—or immediately after a deviation—Stockfish decides replies.
+const SCRIPTED_OPENING_PLIES=10;
+function scriptedStockfishOpeningReply(position){
+ if(h.length-1>=SCRIPTED_OPENING_PLIES||position.i<0)return null;
+ if(position.t===openings[selected].side)return null;
+ return suggested();
 }
 function fetchChallengeMove(s){
  const rating=opponentElo(),fen=fenOf(s),nativeRating=Math.max(1320,rating);
@@ -705,7 +699,7 @@ function fetchChallengeMove(s){
    return new Promise((resolve,reject)=>{
      const task={side:s.t,score:null,resolve:r=>{
        clearTimeout(timer);
-       resolve(rating<1320?{...r,best:chooseBeginnerMove(s,r.best,rating)}:r);
+       resolve(r);
      }};
      const timer=setTimeout(()=>{if(stockfishState.task===task){stockfishState.task=null;reject(Error('Opponent engine timed out'));}},18000);
      stockfishState.task=task;
@@ -713,7 +707,7 @@ function fetchChallengeMove(s){
      worker.postMessage('setoption name UCI_LimitStrength value true');
      worker.postMessage('setoption name UCI_Elo value '+nativeRating);
      worker.postMessage('position fen '+fen);
-     worker.postMessage('go depth 10');
+     worker.postMessage('go depth '+opponentSearchDepth(rating));
    });
  });
  stockfishState.chain=taskPromise.catch(()=>{});
@@ -1113,6 +1107,8 @@ async function prepareOpponentReply(){
  const s=current();
  const token=++replySelectionToken;
  if(trainingMode==='challenge'||trainingMode==='learn'&&learnOpponent==='adaptive'){
+  const scripted=scriptedStockfishOpeningReply(s);
+  if(scripted){previewReplyEngine=false;previewAnalysis=null;queueReply(scripted);return;}
  pendingReply={engine:true};feedback='Your Stockfish opponent (~'+opponentElo()+' Elo) is thinking…';render();
  try{const analysis=await fetchChallengeMove(s);if(token!==replySelectionToken||current()!==s)return;const move=analysis.best?legal(s).find(m=>key(m)===analysis.best):null;pendingReply=null;if(move){previewReplyEngine=true;previewAnalysis=analysis;queueReply(move);return;}feedback='Stockfish returned no legal response.';}catch(err){if(token!==replySelectionToken||current()!==s)return;pendingReply=null;feedback='Stockfish unavailable. The challenge cannot continue without engine files.';}render();return;
  }
@@ -1223,7 +1219,7 @@ function renderChallenge(){
  $('learnEloValue').textContent=opponentElo()+' Elo (approx.)';
  $('challengeEloValue').textContent=opponentElo()+' Elo (approx.)';
  $('learnElo').value=opponentElo();$('challengeElo').value=opponentElo();
- $('learnOpponentDescription').textContent=learnOpponent==='guided'?'Follows the prepared moves for your selected opening and variation. The same sequence plays each time.':'Stockfish chooses replies from the actual board position at your selected Elo. In Learn, use Next to advance each reply.';
+ $('learnOpponentDescription').textContent=learnOpponent==='guided'?'Follows the prepared moves for your selected opening and variation. The same sequence plays each time.':'The first five full moves follow the selected opening when you stay on its line. After that, Stockfish chooses replies at your approximate difficulty. Deviate early and Stockfish takes over immediately.';
  $('challengeSettings').style.display=trainingMode==='challenge'?'block':'none';
  document.querySelectorAll('[data-experience]').forEach(b=>b.classList.toggle('active',b.dataset.experience===(isPlay?'practice':'guided')));
  if(trainingMode!=='challenge')return;
@@ -1410,6 +1406,10 @@ $('variationSelect').onchange=()=>{selected=$('variationSelect').value;reset();}
 };$('scenarioExit').onclick=()=>{clearReplyState();leaveScenario()};$('hint').onclick=()=>{showHint=!showHint;render()};async function advanceLearnStockfishMove(){
  if(pendingReply||animatingMove||gameStatus(h).done)return;
  const position=current(),opponentTurn=position.t!==openings[selected].side;
+ if(opponentTurn){
+  const scripted=scriptedStockfishOpeningReply(position);
+  if(scripted){previewReplyEngine=false;previewAnalysis=null;startMoveAnimation(scripted,true);return;}
+ }
  const token=++replySelectionToken;
  pendingReply={engine:true};
  feedback=opponentTurn?'Stockfish ('+opponentElo()+' Elo) is selecting a reply…':'Finding a continuation from this position…';
