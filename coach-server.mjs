@@ -41,51 +41,6 @@ function cleanEngineEvidence(input){
   evaluation:Number.isFinite(input.evaluation)&&Math.abs(input.evaluation)<200?input.evaluation:null,
   mate:Number.isInteger(input.mate)&&Math.abs(input.mate)<=100?input.mate:null,variations};
 }
-async function suggest(payload){
- const {fen,opening,player,moveHistory,facts,candidates,previous,recentInsights}=payload;
- const engine=cleanEngineEvidence(payload.engine);
- if(typeof fen!=='string'||fen.length>130||!/^[prnbqkPRNBQK1-8/]+ [wb] /.test(fen))throw Error('Invalid position');
- if(!Array.isArray(candidates)||candidates.length>8||!candidates.every(x=>typeof x.id==='string'&&typeof x.topic==='string'&&typeof x.message==='string'))throw Error('Invalid evidence');
- const instructions=[
-  'You are a thoughtful chess coach for a beginner. Choose ONE useful strategic insight from the supplied verified candidate observations, or choose none.',
-  'Stockfish evidence, if available, has evaluations from White\'s perspective (positive favours White) and candidate continuations. These are calculations, not a guaranteed future or an engine declaration of intent.',
-  'Use candidate moves as evidence of possible plans, but a single principal variation does not establish long-term strategy.',
-  'If a position is tactically forcing, avoid generic advice that ignores obvious immediate priorities. When evidence is insufficient, use cautious language or return none.',
-  'Treat the FEN and position facts as context, not a license to invent tactical threats, forcing sequences, or engine evaluations.',
-  'Do not claim that castling is legal unless the facts say it is. Do not recommend a specific move unless the provided candidate warrants it.',
-  'Do not frame an opponent plan as certain; use may, might, or worth watching.',
-  'Prefer advice about king safety, castling timing, piece coordination, positional pressure and space, when relevant.',
-  'Keep advice natural, calm, actionable and tentative. One or two sentences, maximum 220 characters.',
-  'Avoid repeating the previous insight or the last few strategic topics. If no candidate is worth saying now, return id none.',
-  'Do not present numerical evaluation, best moves, or forced tactics in the message without direct support from engine evidence. Teach ideas rather than tell the player what to play.',
-  'Your output MUST reference an input candidate id, or none. Do not create a new candidate id.'
- ].join(' ');
- const input={fen,opening:String(opening||'').slice(0,100),player:player==='Black'?'Black':'White',
-  moveHistory:Array.isArray(moveHistory)?moveHistory.slice(-12):[],facts,engine,
-  previous:typeof previous==='string'?previous.slice(0,240):null,
-  recentInsights:Array.isArray(recentInsights)?recentInsights.slice(-3).map(x=>({topic:String(x.topic||'').slice(0,80),message:String(x.message||'').slice(0,240)})):[],
-  candidates:candidates.map(x=>({id:x.id,topic:x.topic,message:x.message}))};
- const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),18000);
- try{
-  const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',signal:controller.signal,headers:{'Authorization':'Bearer '+process.env.OPENAI_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({
-   model,store:false,instructions,input:JSON.stringify(input),max_output_tokens:240,
-   text:{format:{type:'json_schema',name:'chess_coach_insight',strict:true,schema:{type:'object',additionalProperties:false,properties:{id:{type:'string'},topic:{type:'string'},message:{type:'string'}},required:['id','topic','message']}}}
-  })});
-  if(!response.ok){
-   const errorBody=(await response.text()).slice(0,1200);
-   console.error('OpenAI API response',response.status,errorBody.replace(/sk-[A-Za-z0-9_-]+/g,'[redacted key]'));
-   throw Error('AI service returned '+response.status);
-  }
-  const data=await response.json(),str=(data.output||[]).flatMap(x=>x.content||[]).filter(x=>x.type==='output_text').map(x=>x.text).join('');
-  const result=JSON.parse(str);
-  if(result.id==='none')return {id:'none'};
-  const candidate=candidates.find(x=>x.id===result.id);
-  if(!candidate)throw Error('AI chose an unknown insight');
-  // Keep verified candidate text as fallback for malformed or overlong results.
-  const message=typeof result.message==='string'&&result.message.length>=12&&result.message.length<=240?result.message:candidate.message;
-  return {id:candidate.id,topic:candidate.topic,message,source:'ai',engineGrounded:!!engine};
- }finally{clearTimeout(timer);}
-}
 // Explain the move that was actually played, using the board before/after it.
 // Principal variations start AFTER the move; they are not the played move.
 async function explainMove(payload){
@@ -146,7 +101,7 @@ const server=http.createServer(async(req,res)=>{
  const origin=req.headers.origin;
  if(origin&&origin!=='http://'+host+':'+port){json(res,403,{error:'Wrong origin'});return;}
  if(url.pathname==='/api/coach/status'){refreshDailyBudget();json(res,200,{available:!!process.env.OPENAI_API_KEY,model,dailyLimit,dailyCalls,remaining:Math.max(0,dailyLimit-dailyCalls)});return;}
- if((url.pathname==='/api/coach/move'||url.pathname==='/api/coach/insight')&&req.method==='POST'){
+ if(url.pathname==='/api/coach/move'&&req.method==='POST'){
   if(!process.env.OPENAI_API_KEY){json(res,503,{error:'AI not configured'});return;}
   refreshDailyBudget();
   if(dailyCalls>=dailyLimit){json(res,429,{error:'Daily AI coaching limit reached'});return;}
@@ -156,7 +111,7 @@ const server=http.createServer(async(req,res)=>{
   history.set(ip,[...recent,now]);
   // Count attempts, including API failures, to protect against unexpected spend.
   dailyCalls++;
-  try{const payload=await body(req);json(res,200,url.pathname==='/api/coach/move'?await explainMove(payload):await suggest(payload));}catch(err){console.error('AI coaching request:',err.message);json(res,502,{error:'Coaching unavailable'});}
+  try{json(res,200,await explainMove(await body(req)));}catch(err){console.error('AI coaching request:',err.message);json(res,502,{error:'Coaching unavailable'});}
   return;
  }
  if(req.method!=='GET'&&req.method!=='HEAD'){json(res,405,{error:'Method not allowed'});return;}
