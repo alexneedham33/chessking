@@ -353,20 +353,9 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 .guided-length-note{font-size:12px;line-height:1.45;color:#a8b9d0}
 
 
-/* Two-tier coach chat: neutral move explanation and occasional amber strategic idea. */
+/* One coach explanation per move. A muted status shows while AI refines it. */
 .why-analysis-label{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;opacity:.66}
-.why-strategic-idea{margin-top:13px;padding:11px 12px;border-radius:11px;background:rgba(176,116,38,.13);border:1px solid rgba(211,151,62,.32);border-left:3px solid #daa650;color:inherit}
-.why-strategic-heading{font-size:12px;font-weight:800;color:#edb45c;letter-spacing:.015em}
-.why-strategic-idea p{margin:5px 0 0;font-size:14px;line-height:1.5;color:inherit}
-.why-strategic-source{font-size:10px;opacity:.7;margin-top:7px}
-.why-strategic-pending{min-height:145px;display:flex;flex-direction:column;justify-content:center}
-.why-strategic-pending p{opacity:.7}
-.why-strategic-pending .why-strategic-heading{animation:coach-pulse 1.6s ease-in-out infinite}
-@keyframes coach-pulse{0%,100%{opacity:1}50%{opacity:.58}}
-@media(prefers-reduced-motion:reduce){.why-strategic-pending .why-strategic-heading{animation:none}}
-.why-entry.white-side .why-strategic-idea{background:#fff3df;border-color:#ead0a9;border-left-color:#b37b23;color:#3c2c15}
-.why-entry.white-side .why-strategic-heading{color:#8e5916}
- .unified-coach-pending{font-size:12px;opacity:.68;margin-top:9px}
+.unified-coach-pending{font-size:12px;opacity:.68;margin-top:9px}
  .unified-coach-source{font-size:11px;opacity:.68;margin-top:9px}
 .coach-header-right{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:9px}
 .coach-inline-settings{display:flex;align-items:center;gap:9px}
@@ -1464,6 +1453,8 @@ async function requestUnifiedMoveCoaching(ply){
  coachMoveMessages.set(ply,record);
  aiRequestedPly.add(ply);
  strategicAiBusy=true;strategicAiStatus='analysing';
+ const aiStatus=$('aiCoachStatus');
+ if(aiStatus){aiStatus.hidden=false;aiStatus.textContent='Refining…';aiStatus.classList.remove('error');}
  try{
   let engine=null;
   try{engine=coachEngineEvidence(after,await fetchEngine(after,16));}catch{}
