@@ -244,8 +244,8 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 #inlineReviewHost{margin-top:10px}
 @media(max-width:750px){.compact-toolbar .opponent-dropdown{margin-left:0}.play-challenge-panel .challenge-config{flex-direction:column;align-items:stretch}.play-challenge-panel .challenge-config label{max-width:none!important;width:100%}}
 
-/* Show the latest three coaching bubbles at a comfortable reading size.
-   Earlier move explanations stay in the same scrollable conversation. */
+/* One-message conversation viewport. All past moves remain above it and
+   can be reached by scrolling up; no faded or hidden message history. */
 .trainer-panel .chat-zone{
   overflow-y:auto!important;
   overflow-x:hidden!important;
@@ -254,19 +254,19 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
   scrollbar-width:thin;
   scrollbar-color:#56647b #151a27;
 }
-.trainer-panel .why-content{overflow:visible!important;gap:10px!important}
-.trainer-panel .why-entry{padding:14px 16px!important}
-.trainer-panel .why-title{font-size:14px!important;line-height:1.45!important;margin-bottom:7px!important}
-.trainer-panel .why-copy{font-size:16px!important;line-height:1.55!important;overflow-wrap:break-word}
-/* Emphasise recency rather than piece colour: the newest Black or White
-   message stays fully legible, and the previous two recede gently. */
-.trainer-panel .why-content>.why-entry{opacity:.58!important}
-.trainer-panel .why-content>.why-entry:nth-last-child(3){opacity:.62!important}
-.trainer-panel .why-content>.why-entry:nth-last-child(2){opacity:.78!important}
-.trainer-panel .why-content>.why-entry:last-child{opacity:1!important}
+.trainer-panel .why-content{overflow:visible!important;gap:12px!important}
+.trainer-panel .why-content>.why-entry{
+  opacity:1!important;
+  filter:none!important;
+  padding:22px 24px!important;
+  border-radius:20px;
+}
+.trainer-panel .why-title{font-size:16px!important;line-height:1.45!important;margin-bottom:12px!important}
+.trainer-panel .why-copy{font-size:18px!important;line-height:1.65!important;overflow-wrap:break-word}
 @media(max-width:650px){
- .trainer-panel .why-copy{font-size:15px!important}
- .trainer-panel .why-title{font-size:14px!important}
+ .trainer-panel .why-content>.why-entry{padding:18px 20px!important}
+ .trainer-panel .why-copy{font-size:17px!important}
+ .trainer-panel .why-title{font-size:15px!important}
 }
 </style></head><body>
 <div class="app">
@@ -980,7 +980,7 @@ let chatPageStart=0,coachScrollPending=false,coachScrollGeneration=0;
 function sizeCoachConversation(scrollToLatest=false){
  const zone=$('chatZone'),messages=$('whyContent');
  if(!zone||!messages)return;
- // Keep the full message history in the DOM, but show about the last three bubbles.
+ // Keep the full message history in the DOM, but show the latest bubble only.
  // Recalculate after layout so longer explanations and narrower screens fit.
  const generation=++coachScrollGeneration;
  requestAnimationFrame(()=>{
@@ -991,7 +991,7 @@ function sizeCoachConversation(scrollToLatest=false){
      zone.scrollTop=0;
      return;
    }
-   const visible=entries.slice(-3);
+   const visible=entries.slice(-1);
    const gap=parseFloat(getComputedStyle(messages).rowGap)||0;
    const wanted=visible.reduce((sum,entry)=>sum+entry.getBoundingClientRect().height,0)+gap*Math.max(0,visible.length-1);
    const cap=Math.max(220,Math.min(window.innerHeight*0.72,800));
