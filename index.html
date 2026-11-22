@@ -1409,6 +1409,9 @@ const INSIGHTS_KEY='openingLab.strategicInsights';
 let insightsEnabled=true,insightsEntries=[],insightsSeenHistory=0;
 let strategicAiEnabled=false,strategicAiBusy=false,strategicAiFailed=false,strategicAiNonce=0,strategicAiStatus='';
 const aiRequestedPly=new Set();
+// Evaluate coaching opportunities from move two onward, approximately every two plies.
+// The model can still decline to add a message. Cap API calls per game.
+const AI_COACH_MIN_PLY=2,AI_COACH_INTERVAL=2,AI_COACH_GAME_LIMIT=24;
 try{strategicAiEnabled=localStorage.getItem('openingLab.aiInsights')==='on';}catch{}
 try{insightsEnabled=localStorage.getItem(INSIGHTS_KEY)!=='off';}catch{}
 function squareAt(file,rank){return (8-rank)*16+file;}
@@ -1540,7 +1543,7 @@ function coachEngineCandidates(position,player,engine){
 }
 
 async function requestAiStrategicInsight(entry){
- if(strategicAiBusy||strategicAiFailed||!strategicAiEnabled||!insightsEnabled||!entry||aiRequestedPly.has(entry.ply))return;
+ if(strategicAiBusy||strategicAiFailed||!strategicAiEnabled||!insightsEnabled||!entry||aiRequestedPly.has(entry.ply)||aiRequestedPly.size>=AI_COACH_GAME_LIMIT)return;
  aiRequestedPly.add(entry.ply);strategicAiBusy=true;strategicAiStatus='analysing';
  const statusNode=$('aiCoachStatus');
  if(statusNode){statusNode.hidden=false;statusNode.textContent='Analysing…';statusNode.classList.remove('error');}
@@ -1606,9 +1609,12 @@ function refreshStrategicInsights(){
   const begin=Math.max(1,Math.min(insightsSeenHistory,h.length));
   for(let length=begin;length<=h.length;length++){
    const ply=length-1;
-   if(ply<guidedOpeningLimit()||ply<10)continue;
+   if(ply<AI_COACH_MIN_PLY)continue;
    const position=h[ply],recent=insightsEntries.at(-1);
-   if(recent&&ply-recent.ply<4)continue;
+   const lastAttempt=Math.max(-1,...aiRequestedPly);
+   if(ply-lastAttempt<AI_COACH_INTERVAL)continue;
+   if(ply%AI_COACH_INTERVAL!==0)continue;
+   if(recent&&ply-recent.ply<AI_COACH_INTERVAL)continue;
    const used=new Set(insightsEntries.map(entry=>entry.id));
    const fresh=candidateStrategicInsights(position,ply).find(candidate=>!used.has(candidate.id));
    // Let AI consider engine evidence even when no predefined heuristic fires.
@@ -1622,9 +1628,9 @@ function refreshStrategicInsights(){
   insightsSeenHistory=h.length;
  }
 
- if(insightsEnabled&&strategicAiEnabled&&!strategicAiFailed){
+ if(insightsEnabled&&strategicAiEnabled&&!strategicAiFailed&&aiRequestedPly.size<AI_COACH_GAME_LIMIT){
   const target=newest||insightsEntries.at(-1);
-  if(target&&!aiRequestedPly.has(target.ply))requestAiStrategicInsight(target);
+  if(target&&!aiRequestedPly.has(target.ply)&&target.ply>=AI_COACH_MIN_PLY&&target.ply%AI_COACH_INTERVAL===0)requestAiStrategicInsight(target);
  }
 }
 
