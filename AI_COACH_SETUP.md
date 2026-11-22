@@ -16,7 +16,7 @@ To try natural-language AI coaching locally:
 4. Open **http://127.0.0.1:8787** (not `file://` and not a separate static-file server).
 5. In **Learn**, enable **AI** next to Strategic Insights. Continue past the guided opening.
 
-The AI feature sends the current FEN, the latest move labels, a few computed strategic facts, previously displayed coaching, and verified candidate ideas to the OpenAI Responses API. The model may choose a candidate or say nothing, and can reword the insight. Its output is not engine analysis, and should not be treated as a best move. The existing position-based insight remains if the API is offline or times out.
+The AI feature now sends the current FEN, recent move labels, strategic facts, a few earlier insights, and **cached depth-16 Stockfish analysis** (White-perspective evaluation plus up to three legal principal variations) to the OpenAI Responses API. The model chooses a grounded candidate idea or remains silent, and explains it in natural language. The AI sees Stockfish's calculated possibilities, not its intentions or a guaranteed plan; the chat is educational, not a best-move instruction. Stockfish results are shared from the existing engine cache where available, so AI coaching should not cause unnecessary duplicate analyses. If Stockfish is unavailable, position-based guidance remains; if AI is offline, the existing non-AI insights remain.
 
 Set `OPENAI_COACH_MODEL` to override the default `gpt-6-luna` model. `PORT` changes the local port. No extra npm dependencies are required.
 
