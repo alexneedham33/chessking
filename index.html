@@ -244,13 +244,13 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 #inlineReviewHost{margin-top:10px}
 @media(max-width:750px){.compact-toolbar .opponent-dropdown{margin-left:0}.play-challenge-panel .challenge-config{flex-direction:column;align-items:stretch}.play-challenge-panel .challenge-config label{max-width:none!important;width:100%}}
 
-/* Show the latest two coaching bubbles at a comfortable reading size.
+/* Show the latest three coaching bubbles at a comfortable reading size.
    Earlier move explanations stay in the same scrollable conversation. */
 .trainer-panel .chat-zone{
   overflow-y:auto!important;
   overflow-x:hidden!important;
   min-height:0!important;
-  max-height:min(55dvh,620px)!important;
+  max-height:min(72dvh,800px)!important;
   scrollbar-width:thin;
   scrollbar-color:#56647b #151a27;
 }
@@ -258,7 +258,7 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 .trainer-panel .why-entry{padding:14px 16px!important}
 .trainer-panel .why-title{font-size:14px!important;line-height:1.45!important;margin-bottom:7px!important}
 .trainer-panel .why-copy{font-size:16px!important;line-height:1.55!important;overflow-wrap:break-word}
-.trainer-panel .why-content>.why-entry:nth-last-child(-n+2){opacity:1!important}
+.trainer-panel .why-content>.why-entry:nth-last-child(-n+3){opacity:1!important}
 @media(max-width:650px){
  .trainer-panel .why-copy{font-size:15px!important}
  .trainer-panel .why-title{font-size:14px!important}
@@ -975,7 +975,7 @@ let chatPageStart=0,coachScrollPending=false,coachScrollGeneration=0;
 function sizeCoachConversation(scrollToLatest=false){
  const zone=$('chatZone'),messages=$('whyContent');
  if(!zone||!messages)return;
- // Keep the full message history in the DOM, but show about the last two bubbles.
+ // Keep the full message history in the DOM, but show about the last three bubbles.
  // Recalculate after layout so longer explanations and narrower screens fit.
  const generation=++coachScrollGeneration;
  requestAnimationFrame(()=>{
@@ -986,10 +986,10 @@ function sizeCoachConversation(scrollToLatest=false){
      zone.scrollTop=0;
      return;
    }
-   const visible=entries.slice(-2);
+   const visible=entries.slice(-3);
    const gap=parseFloat(getComputedStyle(messages).rowGap)||0;
    const wanted=visible.reduce((sum,entry)=>sum+entry.getBoundingClientRect().height,0)+gap*Math.max(0,visible.length-1);
-   const cap=Math.max(170,Math.min(window.innerHeight*0.55,620));
+   const cap=Math.max(220,Math.min(window.innerHeight*0.72,800));
    zone.style.setProperty('height',Math.ceil(Math.min(wanted+2,cap))+'px','important');
    if(scrollToLatest)zone.scrollTop=zone.scrollHeight;
  });
