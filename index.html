@@ -300,20 +300,25 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
  .trainer-panel .coach-prompt{font-size:14px!important;padding:9px 12px!important}
 }
 
-/* A single material tray beneath Opening progress. No board-side rail. */
+/* The captured-piece tray is an independent card at the foot of the right column. */
+.main{align-items:stretch}
+.side{display:flex;flex-direction:column;gap:14px;align-self:stretch;min-height:0}
+.side>.engine-panel,.side>.trainer-panel{flex:0 0 auto}
 .board-stage{grid-template-columns:minmax(0,1fr)!important;grid-template-rows:auto auto!important;row-gap:0!important;gap:0!important;width:min(100%,var(--board-fit,720px))!important}
 .board-stage>.board-wrap{grid-column:1!important;grid-row:1!important}
 .board-stage>.board-controls{grid-column:1!important;grid-row:2!important}
-.capture-tray{margin:17px 0 0;background:#2a303c;border:1px solid #454c5c;border-radius:14px;overflow:hidden}
-.capture-tray-title{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#cbd2dd;padding:12px 15px 0}
+.side>.capture-tray{margin-top:auto;flex:0 0 auto;background:#535a65;border:1px solid #707987;border-radius:16px;overflow:hidden;box-shadow:0 12px 28px rgba(0,0,0,.20)}
+.capture-tray-title{font-size:13px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#f1f3f7;padding:13px 16px 0}
 .capture-tray-columns{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
-.capture-tray-side{min-width:0;padding:11px 14px 16px}
-.capture-tray-side+.capture-tray-side{border-left:1px solid #515867}
-.capture-tray-label{display:block;font-size:15px;font-weight:750;color:#f0f2f7;margin-bottom:9px}
-.capture-tray-pieces{display:flex;align-items:center;align-content:flex-start;gap:3px;flex-wrap:wrap;min-height:44px}
-.capture-tray-pieces .capture-piece{width:39px;height:44px;object-fit:contain;flex:none}
-.capture-tray-pieces .capture-empty{font-size:14px;color:#c1c8d3}
-@media(max-width:650px){.capture-tray-side{padding:10px 11px 13px}.capture-tray-label{font-size:13px}.capture-tray-pieces .capture-piece{width:31px;height:37px}}
+.capture-tray-side{min-width:0;padding:12px 16px 16px}
+.capture-tray-side+.capture-tray-side{border-left:1px solid #838b95}
+.capture-tray-label{display:block;font-size:16px;font-weight:750;color:#fff;margin-bottom:9px}
+.capture-tray-pieces{display:flex;align-items:center;align-content:flex-start;gap:6px;flex-wrap:wrap;min-height:44px}
+.capture-piece-group{display:inline-flex;align-items:center;gap:2px;min-width:0}
+.capture-piece-group .capture-piece{width:38px;height:44px;object-fit:contain;flex:none;filter:drop-shadow(0 1px 1px rgba(255,255,255,.22))}
+.capture-piece-count{color:#fff;font-size:14px;font-weight:800;white-space:nowrap}
+.capture-tray-pieces .capture-empty{font-size:14px;color:#e4e7ed}
+@media(max-width:650px){.capture-tray-side{padding:10px 11px 13px}.capture-tray-label{font-size:14px}.capture-piece-group .capture-piece{width:30px;height:37px}.capture-piece-count{font-size:12px}}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -391,13 +396,7 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 <div id="inlineScenarioHost"></div>
 <div id="inlineReviewHost"></div><div class="route-notice" id="routeNotice" style="display:none"></div>
           <div id="openingProgress"><div class="row" style="margin-top:12px"><span class="muted">Opening progress</span><span class="badge" id="progressLabel">0 / 11</span></div><div class="progress"><div class="bar" id="progressBar"></div></div></div>
-<div class="capture-tray" aria-label="Captured pieces">
- <div class="capture-tray-title">Captured pieces</div>
- <div class="capture-tray-columns">
-  <div class="capture-tray-side"><span class="capture-tray-label">White lost</span><div class="capture-tray-pieces" id="blackCapturedPieces"></div></div>
-  <div class="capture-tray-side"><span class="capture-tray-label">Black lost</span><div class="capture-tray-pieces" id="whiteCapturedPieces"></div></div>
- </div>
-</div>
+
           <div class="learn-actions"><button class="btn primary" id="opponent" style="display:none;width:100%">Play opponent's move →</button></div>
           <div style="display:none" aria-hidden="true"><span id="phaseBadge"></span><p id="description"></p><span id="promptLabel"></span><span id="prompt"></span><span id="explanation"></span><span id="hintText"></span><span id="feedback"></span></div>
         </div>
@@ -435,6 +434,13 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
         </div>
         <div style="display:none" aria-hidden="true"><span id="plyCount"></span><div id="history"></div></div>
       </section>
+      <div class="capture-tray" aria-label="Captured pieces">
+ <div class="capture-tray-title">Captured pieces</div>
+ <div class="capture-tray-columns">
+  <div class="capture-tray-side"><span class="capture-tray-label">White lost</span><div class="capture-tray-pieces" id="blackCapturedPieces"></div></div>
+  <div class="capture-tray-side"><span class="capture-tray-label">Black lost</span><div class="capture-tray-pieces" id="whiteCapturedPieces"></div></div>
+ </div>
+</div>
     </aside>
   </main>
 </div>
@@ -1280,7 +1286,15 @@ function renderCapturedPieces(){
   const root=$(id);root.replaceChildren();
   const pieces=taken[color].sort((a,b)=>capturedPieceOrder[a.toLowerCase()]-capturedPieceOrder[b.toLowerCase()]);
   if(!pieces.length){const empty=document.createElement('span');empty.className='capture-empty';empty.textContent='None yet';root.append(empty);continue;}
-  for(const piece of pieces){const icon=pieceImage(piece);if(icon){icon.className='capture-piece';root.append(icon);}}
+  for(const type of ['q','r','b','n','p']){
+   const groupPieces=pieces.filter(piece=>piece.toLowerCase()===type);
+   if(!groupPieces.length)continue;
+   const group=document.createElement('span');group.className='capture-piece-group';
+   const icon=pieceImage(groupPieces[0]);if(!icon)continue;
+   icon.className='capture-piece';group.append(icon);
+   if(groupPieces.length>1){const count=document.createElement('span');count.className='capture-piece-count';count.textContent='×'+groupPieces.length;group.append(count);}
+   root.append(group);
+  }
  }
 }
 
