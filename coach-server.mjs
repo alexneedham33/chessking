@@ -8,7 +8,7 @@ import {fileURLToPath} from 'node:url';
 const root=path.dirname(fileURLToPath(import.meta.url));
 const port=Number(process.env.PORT||8787);
 const host='127.0.0.1'; // Do not expose the unauthenticated prototype publicly.
-const model=process.env.OPENAI_COACH_MODEL||'gpt-6-luna';
+const model=process.env.OPENAI_COACH_MODEL||'gpt-4.1-mini';
 const history=new Map();
 const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.wasm':'application/wasm','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.ico':'image/x-icon'};
 function json(res,status,value){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(value));}
@@ -66,7 +66,11 @@ async function suggest(payload){
    model,store:false,instructions,input:JSON.stringify(input),max_output_tokens:240,
    text:{format:{type:'json_schema',name:'chess_coach_insight',strict:true,schema:{type:'object',additionalProperties:false,properties:{id:{type:'string'},topic:{type:'string'},message:{type:'string'}},required:['id','topic','message']}}}
   })});
-  if(!response.ok)throw Error('AI service returned '+response.status);
+  if(!response.ok){
+   const errorBody=(await response.text()).slice(0,1200);
+   console.error('OpenAI API response',response.status,errorBody.replace(/sk-[A-Za-z0-9_-]+/g,'[redacted key]'));
+   throw Error('AI service returned '+response.status);
+  }
   const data=await response.json(),str=(data.output||[]).flatMap(x=>x.content||[]).filter(x=>x.type==='output_text').map(x=>x.text).join('');
   const result=JSON.parse(str);
   if(result.id==='none')return {id:'none'};
