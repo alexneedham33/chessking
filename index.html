@@ -352,32 +352,6 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 #opponentDropdown #guidedOpeningLength{width:100%;max-width:none;min-width:0;padding:11px 13px;font-size:15px;background:#273346;color:#f6f7fc;border:1px solid #536984;border-radius:8px}
 .guided-length-note{font-size:12px;line-height:1.45;color:#a8b9d0}
 
-/* Compact, disclosed opening tree: branches are revealed only once reached. */
-.opening-tree{margin-top:17px;padding:15px 16px;border:1px solid #34445e;background:#141c2c;border-radius:15px}
-.opening-tree-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-.opening-tree-top strong{font-size:17px;font-weight:750;color:#edf2fb}
-.opening-tree-reveal{border:1px solid #d4a25c;background:#604526;color:#ffe6bd;border-radius:999px;font-size:13px;font-weight:750;padding:8px 12px;cursor:pointer}
-.opening-tree-reveal[hidden],.opening-tree-details[hidden],.opening-tree-navigation[hidden]{display:none!important}
-.opening-tree-caption{font-size:13px;color:#aab9d1;margin-top:6px;line-height:1.4}
-.opening-tree-diagram{margin-top:13px;padding:12px;border-radius:12px;background:#1b2639;overflow-x:auto}
-.opening-tree-track{display:flex;align-items:center;gap:0;min-height:50px}
-.opening-tree-node{border:1px solid #667792;background:#2c3c54;border-radius:11px;color:#f2f4fa;padding:8px 10px;min-width:67px;max-width:140px;font-size:12px;line-height:1.35;font-weight:700;cursor:pointer;text-align:center;flex:none}
-.opening-tree-node small{display:block;font-size:10px;font-weight:500;color:#b5c4dd;margin-top:3px}
-.opening-tree-node:disabled{cursor:default;opacity:.8}
-.opening-tree-node.is-current{border-color:#bf92ff;box-shadow:0 0 0 2px rgba(168,106,246,.28)}
-.opening-tree-node.is-branch{border-color:#dca455;background:#664926;color:#fff3db}
-.opening-tree-node.is-branch small{color:#ffe0ab}
-.opening-tree-connector{height:3px;min-width:19px;flex:1;background:#64748b}
-.opening-tree-fork{margin:7px 0 0 60px;padding-left:14px;border-left:2px solid #c28a45}
-.opening-tree-fork .opening-tree-connector{background:#c28a45;max-width:25px}
-.opening-tree-fork .opening-tree-node{max-width:240px;text-align:left}
-.opening-tree-fork-title{font-size:11px;color:#e7be7f;margin-bottom:6px;font-weight:700}
-.opening-tree-details{margin-top:12px;padding:12px;border:1px solid #746046;border-radius:10px;background:#302a27;color:#f5e8d2;font-size:14px;line-height:1.55}
-.opening-tree-navigation{border-top:1px solid #34445e;margin-top:11px;padding-top:11px;color:#ced8ea;font-size:13px;line-height:1.5}
-.opening-tree-navigation-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-.opening-tree-navigation-actions button{border:1px solid #63738d;border-radius:8px;padding:7px 10px;color:#fff;background:#34455e;font-weight:700;cursor:pointer}
-.opening-tree-navigation-actions button:last-child{background:transparent;color:#bdcbe0}
-@media(max-width:650px){.opening-tree{padding:12px}.opening-tree-node{padding:7px;min-width:54px;font-size:11px}.opening-tree-connector{min-width:10px}}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -394,7 +368,6 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
  <label id="challengeToggleWrap" class="challenge-toggle" style="display:none"><input type="checkbox" id="challengeToggle"> Opening challenge</label>
  <button class="btn primary" id="challengeQuickStart" style="display:none">Start challenge</button><details class="opponent-dropdown" id="opponentDropdown"><summary id="opponentSummary">Opponent · Guided opening</summary><div class="opponent-dropdown-panel"><section id="learnOpponentSettings" class="learn-opponent-settings"><div class="learn-opponent-head"><label for="learnOpponent"><strong>Choose opponent</strong></label><select id="learnOpponent"><option value="guided">Predefined moves</option><option value="guidedEngine">Stockfish opponent</option></select></div>
 <div id="learnOpponentDescription" class="learn-opponent-description">Follow the prepared line or practise against Stockfish.</div>
-<div id="predefinedBehaviourSetting" class="guided-length-setting"><label for="predefinedBehaviour"><strong>Predefined opponent behaviour</strong></label><select id="predefinedBehaviour"><option value="fixed">Fixed sequence · Learn the line</option><option value="varied">Varied sequence · Recognised continuations</option></select><span class="guided-length-note">Varied mode chooses a curated continuation when you restart, not random legal moves.</span></div>
 <div class="guided-length-setting"><label for="guidedOpeningLength"><strong>Guided opening length</strong></label><select id="guidedOpeningLength" aria-label="Guided opening length"><option value="6">3 moves per side · Short</option><option value="10" selected>5 moves per side · Recommended</option><option value="16">8 moves per side · Deep</option></select><span class="guided-length-note">Only available lengths for this variation are shown. Changing this restarts the opening.</span></div>
 <label id="learnEloSetting" class="opponent-slider" style="display:none"><span class="opponent-slider-heading">Opponent strength <strong id="learnEloValue">1700 Elo (approx.)</strong></span><input type="range" id="learnElo" min="750" max="2800" step="50" value="1700"><span class="opponent-slider-range"><span>750 · Easier</span><span>2800 · Harder</span></span></label>
 <div class="opponent-assessment" id="learnEvalNote" style="display:none">Position evaluation and review always use full-strength Stockfish.</div></section>
@@ -462,13 +435,6 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
  <div class="opening-preview-actions"><span id="openingPreviewExpected"></span><button type="button" id="openingPreviewDismiss" class="opening-preview-dismiss">Return to position</button></div>
 </div>
           <div id="openingProgress"><div class="row" style="margin-top:12px"><span class="muted">Opening progress</span><span class="badge" id="progressLabel">0 / 11</span></div><div class="progress"><div class="bar" id="progressBar"></div></div></div>
-          <section class="opening-tree" id="openingTree" aria-label="Opening variations">
-            <div class="opening-tree-top"><strong>Opening variations</strong><button class="opening-tree-reveal" id="openingTreeReveal" type="button" hidden>Reveal variation</button></div>
-            <div id="openingTreeCaption" class="opening-tree-caption"></div>
-            <div id="openingTreeDiagram" class="opening-tree-diagram"></div>
-            <div id="openingTreeDetails" class="opening-tree-details" hidden></div>
-            <div class="opening-tree-navigation" id="openingTreeNavigation" hidden><span id="openingTreeJumpLabel"></span><div class="opening-tree-navigation-actions"><button id="openingTreeJump" type="button">Return to position</button><button id="openingTreeCancel" type="button">Cancel</button></div></div>
-          </section>
 
           <div class="learn-actions"><button class="btn primary" id="opponent" style="display:none;width:100%">Play opponent's move →</button></div>
           <div style="display:none" aria-hidden="true"><span id="phaseBadge"></span><p id="description"></p><span id="promptLabel"></span><span id="prompt"></span><span id="explanation"></span><span id="hintText"></span><span id="feedback"></span></div>
@@ -597,41 +563,8 @@ const routeBranches={
  {at:4,uci:'e4d5',name:'Exchange Caro–Kann',plan:'White exchanges central pawns. Black recaptures and develops naturally; watch the open files and piece coordination.',moves:['c6d5','f1d3','b8c6','c2c3','g8f6'],reasons:['Recapture with the c-pawn to hold central space.','White develops actively.','Black attacks d4 and develops.','White supports d4.','Black develops and prepares castling.']}]
 };
 
-/* Each varied opening is an authored, legal continuation of the same opening.
-   Full paths are chosen at restart, so opponent moves are coherent and the
-   learner's expected moves and explanations change with the chosen path. */
-const predefinedVariations={"queenAccepted":{"name":"Queenside pawn hold","moves":["d2d4","d7d5","c2c4","d5c4","g1f3","a7a6","e2e3","b7b5","a2a4","c8b7"],"reasons":["White takes central space with d4.","Black contests the centre with ...d5.","White offers the c-pawn to undermine d5.","Black accepts the Queen's Gambit on c4.","White develops Nf3 and keeps control of the central squares.","Black prepares ...b5, seeking queenside space and a way to support c4.","White opens the bishop's diagonal and prepares to regain c4.","Black plays ...b5 to protect the c4 pawn, inviting a challenge to its pawn chain.","White plays a4 to question Black's queenside structure instead of grabbing the pawn immediately.","Black develops the bishop on b7 and increases influence along the long diagonal."]},"queen":{"name":"Classical ...Nbd7 setup","moves":["d2d4","d7d5","c2c4","e7e6","b1c3","g8f6","c1g5","b8d7","e2e3","f8e7"],"reasons":["White claims central space.","Black contests the centre.","White challenges d5 with c4.","Black reinforces d5 with ...e6.","White develops Nc3, increasing central pressure.","Black develops ...Nf6 to contest e4.","White pins the f6 knight with Bg5.","Black chooses ...Nbd7, supporting the centre before developing the bishop.","White supports d4 with e3 and opens the bishop's diagonal.","Black develops ...Be7, preparing to castle."]},"italian":{"name":"Two Knights development","moves":["e2e4","e7e5","g1f3","b8c6","f1c4","g8f6","d2d3","f8c5","c2c3","d7d6"],"reasons":["White takes space with e4.","Black matches White in the centre.","White attacks e5 while developing.","Black defends e5 with a knight.","White's bishop develops to c4 and eyes f7.","Black chooses ...Nf6, attacking e4 and starting a Two Knights setup.","White supports e4 with d3 and prepares kingside development.","Black places the bishop on c5, looking towards f2.","White plays c3, preparing future central play with d4.","Black supports e5 with ...d6 and builds a stable centre."]},"sicilian":{"name":"Alapin setup","moves":["e2e4","c7c5","c2c3","d7d5","e4d5","d8d5","d2d4","g8f6","g1f3","b8c6"],"reasons":["White claims central space with e4.","Black replies ...c5 and contests d4.","White chooses c3 instead of Nf3: the Alapin prepares d4 while delaying knight development.","Black hits the centre with ...d5 rather than allowing White an easy pawn duo.","White exchanges on d5 and changes the central structure.","Black recaptures with the queen, temporarily bringing it forward to contest the centre.","White uses d4 to establish a central pawn.","Black develops ...Nf6 and challenges central squares.","White develops Nf3 and contests Black's central influence.","Black develops ...Nc6 and continues to pressure d4."]},"caro":{"name":"Advance variation","moves":["e2e4","c7c6","d2d4","d7d5","e4e5","c8f5","g1f3","e7e6","f1e2","c6c5"],"reasons":["White begins with e4.","Black prepares ...d5 using ...c6.","White builds a broad centre with d4.","Black challenges the centre with ...d5.","White chooses the Advance Variation with e5, gaining space rather than exchanging.","Black develops the light-squared bishop outside its pawn chain before ...e6.","White develops Nf3 and supports the centre.","Black reinforces d5 with ...e6 while preparing kingside development.","White develops the bishop to e2 and prepares to castle.","Black counters White's pawn centre with the thematic ...c5 break."]},"slav":{"name":"Semi-Slav structure","moves":["d2d4","d7d5","c2c4","c7c6","g1f3","g8f6","b1c3","e7e6","e2e3","b8d7"],"reasons":["White establishes the d4 pawn.","Black contests the centre.","White puts pressure on d5 with c4.","Black supports d5 with ...c6, defining the Slav structure.","White develops and defends d4.","Black develops ...Nf6 and contests e4.","White develops Nc3 and increases central influence.","Black chooses ...e6 instead of taking on c4, transposing toward a Semi-Slav structure.","White supports the centre with e3 and opens the light bishop.","Black develops ...Nbd7, preparing central counterplay and supporting f6."]},"albin":{"name":"Early ...Bb4+ check","moves":["d2d4","d7d5","c2c4","e7e5","d4e5","d5d4","g1f3","f8b4","c1d2","b4d2"],"reasons":["White takes space with d4.","Black challenges the centre.","White offers the Queen's Gambit.","Black chooses the Albin Countergambit with ...e5.","White accepts the gambit pawn.","Black advances its d-pawn and gains central space.","White develops Nf3 and keeps control of important squares.","Black develops ...Bb4+ to check and force a response instead of supporting d4 immediately.","White meets the check with Bd2, developing and blocking the diagonal.","Black exchanges bishops on d2 with check, altering White's development choices."]}};
-/* Additional authored continuations for Queen's Gambit family only.
-   These share the opening identity and differ on the opponent's turn. */
-const additionalPredefinedVariations={"queenAccepted":{"name":"Immediate central counterplay","moves":["d2d4","d7d5","c2c4","d5c4","g1f3","e7e6","e2e3","c7c5","f1c4","g8f6"],"reasons":["White claims central space.","Black challenges White's d4 pawn.","White offers the c-pawn in return for central influence.","Black accepts the gambit by capturing on c4.","White develops Nf3, maintaining control of the centre.","Black prepares central development with ...e6 rather than rushing to defend c4.","White opens the bishop's diagonal with e3, preparing to regain the pawn.","Black immediately challenges White's pawn on d4 with ...c5.","White recaptures the c4 pawn while developing the bishop.","Black develops ...Nf6, contesting e4 and preparing king safety."]},"queen":{"name":"Early bishop development","moves":["d2d4","d7d5","c2c4","e7e6","b1c3","f8e7","g1f3","g8f6","c1g5","e8g8"],"reasons":["White establishes the d4 pawn.","Black contests central space with ...d5.","White attacks d5 from the c-file.","Black supports d5 with ...e6.","White develops Nc3, increasing central control.","Black develops ...Be7 before the king's knight, preparing to castle.","White develops Nf3, helping secure the centre and kingside.","Black develops ...Nf6 and contests e4.","White develops Bg5, pinning Black's knight to the queen.","Black castles, securing the king and continuing a solid setup."]},"slav":{"name":"Active light-squared bishop","moves":["d2d4","d7d5","c2c4","c7c6","g1f3","g8f6","b1c3","c8f5","e2e3","e7e6"],"reasons":["White takes space in the centre.","Black contests d4 with ...d5.","White challenges the centre using c4.","Black reinforces the pawn on d5 with ...c6.","White develops Nf3, supporting central control.","Black develops ...Nf6 and keeps pressure on e4.","White brings Nc3 into the centre.","Black develops the light-squared bishop to f5 before playing ...e6, a characteristic advantage of the Slav structure.","White supports d4 and prepares to develop the light bishop.","Black reinforces d5 with ...e6 while leaving the bishop outside the pawn chain."]},"albin":{"name":"Early ...Be6 development","moves":["d2d4","d7d5","c2c4","e7e5","d4e5","d5d4","g1f3","c8e6","g2g3","b8c6"],"reasons":["White begins with d4.","Black meets White in the centre.","White challenges Black's d5 pawn.","Black offers the Albin Countergambit with ...e5.","White accepts Black's offered pawn.","Black advances the d-pawn to d4, gaining space at the cost of material.","White develops Nf3 and prepares castling.","Black develops ...Be6, targeting central and queenside squares before bringing out the knight.","White prepares to fianchetto the bishop for long-diagonal influence.","Black develops ...Nc6, reinforcing the advanced d4 pawn and supporting queenside play."]}};
-const PREDEFINED_BEHAVIOUR_KEY='openingLab.predefinedBehaviour';
-let predefinedBehaviour='fixed';
-try{predefinedBehaviour=localStorage.getItem(PREDEFINED_BEHAVIOUR_KEY)==='varied'?'varied':'fixed';}catch{}
-let variedOpeningLine=null,variedOpeningName='';
-const lastVariedSelection={};
-function choosePredefinedLine(){
- variedOpeningLine=null;variedOpeningName='';
- if(trainingMode!=='learn'||learnOpponent!=='guided'||predefinedBehaviour!=='varied')return;
- // Option 0 is always the canonical opening, followed by authored branches.
- // Rotate on restart so every continuation is seen before one repeats.
- const choices=[null,predefinedVariations[selected],additionalPredefinedVariations[selected]].filter((x,i)=>i===0||!!x);
- if(choices.length<=1)return;
- const previous=lastVariedSelection[selected];
- const index=previous===undefined?Math.floor(Math.random()*choices.length):(previous+1)%choices.length;
- lastVariedSelection[selected]=index;
- const chosen=choices[index];
- if(!chosen)return;
- variedOpeningLine=chosen.moves.map((uci,i)=>[uci,chosen.reasons[i]]);
- variedOpeningName=chosen.name;
-}
-function visibleVariedLineName(){
- if(!variedOpeningLine)return '';
- const divergence=variedOpeningLine.findIndex((step,i)=>step[0]!==openings[selected].line[i]?.[0]);
- return divergence>=0&&h.length-1>divergence?variedOpeningName:'';
-}
-
 let activeBranch=null,routeHistory=[],deviationInfo=null;
-function routeLine(){if(variedOpeningLine)return variedOpeningLine;if(!activeBranch)return openings[selected].line;const base=openings[selected].line.slice(0,activeBranch.at);return base.concat([[activeBranch.uci,activeBranch.plan]],activeBranch.moves.map((x,i)=>[x,activeBranch.reasons[i]]));}
+function routeLine(){if(!activeBranch)return openings[selected].line;const base=openings[selected].line.slice(0,activeBranch.at);return base.concat([[activeBranch.uci,activeBranch.plan]],activeBranch.moves.map((x,i)=>[x,activeBranch.reasons[i]]));}
 function identifyBranch(idx,uci){return (routeBranches[selected]||[]).find(b=>b.at===idx&&b.uci===uci)||null;}
 function planAssessment(s,m){
  const branch=s.i>=0?identifyBranch(s.i,key(m)):null;
@@ -790,12 +723,12 @@ function readGuidedLength(){
 }
 let chosenGuidedLength=readGuidedLength();
 function guidedOpeningLimit(){
- const total=predefinedBehaviour==='varied'&&trainingMode==='learn'&&learnOpponent==='guided'?Math.min(10,routeLine().length):routeLine().length;
+ const total=routeLine().length;
  return guidedLengthChoices.filter(x=>x<=total&&x<=chosenGuidedLength).at(-1)||
         guidedLengthChoices.filter(x=>x<=total).at(0)||total;
 }
 function renderGuidedLengthOptions(){
- const select=$('guidedOpeningLength'),total=predefinedBehaviour==='varied'&&trainingMode==='learn'&&learnOpponent==='guided'?Math.min(10,routeLine().length):routeLine().length;
+ const select=$('guidedOpeningLength'),total=routeLine().length;
  const valid=guidedLengthChoices.filter(n=>n<=total);
  const signature=valid.join(',');
  if(select.dataset.lengthOptions!==signature){
@@ -1217,7 +1150,7 @@ function revealLatestCoachMove(){
  sizeCoachConversation(true);
 }
 function invalidateReview(){comparisonView=null;reviewSerial++;reviewData=null;reviewSelection=0;$('reviewResults').style.display='none';$('reviewStatus').textContent='Game changed. Analyse the current moves to refresh the review.';}
-function reset(){openingTreeRevealed=false;openingTreeJumpPly=null;clearOutsideLinePreview();coachScrollPending=false;coachScrollGeneration++;$('chatZone').scrollTop=0;invalidateReview();comparisonView=null;variationPanelOpen=false;gameReviewOpen=false;coachAnswerText='';challengeStarted=false;challengeFinished=false;challengeScore=null;shownEngineFen='';simEvalRequest++;replySelectionToken++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];choosePredefinedLine();selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();if(trainingMode==='learn'&&learnOpponent==='adaptive'&&mode==='play'&&current().t!==openings[selected].side)prepareOpponentReply();}
+function reset(){clearOutsideLinePreview();coachScrollPending=false;coachScrollGeneration++;$('chatZone').scrollTop=0;invalidateReview();comparisonView=null;variationPanelOpen=false;gameReviewOpen=false;coachAnswerText='';challengeStarted=false;challengeFinished=false;challengeScore=null;shownEngineFen='';simEvalRequest++;replySelectionToken++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();if(trainingMode==='learn'&&learnOpponent==='adaptive'&&mode==='play'&&current().t!==openings[selected].side)prepareOpponentReply();}
 function startChallenge(){reset();challengeStarted=true;feedback='Challenge started. Play your opening against Stockfish.';render();if(current().t!==openings[selected].side)prepareOpponentReply();}
 function current(){return h.at(-1)}function suggested(){const s=current();return legal(s).find(m=>key(m)===routeLine()[s.i]?.[0])}
 function readablePv(s,pv){
@@ -1236,7 +1169,7 @@ function engineExplanation(s,m){
  if(piece==='k')return 'I’m repositioning my king to '+to+'. Whether this is safe depends on the threats in the position.';
  return 'I’m moving the '+n+' from '+from+' to '+to+' to improve the position or address a potential threat.';
 }
-function record(m,engineSelected=false,analysis=null){if(!(trainingMode==='learn'&&learnOpponent!=='adaptive'))coachScrollPending=true;coachAnswerText='';invalidateReview();const s=current();routeHistory.push({branch:activeBranch,info:deviationInfo});guideMove(s,m);const text=moveLabel(s,m),lineIndex=s.i,correct=lineIndex>=0&&key(m)===routeLine()[lineIndex]?.[0];h.push(apply(s,m));logs.push(text);lastSquares=[m[0],m[1]];feedback=deviationInfo?.kind==='variation'&&lineIndex===activeBranch?.at?'Variation recognised: '+deviationInfo.name:correct?'✓ In line with the opening.':deviationInfo?.name||'Adapted continuation';notes.push({engineSelected,engineAnalysis:engineSelected?analysis:null,engineComment:engineSelected?engineExplanation(s,m):'',text,color:s.t,opening:selected,index:correct&&!activeBranch?lineIndex:-1,reason:variedOpeningLine&&correct?routeLine()[lineIndex]?.[1]:activeBranch&&lineIndex>=activeBranch.at?routeLine()[lineIndex]?.[1]:correct?rationales[selected][lineIndex]:explainDeviation(s,m)});return correct;}
+function record(m,engineSelected=false,analysis=null){if(!(trainingMode==='learn'&&learnOpponent!=='adaptive'))coachScrollPending=true;coachAnswerText='';invalidateReview();const s=current();routeHistory.push({branch:activeBranch,info:deviationInfo});guideMove(s,m);const text=moveLabel(s,m),lineIndex=s.i,correct=lineIndex>=0&&key(m)===routeLine()[lineIndex]?.[0];h.push(apply(s,m));logs.push(text);lastSquares=[m[0],m[1]];feedback=deviationInfo?.kind==='variation'&&lineIndex===activeBranch?.at?'Variation recognised: '+deviationInfo.name:correct?'✓ In line with the opening.':deviationInfo?.name||'Adapted continuation';notes.push({engineSelected,engineAnalysis:engineSelected?analysis:null,engineComment:engineSelected?engineExplanation(s,m):'',text,color:s.t,opening:selected,index:correct&&!activeBranch?lineIndex:-1,reason:activeBranch&&lineIndex>=activeBranch.at?routeLine()[lineIndex]?.[1]:correct?rationales[selected][lineIndex]:explainDeviation(s,m)});return correct;}
 function squarePct(i){const row=i>>4,col=i&7;return {x:(col+0.5)*12.5+'%',y:(row+0.5)*12.5+'%'};}
 function shouldUseEngineReply(s){return !!deviationInfo&&(deviationInfo.kind==='warning'||deviationInfo.kind==='detour'||s.i<0);}
 async function prepareOpponentReply(){
@@ -1347,8 +1280,6 @@ function renderChallenge(){
  const guidedLearn=trainingMode==='learn'&&learnOpponent!=='adaptive';
  $('learnOpponentSettings').style.display=trainingMode==='learn'?'block':'none';
  $('learnOpponent').value=learnOpponent;
- $('predefinedBehaviourSetting').style.display=trainingMode==='learn'&&learnOpponent==='guided'?'flex':'none';
- $('predefinedBehaviour').value=predefinedBehaviour;
  renderGuidedLengthOptions();
  $('learnOpponent').closest('.learn-opponent-head').style.display=trainingMode==='learn'?'flex':'none';
  $('challengeToggleWrap').style.display=isPlay?'flex':'none';
@@ -1357,13 +1288,13 @@ function renderChallenge(){
  $('opponentDropdown').style.display=trainingMode==='learn'?'':'none';
  $('challengeQuickStart').style.display='none';
  $('challengeQuickStart').textContent=challengeStarted?'Restart challenge':'Start challenge';
- $('opponentSummary').textContent=learnOpponent==='guided'?'Opponent · '+(predefinedBehaviour==='varied'?'Varied predefined':'Predefined'):'Opponent · Stockfish · '+opponentElo()+' Elo';
+ $('opponentSummary').textContent=learnOpponent==='guided'?'Opponent · Predefined':'Opponent · Stockfish · '+opponentElo()+' Elo';
  $('learnEloSetting').style.display=trainingMode==='learn'&&learnOpponent!=='guided'?'block':'none';
  $('learnEvalNote').style.display=trainingMode==='learn'&&learnOpponent!=='guided'?'block':'none';
  $('learnEloValue').textContent=opponentElo()+' Elo (approx.)';
  $('challengeEloValue').textContent=opponentElo()+' Elo (approx.)';
  $('learnElo').value=opponentElo();$('challengeElo').value=opponentElo();
- $('learnOpponentDescription').textContent=learnOpponent==='guided'?(predefinedBehaviour==='varied'?'Study the selected opening against the standard line or a curated alternative. Your expected replies adjust to the continuation.':'Study the selected variation move by move. After the guided length, play freely or use Next for an illustrative continuation.'):'Follow the selected opening for the guided phase, then make your own moves against Stockfish at your chosen Elo.';
+ $('learnOpponentDescription').textContent=learnOpponent==='guided'?('Study the selected variation move by move. After the guided length, play freely or use Next for an illustrative continuation.'):'Follow the selected opening for the guided phase, then make your own moves against Stockfish at your chosen Elo.';
  $('challengeSettings').style.display=trainingMode==='challenge'?'block':'none';
  document.querySelectorAll('[data-experience]').forEach(b=>b.classList.toggle('active',b.dataset.experience===(isPlay?'practice':'guided')));
  if(trainingMode!=='challenge')return;
@@ -1450,96 +1381,7 @@ function renderCapturedPieces(){
 }
 
 
-let openingTreeRevealed=false,openingTreeJumpPly=null;
-function openingTreeBranch(){
- if(trainingMode!=='learn'||learnOpponent!=='guided'||predefinedBehaviour!=='varied'||!variedOpeningLine)return null;
- const canonical=openings[selected].line;
- const fork=variedOpeningLine.findIndex((step,i)=>step[0]!==canonical[i]?.[0]);
- if(fork<0||h.length-1<=fork)return null;
- // The fork index is the number of moves already played before the change.
- const position=h[fork],alternate=legal(position).find(m=>key(m)===variedOpeningLine[fork][0]);
- const standard=legal(position).find(m=>key(m)===canonical[fork]?.[0]);
- return {fork,position,alternative:alternate,standard,name:variedOpeningName,
-         explanation:variedOpeningLine[fork][1]||''};
-}
-function rewindOpeningTreeTo(ply){
- if(scenario||pendingReply||animatingMove||!Number.isInteger(ply)||ply<0||ply>=h.length)return;
- clearOutsideLinePreview();clearReplyState();invalidateReview();
- h=h.slice(0,ply+1);logs=logs.slice(0,ply);notes=notes.slice(0,ply);
- // routeHistory[k] describes the route before move k+1. For a rewind to
- // position ply, restore the snapshot taken immediately before its next move.
- const restored=ply<routeHistory.length?routeHistory[ply]:{branch:activeBranch,info:deviationInfo};
- routeHistory=routeHistory.slice(0,ply);
- activeBranch=ply?restored?.branch||null:null;
- deviationInfo=ply?restored?.info||null:null;
- // A curated branch remains the selected lesson when rewinding; the learner
- // can follow the same path again. Nothing in the opening choices is reset.
- selectedSquare=-1;promotion=null;showHint=false;lastSquares=[];
- coachScrollPending=true;shownEngineFen='';openingTreeJumpPly=null;
- if(!openingTreeBranch())openingTreeRevealed=false;
- render();
-}
-function renderOpeningTree(){
- const root=$('openingTree'),diagram=$('openingTreeDiagram'),caption=$('openingTreeCaption');
- const reveal=$('openingTreeReveal'),details=$('openingTreeDetails'),nav=$('openingTreeNavigation');
- root.style.display=trainingMode==='learn'&&!scenario?'block':'none';
- if(root.style.display==='none')return;
- const ply=h.length-1,limit=guidedOpeningLimit(),branch=openingTreeBranch();
- const busy=!!pendingReply||!!animatingMove;
- caption.textContent=branch?'The opponent has chosen a different recognised continuation.':predefinedBehaviour==='varied'&&learnOpponent==='guided'?'Follow the opening; a recognised branch may appear.':'Follow the prepared opening. Select a node to revisit a position.';
- reveal.hidden=!branch||openingTreeRevealed;
- reveal.onclick=()=>{openingTreeRevealed=true;render();};
- details.hidden=!branch||!openingTreeRevealed;
- if(branch&&openingTreeRevealed){
-  const standard=branch.standard?moveLabel(branch.position,branch.standard):'Not available';
-  const alternative=branch.alternative?moveLabel(branch.position,branch.alternative):'Alternative';
-  details.textContent=branch.name+' — '+alternative+'. Main line: '+standard+'. '+branch.explanation;
- }else details.textContent='';
- diagram.replaceChildren();
- const track=document.createElement('div');track.className='opening-tree-track';
- const makeNode=(label,sub,target,kind='')=>{
-  const b=document.createElement('button');b.type='button';b.className='opening-tree-node'+(kind?' '+kind:'')+(target===ply?' is-current':'');
-  b.disabled=busy||target>ply;b.textContent=label;
-  if(sub){const small=document.createElement('small');small.textContent=sub;b.append(small);}
-  b.onclick=()=>{openingTreeJumpPly=target;renderOpeningTree();};
-  return b;
- };
- const link=()=>{const line=document.createElement('span');line.className='opening-tree-connector';return line;};
- const marker=(target,short)=>{
-  if(target===0)return 'Start';
-  return notes[target-1]?.text||short||'Move '+target;
- };
- const nodes=[0];
- // A compact diagram: defining opening, fork junction (when reached), current.
- const identity=Math.min(limit,Math.min(4,Math.max(0,ply)));
- if(identity>0)nodes.push(identity);
- if(branch&&branch.fork<=ply&&!nodes.includes(branch.fork))nodes.push(branch.fork);
- if(ply>0&&!nodes.includes(ply))nodes.push(ply);
- nodes.sort((a,b)=>a-b);
- for(const [i,target]of nodes.entries()){
-  if(i)track.append(link());
-  track.append(makeNode(marker(target),target===0?'Initial position':target===branch?.fork?'Decision point':'After move '+target,target));
- }
- diagram.append(track);
- if(branch){
-  const fork=document.createElement('div');fork.className='opening-tree-fork';
-  const heading=document.createElement('div');heading.className='opening-tree-fork-title';
-  heading.textContent='Branch at '+(branch.fork+1)+'th half-move';fork.append(heading);
-  const path=document.createElement('div');path.className='opening-tree-track';
-  path.append(link());
-  path.append(makeNode(openingTreeRevealed?(branch.alternative?moveLabel(branch.position,branch.alternative):'Alternative'):'Variation',openingTreeRevealed?branch.name:'Reveal to identify',branch.fork+1,'is-branch'));
-  fork.append(path);diagram.append(fork);
- }
- if(openingTreeJumpPly!==null&&openingTreeJumpPly>ply)openingTreeJumpPly=null;
- nav.hidden=openingTreeJumpPly===null||openingTreeJumpPly===ply;
- if(!nav.hidden){
-  $('openingTreeJumpLabel').textContent='Return to '+marker(openingTreeJumpPly)+'? Later moves will be cleared.';
-  $('openingTreeJump').onclick=()=>rewindOpeningTreeTo(openingTreeJumpPly);
-  $('openingTreeCancel').onclick=()=>{openingTreeJumpPly=null;renderOpeningTree();};
- }
-}
-
-function render(){syncOpeningChoices();requestAnimationFrame(alignCapturedTrayWithBoard);const s=scenario?scenarioPositions[scenarioIndex]:current(),moves=legal(s),status=gameStatus(h),op=openings[selected],step=op.line[s.i],hint=trainingMode==='learn'&&h.length-1>=guidedOpeningLimit()?null:suggested(),yourTurn=s.t===op.side,ended=status.done;$('openingSelect').value=openingParent(selected);$('variationSelect').value=selected;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x.dataset.mode===mode));$('turn').textContent=scenario?'Illustrative variation · '+(scenarioIndex===0?'Start':('Step '+scenarioIndex)):pendingReply?'Opponent is thinking…':animatingMove?(animatingMove.isOpponent?'Opponent is moving…':'Your move…'):status.text;$('player').textContent=scenario?'Use Next move to explore':pendingReply?'Opponent reply in progress':animatingMove?(animatingMove.isOpponent?'Opponent reply in progress':'Moving piece'):(mode==='play'?'Playing '+(op.side===1?'White':'Black'):'Study both sides');$('openingName').textContent=openingTreeRevealed&&visibleVariedLineName()?op.name+' · '+visibleVariedLineName():op.name;$('description').textContent=op.desc;$('tip').textContent=op.tip;const lessonLimit=guidedOpeningLimit();
+function render(){syncOpeningChoices();requestAnimationFrame(alignCapturedTrayWithBoard);const s=scenario?scenarioPositions[scenarioIndex]:current(),moves=legal(s),status=gameStatus(h),op=openings[selected],step=op.line[s.i],hint=trainingMode==='learn'&&h.length-1>=guidedOpeningLimit()?null:suggested(),yourTurn=s.t===op.side,ended=status.done;$('openingSelect').value=openingParent(selected);$('variationSelect').value=selected;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x.dataset.mode===mode));$('turn').textContent=scenario?'Illustrative variation · '+(scenarioIndex===0?'Start':('Step '+scenarioIndex)):pendingReply?'Opponent is thinking…':animatingMove?(animatingMove.isOpponent?'Opponent is moving…':'Your move…'):status.text;$('player').textContent=scenario?'Use Next move to explore':pendingReply?'Opponent reply in progress':animatingMove?(animatingMove.isOpponent?'Opponent reply in progress':'Moving piece'):(mode==='play'?'Playing '+(op.side===1?'White':'Black'):'Study both sides');$('openingName').textContent=op.name;$('description').textContent=op.desc;$('tip').textContent=op.tip;const lessonLimit=guidedOpeningLimit();
 const lessonDone=Math.min(lessonLimit,Math.max(0,h.length-1));
 $('progressLabel').textContent=lessonDone+' / '+lessonLimit;const progressPct=100*lessonDone/lessonLimit;$('progressBar').style.width=progressPct+'%';$('openingProgress').style.display=trainingMode==='learn'&&learnOpponent!=='adaptive'?'':'none';
 $('openingLineWarning').style.display=outsideLinePreview?'block':'none';
@@ -1556,7 +1398,6 @@ const topProgress=$('topProgressFill'); if(topProgress) topProgress.style.width=
 renderChallenge();
 renderCapturedPieces();
 renderCoachTools();
-renderOpeningTree();
 if(!scenario)$('simEnginePanel').style.display='none';const st=strategies[selected];$('strategyIntro').textContent=st.intro;const objectives=$('objectiveList');objectives.replaceChildren();let count=scenario?(scenario.dynamic?Math.max(0,current().i):scenarios[selected].setup):Math.max(0,current().i);for(const [name,at,detail] of st.objectives){const row=document.createElement('div');row.className='strategy-item';const mark=document.createElement('span');mark.className='strategy-mark';mark.textContent=count>=at?'✓':'○';const body=document.createElement('div');const heading=document.createElement('div');heading.className='strategy-name';heading.textContent=name;const copy=document.createElement('div');copy.className='strategy-detail';copy.textContent=detail;body.append(heading,copy);row.append(mark,body);objectives.append(row);} $('phaseBadge').textContent=scenario?'Scenario':current().i<0?'Free play':current().i>=op.line.length?'Line complete':'Opening';$('strategyToggle').textContent=strategyOn?'◉ Hide strategy':'◉ Show strategy';$('scenarioIntro').textContent=scenario?.dynamic?scenario.summary:scenarios[selected].summary;const sm=$('comparisonSummary');sm.replaceChildren();sm.style.display=scenario?.comparison?'flex':'none';if(scenario?.comparison){const c=scenario.comparison;for(const [k,v] of [['Your move',c.played+' · '+c.scorePlayed],['Stockfish prefers',c.preferred+' · '+c.scoreBest]]){const row=document.createElement('div');row.className='compare-pair';const label=document.createElement('span');label.textContent=k;const value=document.createElement('strong');value.textContent=v;row.append(label,value);sm.append(row);}const note=document.createElement('div');note.className='compare-result';note.textContent=c.difference;sm.append(note);}$('scenarioStart').style.display=scenario?'none':'';$('scenarioControls').style.display=scenario?'':'none';if(scenario){if(scenario.dynamic&&lastSimShown!==scenarioIndex){lastSimShown=scenarioIndex;updateSimulationScore(scenarioIndex);} $('scenarioStepTitle').textContent=scenario?.comparison?(scenarioIndex===0?'Your original move':scenarioIndex===1?'Back at the decision':'Stockfish recommendation'):scenarioIndex===0?'Starting position':('Step '+scenarioIndex+' of '+scenario.moves.length);$('scenarioStepCopy').textContent=scenario?.comparison?(scenarioIndex===0?'Your original '+scenario.comparison.played+' · press Replay comparison':scenarioIndex===1?'Your move has been rewound. Watch Stockfish’s choice.':scenario.moves[1][1]):scenarioIndex===0?scenario.title:scenario.moves[scenarioIndex-1][1];$('scenarioNext').disabled=!!animatingMove||scenarioIndex>=scenario.moves.length;$('scenarioNext').textContent=scenario?.comparison?(scenarioIndex===0?'Replay comparison →':scenarioIndex===1?'Show best move →':'Comparison complete'):scenarioIndex>=scenario.moves.length?'End of illustration':'Next move →';}
 const previewBoard=!scenario&&outsideLinePreview?apply(s,outsideLinePreview.move):null;
 const board=$('board');board.replaceChildren();for(let j=0;j<64;j++){const i=(j>>3)*16+(j&7),b=document.createElement('button');b.type='button';b.className='square'+(((j>>3)+(j&7))%2?' dark':'');b.setAttribute('aria-label',sq(i)+' '+(s.b[i]==='.'?'empty':s.b[i]));if(strategyOn&&st.targets.includes(sq(i)))b.classList.add('strategic');if(!scenario&&comparisonView?.bestMove){if(i===comparisonView.bestMove[0])b.classList.add('compare-from');if(i===comparisonView.bestMove[1])b.classList.add('compare-to');}if(animatingMove&&animatingMove.isOpponent&&(i===animatingMove.from||i===animatingMove.to))b.classList.add('thinking');if(previewBoard){
@@ -1578,7 +1419,7 @@ if(false&&previewReply&&!scenario&&chatPerspective==='coach'){
 }
 if(animatingMove&&chatPerspective==='coach'){const s0=current(),m0=animatingMove.move,idx=s0.i;
 const recognized=identifyBranch(idx,key(m0));const inLine=idx>=0&&(key(m0)===routeLine()[idx]?.[0]||!!recognized);
-recent.push({text:moveLabel(s0,m0),color:s0.t,opening:selected,index:inLine&&!activeBranch&&!recognized?idx:-1,reason:recognized?recognized.plan:inLine?(variedOpeningLine?routeLine()[idx]?.[1]:activeBranch&&idx>=activeBranch.at?routeLine()[idx]?.[1]:rationales[selected][idx]):explainDeviation(s0,m0),__i:notes.length});}
+recent.push({text:moveLabel(s0,m0),color:s0.t,opening:selected,index:inLine&&!activeBranch&&!recognized?idx:-1,reason:recognized?recognized.plan:inLine?(activeBranch&&idx>=activeBranch.at?routeLine()[idx]?.[1]:rationales[selected][idx]):explainDeviation(s0,m0),__i:notes.length});}
 const speakingColor=animatingMove?current().t:(notes.length?notes[notes.length-1].color:0);
 const nav=$('routeNotice');const incoming=animatingMove?planAssessment(current(),animatingMove.move):null;
 const info=incoming&&current().t===openings[selected].side&&((current().i<0)||key(animatingMove.move)!==routeLine()[current().i]?.[0])?incoming:deviationInfo;
@@ -1616,11 +1457,6 @@ sizeCoachConversation(revealNewMessage);
 $('feedback').textContent=feedback;$('feedback').style.display=feedback?'':'none';$('hintText').textContent=showHint&&hint?'Hint: '+moveLabel(s,hint)+' — '+step[1]:status.claim?'Draw may be claimed: '+status.claim:'';$('hint').textContent=showHint?'Hide hint':'✧ Hint';$('plyCount').textContent=logs.length+' plies';$('history').replaceChildren();if(!logs.length){const e=document.createElement('span');e.style.gridColumn='1/-1';e.textContent='Your moves will appear here.';$('history').append(e);}else logs.forEach(x=>{const e=document.createElement('span');e.textContent=x;$('history').append(e);});$('promotion').style.display=promotion?'grid':'none';$('promoChoices').replaceChildren();if(promotion)promotion.forEach(m=>{const e=document.createElement('button');e.textContent=({q:'♛',r:'♜',b:'♝',n:'♞'})[m[2]];e.onclick=()=>{promotion=null;play(m,true)};$('promoChoices').append(e);});}
 for(const name of Object.keys(openings)){let s=original();for(const [uci]of openings[name].line){selected=name;const m=legal(s).find(m=>key(m)===uci);if(!m)throw Error('Invalid opening '+name+' '+uci);s=apply(s,m);}}selected='queenAccepted';
 for(const k of Object.keys(scenarios)){selected=k;setScenario();}selected='queenAccepted';$('learnOpponent').onchange=()=>{learnOpponent=$('learnOpponent').value;mode='play';reset();};
-$('predefinedBehaviour').onchange=()=>{
- predefinedBehaviour=$('predefinedBehaviour').value==='varied'?'varied':'fixed';
- try{localStorage.setItem(PREDEFINED_BEHAVIOUR_KEY,predefinedBehaviour);}catch{}
- reset();
-};
 $('reviewMyMove').onclick=compareWithBestMove;
 $('learnElo').oninput=()=>{saveOpponentElo($('learnElo').value);renderChallenge();};
 $('guidedOpeningLength').onchange=()=>{
