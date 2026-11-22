@@ -172,6 +172,28 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 .square .piece-img{width:94%;height:94%;object-fit:contain;display:block;pointer-events:none;user-select:none;-webkit-user-drag:none;flex-shrink:0;filter:none}
 .move-ghost .piece-img{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;user-select:none;-webkit-user-drag:none}
 .review-board-square .piece-img{width:96%;height:96%;object-fit:contain;display:block;pointer-events:none;user-select:none}
+
+/* Accessible in-place move review above the scrollable coaching thread. */
+.move-review-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:10px 0 8px;padding:10px 11px;border-radius:10px;background:#111928;border:1px solid #2c3c52}
+.move-review-toolbar>div{display:grid;gap:3px;min-width:0}
+.move-review-toolbar strong{font-size:12px;color:#edf2fc}
+.move-review-toolbar span{font-size:11px;color:#a3b2c6;line-height:1.4}
+.move-review-toolbar .btn{font-size:12px;white-space:nowrap;padding:9px 11px}
+.move-review-result{padding:13px;margin:0 0 12px;background:#151e2d;border:1px solid #385068;border-radius:12px;line-height:1.48;font-size:12px}
+.move-review-heading{color:#b7ebcb;font-size:14px;font-weight:800}
+.move-review-heading.review-warning{color:#f2c58a}
+.move-review-meta{color:#b0bed1;font-size:11px;margin:5px 0 10px}
+.move-review-section{margin:10px 0;padding-top:10px;border-top:1px solid #2c3a4b}
+.move-review-section strong{display:block;color:#e8eef9}
+.move-review-section p{margin:5px 0;color:#c6d1df}
+.move-review-variation{font-size:11px;color:#aebed5;padding:8px 10px;border-radius:8px;background:#111726;line-height:1.5}
+.move-review-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.move-review-actions button{flex:1}
+.move-review-caveat{display:block;margin-top:12px;color:#8fa0b7;line-height:1.5}
+.trainer-panel{max-height:calc(100dvh - 155px);overflow-y:auto;scrollbar-width:thin;scrollbar-color:#45536b #111724}
+.chat-zone{height:auto!important;max-height:min(50dvh,520px);overflow-y:auto;scrollbar-width:thin;scrollbar-color:#45536b #111724}
+@media(max-width:1100px){.trainer-panel{max-height:none;overflow:visible}}
+@media(max-width:600px){.move-review-toolbar{flex-wrap:wrap}.move-review-toolbar .btn{width:100%}}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -229,7 +251,10 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
         </div>
         <div class="detail-tab-content active" id="chatTabPane">
           <div class="panel-header"><div class="learn-kicker">📖 <span>Learn</span></div><span class="learn-meta" id="openingName">Italian Game</span></div><div class="chat-mode-switch" role="group" aria-label="Chat explanation style"><button class="chat-mode-btn active" data-chat-mode="quick" aria-pressed="true">Quick</button><button class="chat-mode-btn" data-chat-mode="learn" aria-pressed="false">Learn</button></div>
-          <div class="commentary-switch" role="group" aria-label="Chat perspective"><button class="commentary-btn active" data-perspective="coach">Opening coach</button><button class="commentary-btn" data-perspective="engine">Engine commentary</button></div><p class="engine-disclaimer" id="engineDisclaimer" style="display:none">Interpretations of engine moves, not Stockfish's actual thoughts.</p><div class="chat-zone" id="chatZone">
+          <div class="commentary-switch" role="group" aria-label="Chat perspective"><button class="commentary-btn active" data-perspective="coach">Opening coach</button><button class="commentary-btn" data-perspective="engine">Engine commentary</button></div><p class="engine-disclaimer" id="engineDisclaimer" style="display:none">Interpretations of engine moves, not Stockfish's actual thoughts.</p>
+<div class="move-review-toolbar"><div><strong>Understand your last move</strong><span>Position-specific feedback from full-strength Stockfish</span></div><button class="btn primary" id="reviewMyMove">⇄ Review my move</button></div>
+<div class="move-review-result" id="moveReviewResult" style="display:none" aria-live="polite"></div>
+<div class="chat-zone" id="chatZone">
             <div id="whyPanel" class="why-panel" style="display:none"><div id="whyContent" class="why-content"></div></div>
             <div id="chatWelcome" class="chat-welcome">Play a move to see why it works and how Black or White typically responds.</div>
           </div><div class="route-notice" id="routeNotice" style="display:none"></div>
@@ -578,8 +603,7 @@ let comparisonBusy=false;
 let comparisonView=null;
 function endComparison(){comparisonView=null;render();}
 function switchToBestMove(){
- const c=comparisonView;if(!c||animatingMove||pendingReply)return;
- // Keep all earlier moves but replace the decision and discard its now-inapplicable replies.
+ const c=comparisonView;if(!c||c.status!=='ready'||c.loss===null||c.loss<0.35||animatingMove||pendingReply||!c.bestMove)return;
  replySelectionToken++;clearReplyState();
  invalidateReview();h=h.slice(0,c.index+1);logs=logs.slice(0,c.index);notes=notes.slice(0,c.index);
  routeHistory=routeHistory.slice(0,c.index);
@@ -588,23 +612,89 @@ function switchToBestMove(){
  comparisonView=null;scenario=null;lastSquares=[];
  startMoveAnimation(c.bestMove,false);
 }
+function describeMovePurpose(position,move){
+ if(!move)return '';
+ const piece=position.b[move[0]].toLowerCase(),from=sq(move[0]),to=sq(move[1]);
+ const capture=position.b[move[1]]!=='.'||move[3]==='ep',result=apply(position,move);
+ const check=checked(result);
+ const ideas=[];
+ if(move[3]==='castle')ideas.push('Castles to improve king safety and connect the rooks');
+ else if(piece==='k')ideas.push('Moves the king from '+from+' to '+to+', losing castling rights if they were available');
+ else if(capture)ideas.push('Captures on '+to+' and changes the material or central balance');
+ else if(piece==='p'){
+   if(['d','e'].includes(to[0])){
+     ideas.push('Plays in the centre on '+to);
+     if(Math.abs(move[1]-move[0])===32)ideas.push('claims space immediately with a two-square advance');
+     else ideas.push('keeps a more restrained pawn structure');
+   }else ideas.push('Advances the '+from[0]+'-pawn to '+to);
+ }else if(piece==='n'||piece==='b'){
+   ideas.push('Develops the '+(piece==='n'?'knight':'bishop')+' to '+to);
+   if(['c','d','e','f'].includes(to[0])&&['3','4','5','6'].includes(to[1]))ideas.push('increases its influence near the centre');
+ }else if(piece==='r')ideas.push('Activates the rook on '+to);
+ else if(piece==='q')ideas.push('Moves the queen to '+to);
+ if(check)ideas.push('gives check, requiring a response');
+ return ideas.join('; ')+'.';
+}
+function appendReviewLine(parent,title,description){
+ const section=document.createElement('div');section.className='move-review-section';
+ const head=document.createElement('strong');head.textContent=title;section.append(head);
+ const body=document.createElement('p');body.textContent=description;section.append(body);parent.append(section);
+}
+function renderMoveReview(){
+ const button=$('reviewMyMove'),root=$('moveReviewResult');
+ let idx=-1;for(let i=h.length-2;i>=0;i--)if(h[i].t===openings[selected].side){idx=i;break;}
+ button.disabled=idx<0||!!scenario||!!animatingMove||!!pendingReply||comparisonBusy;
+ if(!comparisonView||comparisonView.index!==idx||scenario){root.style.display='none';return;}
+ const c=comparisonView;root.style.display='block';root.replaceChildren();
+ const status=document.createElement('div');status.className='move-review-heading';root.append(status);
+ if(c.status==='loading'){status.textContent='Analysing your move at depth 20…';return;}
+ if(c.status==='error'){status.textContent='Analysis unavailable';appendReviewLine(root,'Stockfish',c.message);return;}
+ let verdict;
+ if(c.same||c.loss!==null&&c.loss<0.15)verdict='Best or near-best move';
+ else if(c.loss!==null&&c.loss<0.35)verdict='Good move · sound alternative';
+ else if(c.loss!==null&&c.loss<0.5)verdict='Inaccuracy · better move available';
+ else if(c.loss!==null&&c.loss<1.5)verdict='Mistake · stronger move available';
+ else if(c.loss!==null)verdict='Major mistake · review this decision';
+ else verdict=c.same?'Engine-preferred move':'Review of a mate sequence';
+ status.textContent=verdict;
+ status.classList.toggle('review-warning',c.loss!==null&&c.loss>=0.5);
+ const subtitle=document.createElement('p');subtitle.className='move-review-meta';
+ subtitle.textContent=c.played+(c.loss===null?' · engine depth '+c.depth:' · approx. '+(c.loss*100).toFixed(0)+' centipawns behind Stockfish’s top choice · depth '+c.depth);root.append(subtitle);
+ appendReviewLine(root,'What your move achieves',c.playedPurpose);
+ if(!c.same&&c.bestMove){
+  const meaningful=c.loss!==null&&c.loss>=0.35;
+  appendReviewLine(root,meaningful?'Why '+c.preferred+' may be better':'Another sound idea: '+c.preferred,
+   c.bestPurpose+(meaningful?' Stockfish rates this continuation meaningfully higher in this position.':' The engine slightly prefers this move, but that does not make your choice a mistake.'));
+  if(c.pvText){const variation=document.createElement('p');variation.className='move-review-variation';variation.textContent='Engine continuation: '+c.pvText;root.append(variation);}
+  if(meaningful){const actions=document.createElement('div');actions.className='move-review-actions';
+   const tryButton=document.createElement('button');tryButton.className='btn primary';tryButton.textContent='Try stronger move';tryButton.disabled=!!pendingReply||!!animatingMove;tryButton.onclick=switchToBestMove;
+   const keepButton=document.createElement('button');keepButton.className='btn';keepButton.textContent='Keep my move';keepButton.onclick=endComparison;
+   actions.append(tryButton,keepButton);root.append(actions);
+  }
+ }
+ const caveat=document.createElement('small');caveat.className='move-review-caveat';caveat.textContent='Evaluations and variations come from Stockfish; the strategic explanations describe observable move features, not the engine’s internal reasoning. Close scores can fluctuate at greater depth.';root.append(caveat);
+}
 async function compareWithBestMove(){
  if(comparisonBusy)return;
- if(scenario){leaveScenario();return;}
- if(animatingMove||pendingReply){feedback='Finish the current move before comparing.';return;}
+ if(scenario||animatingMove||pendingReply)return;
  let idx=-1;for(let i=h.length-2;i>=0;i--)if(h[i].t===openings[selected].side){idx=i;break;}
- if(idx<0){feedback='Play a move before comparing.';render();return;}
- const before=h[idx],actual=h[idx+1],played=logs[idx];comparisonBusy=true;
- comparisonView={index:idx,before,actual,played,status:'loading',bestMove:null};render();
+ if(idx<0)return;
+ const before=h[idx],actual=h[idx+1],played=logs[idx];
+ comparisonBusy=true;
+ const c={index:idx,before,actual,played,status:'loading',bestMove:null};
+ comparisonView=c;render();
  try{
-  const result=await fetchEngine(before);
-  if(!comparisonView||comparisonView.index!==idx)return;
-  const m=legal(before).find(x=>key(x)===result.best);
-  if(!m)throw Error('No legal best move returned');
-  comparisonView={...comparisonView,bestMove:m,preferred:moveLabel(before,m),status:'ready',same:fenOf(apply(before,m))===fenOf(actual)};
+  const [bestEval,playedEval]=await Promise.all([fetchEngine(before,20),fetchEngine(actual,20)]);
+  if(comparisonView!==c||h[idx]!==before||h[idx+1]!==actual)return;
+  const m=legal(before).find(x=>key(x)===bestEval.best);
+  if(!m)throw Error('No legal preferred move returned');
+  const same=fenOf(apply(before,m))===fenOf(actual);
+  const finite=bestEval.mate===null&&playedEval.mate===null&&Number.isFinite(bestEval.evaluation)&&Number.isFinite(playedEval.evaluation);
+  const loss=same?0:finite?Math.max(0,before.t*(bestEval.evaluation-playedEval.evaluation)):null;
+  Object.assign(c,{bestMove:m,preferred:moveLabel(before,m),status:'ready',same,loss,depth:Math.min(bestEval.depth,playedEval.depth),playedPurpose:describeMovePurpose(before,legal(before).find(x=>fenOf(apply(before,x))===fenOf(actual))),bestPurpose:describeMovePurpose(before,m),pvText:readablePv(before,bestEval.pv)});
   render();
- }catch(err){if(comparisonView?.index===idx){comparisonView.status='error';comparisonView.message=err?.message||'Stockfish did not respond';render();}}
- finally{comparisonBusy=false;}
+ }catch(err){if(comparisonView===c){c.status='error';c.message=err?.message||'Stockfish did not respond';render();}}
+ finally{comparisonBusy=false;renderMoveReview();}
 }
 async function simulateWithEngine(){if(simBuilding||pendingReply||animatingMove)return;simBuilding=true;const src=current();const el=$('routeNotice');let b=el.querySelector('.route-simulate');if(b){b.disabled=true;b.textContent='Analysing continuation…';}try{const startEval=await fetchEngine(src);let st=src,positions=[st],moves=[],pv=[];
  for(let k=0;k<6;k++){
@@ -740,7 +830,7 @@ async function checkBalanceScale(){
 let chatMode='quick',chatPerspective='coach',previewReplyEngine=false,previewAnalysis=null,trainingMode='learn',learnOpponent='guided',challengeStarted=false,challengeFinished=false,challengeScore=null;let selected='italian',mode='play',h=[original()],selectedSquare=-1,showHint=false,feedback='',promotion=null,logs=[],notes=[],lastSquares=[],pendingReply=null,previewReply=null,replyTimer=null,animatingMove=null,animationTimer=null;const $=id=>document.getElementById(id);
 function clearReplyState(){if(replyTimer){clearTimeout(replyTimer);replyTimer=null}if(animationTimer){clearTimeout(animationTimer);animationTimer=null}pendingReply=null;previewReply=null;previewReplyEngine=false;previewAnalysis=null;animatingMove=null;const ghost=$('moveGhost');if(ghost){ghost.className='move-ghost';ghost.style.display='none';ghost.textContent='';}}
 let chatPageStart=0;
-function invalidateReview(){reviewSerial++;reviewData=null;reviewSelection=0;$('reviewResults').style.display='none';$('reviewStatus').textContent='Game changed. Analyse the current moves to refresh the review.';}
+function invalidateReview(){comparisonView=null;reviewSerial++;reviewData=null;reviewSelection=0;$('reviewResults').style.display='none';$('reviewStatus').textContent='Game changed. Analyse the current moves to refresh the review.';}
 function reset(){invalidateReview();comparisonView=null;challengeStarted=false;challengeFinished=false;challengeScore=null;shownEngineFen='';simEvalRequest++;replySelectionToken++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();if(trainingMode==='learn'&&learnOpponent==='adaptive'&&mode==='play'&&current().t!==openings[selected].side)prepareOpponentReply();}
 function startChallenge(){reset();challengeStarted=true;feedback='Challenge started. Play your opening against Stockfish.';render();if(current().t!==openings[selected].side)prepareOpponentReply();}
 function current(){return h.at(-1)}function suggested(){const s=current();return legal(s).find(m=>key(m)===routeLine()[s.i]?.[0])}
@@ -907,10 +997,10 @@ if(info){nav.style.display='block';nav.className='route-notice route-compact '+(
  const top=document.createElement('div');top.className='route-heading';
  const title=document.createElement('strong');title.textContent=info.kind==='variation'?'↗ Recognised variation':info.kind==='warning'?'⚠ Outside opening plan':'↪ Alternative approach';top.append(title);
  nav.append(top);
- // The move explanation belongs in its chat bubble below; don't repeat it in this banner.
- const sim=document.createElement('button');sim.className='route-simulate';sim.textContent='⇄ Compare with best move';sim.disabled=!!pendingReply||!!animatingMove;sim.onclick=compareWithBestMove;nav.append(sim);if(comparisonView){const c=comparisonView,box=document.createElement('div');box.className='comparison-inline';const label=document.createElement('strong');label.textContent=c.status==='loading'?'Stockfish is checking your move…':c.status==='error'?'Comparison unavailable':c.same?'Your move matches Stockfish':'Stockfish prefers '+c.preferred;box.append(label);const p=document.createElement('p');p.textContent=c.status==='loading'?'Your game stays here while the engine analyses.':c.status==='error'?c.message:c.same?'The best move is the one you played.':'Gold/teal squares show the alternative move. Switch to try it, or keep your original choice.';box.append(p);const actions=document.createElement('div');actions.className='comparison-inline-actions';if(c.status==='ready'&&!c.same){const switchBtn=document.createElement('button');switchBtn.className='btn primary';switchBtn.textContent='Switch to best move';switchBtn.onclick=switchToBestMove;actions.append(switchBtn);}const keep=document.createElement('button');keep.className='btn';keep.textContent='Keep my move';keep.onclick=endComparison;actions.append(keep);box.append(actions);nav.append(box);}
+ // Move review is available at the top of Chat, rather than buried in this notice.
 }else nav.style.display='none';
 $('engineDisclaimer').style.display=chatPerspective==='engine'?'':'none';
+renderMoveReview();
 $('whyPanel').style.display=recent.length?'':'none';$('chatWelcome').style.display=recent.length?'none':'';
 $('chatWelcome').textContent=chatPerspective==='engine'?'No engine-played moves yet. Deviate from the opening and press Next move to play a Stockfish suggestion.':'Play a move to see why it works and how Black or White typically responds.';
 $('whyContent').replaceChildren();recent.forEach(item=>{const entry=document.createElement('div');
@@ -930,24 +1020,11 @@ const copy=document.createElement('div');copy.className='why-copy';if(item.propo
  }
 }else if(chatMode==='quick'){const ul=document.createElement('ul');ul.className='why-bullets';quickBullets(item).slice(0,3).forEach(reason=>{const li=document.createElement('li');li.textContent=reason;ul.append(li)});copy.append(ul);}else{copy.textContent=item.reason;}
 entry.append(title,copy);$('whyContent').append(entry);});
-// Wait until layout is measured, then start a clean page if the conversation is full.
-requestAnimationFrame(()=>{
- const zone=$('chatZone')||document.querySelector('.chat-zone'),board=$('board'),content=$('whyContent');
- if(!zone||!board||!content)return;
- const boardRect=board.getBoundingClientRect(),zoneRect=zone.getBoundingClientRect();
- // Match the board's lower edge, leaving room for the compact progress strip.
- const available=Math.max(190,boardRect.bottom-zoneRect.top-72);
- zone.style.height=available+'px';
- if(content.scrollHeight>zone.clientHeight+3&&content.children.length>1){
-    // Preserve the message associated with the newest move while clearing older chat.
-    chatPageStart=notes.length-(animatingMove?0:1);
-    chatPageStart=Math.max(0,chatPageStart);
-    while(content.children.length>1)content.firstElementChild.remove();
- }
-});
+// Keep the conversation scrollable; never delete earlier explanations to make room.
 $('feedback').textContent=feedback;$('feedback').style.display=feedback?'':'none';$('hintText').textContent=showHint&&hint?'Hint: '+moveLabel(s,hint)+' — '+step[1]:status.claim?'Draw may be claimed: '+status.claim:'';$('hint').textContent=showHint?'Hide hint':'✧ Hint';$('plyCount').textContent=logs.length+' plies';$('history').replaceChildren();if(!logs.length){const e=document.createElement('span');e.style.gridColumn='1/-1';e.textContent='Your moves will appear here.';$('history').append(e);}else logs.forEach(x=>{const e=document.createElement('span');e.textContent=x;$('history').append(e);});$('promotion').style.display=promotion?'grid':'none';$('promoChoices').replaceChildren();if(promotion)promotion.forEach(m=>{const e=document.createElement('button');e.textContent=({q:'♛',r:'♜',b:'♝',n:'♞'})[m[2]];e.onclick=()=>{promotion=null;play(m)};$('promoChoices').append(e);});}
 for(const name of Object.keys(openings)){let s=original();for(const [uci]of openings[name].line){selected=name;const m=legal(s).find(m=>key(m)===uci);if(!m)throw Error('Invalid opening '+name+' '+uci);s=apply(s,m);}}selected='italian';
 for(const k of Object.keys(scenarios)){selected=k;setScenario();}selected='italian';$('learnOpponent').onchange=()=>{learnOpponent=$('learnOpponent').value;mode='play';reset();};
+$('reviewMyMove').onclick=compareWithBestMove;
 $('learnElo').oninput=()=>{saveOpponentElo($('learnElo').value);renderChallenge();};
 document.querySelectorAll('[data-training]').forEach(b=>b.onclick=()=>{trainingMode=b.dataset.training;mode='play';reset();});
 $('challengeElo').oninput=()=>{saveOpponentElo($('challengeElo').value);renderChallenge();};
