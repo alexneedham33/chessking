@@ -352,6 +352,29 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 #opponentDropdown #guidedOpeningLength{width:100%;max-width:none;min-width:0;padding:11px 13px;font-size:15px;background:#273346;color:#f6f7fc;border:1px solid #536984;border-radius:8px}
 .guided-length-note{font-size:12px;line-height:1.45;color:#a8b9d0}
 
+
+/* Strategy checkpoints: compact visual roadmap, separate from move commentary. */
+.strategy-roadmap{margin-top:16px;border:1px solid #34445d;border-radius:15px;padding:15px 16px;background:#141c2b}
+.strategy-roadmap-title{font-size:18px;color:#edf3fe;font-weight:750}
+.strategy-roadmap-subtitle{font-size:12px;color:#99a9c1;margin-top:4px;line-height:1.5}
+.strategy-roadmap-track{display:flex;align-items:stretch;gap:0;min-width:0;margin:14px 0 12px}
+.strategy-roadmap-step{display:flex;align-items:center;min-width:0;flex:1}
+.strategy-roadmap-step:last-child{flex:0 1 100px}
+.strategy-roadmap-node{background:#27354a;border:1px solid #62738d;color:#c3cee0;min-width:0;width:100%;min-height:54px;padding:9px 7px;border-radius:11px;font-size:12px;line-height:1.35;font-weight:700;text-align:center;cursor:pointer}
+.strategy-roadmap-node.passed{color:#e8ecf5;border-color:#7186a1}
+.strategy-roadmap-node.current{color:#fff;border-color:#ba8df4;background:#543a78;box-shadow:0 0 0 2px rgba(165,110,237,.2)}
+.strategy-roadmap-node.inspecting{outline:2px solid #c9d5e7;outline-offset:2px}
+.strategy-roadmap-connector{height:3px;background:#53647a;min-width:10px;flex:0 0 12px}
+.strategy-roadmap-connector.passed{background:#9a6bda}
+.strategy-roadmap-detail{padding:12px 13px;background:#222e42;border-radius:11px}
+.strategy-roadmap-detail strong{font-size:15px;color:#f6f8fc}
+.strategy-roadmap-detail p{font-size:14px;line-height:1.5;color:#dce5f1;margin:7px 0 0}
+.strategy-roadmap-watch{font-size:13px;line-height:1.5;color:#c2cfe1;margin-top:7px}
+.strategy-roadmap-watch strong{font-size:13px;color:#f3d39c}
+.strategy-roadmap-status{color:#a8b9d0;font-size:12px;margin-top:8px}
+.strategy-roadmap-back{border:1px solid #61748d;border-radius:8px;padding:5px 9px;color:#dce8f7;background:#304058;font-size:12px;font-weight:700;cursor:pointer;margin-left:8px}
+.strategy-roadmap-detour{border-left:3px solid #dc9c47;background:#3f3428;border-radius:8px;padding:10px 12px;margin-top:10px;color:#ffe7c2;font-size:13px;line-height:1.5}
+@media(max-width:650px){.strategy-roadmap{padding:12px}.strategy-roadmap-connector{flex-basis:7px;min-width:6px}.strategy-roadmap-node{font-size:10px;padding:8px 3px;min-height:50px}.strategy-roadmap-step:last-child{flex-basis:80px}}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -435,6 +458,18 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
  <div class="opening-preview-actions"><span id="openingPreviewExpected"></span><button type="button" id="openingPreviewDismiss" class="opening-preview-dismiss">Return to position</button></div>
 </div>
           <div id="openingProgress"><div class="row" style="margin-top:12px"><span class="muted">Opening progress</span><span class="badge" id="progressLabel">0 / 11</span></div><div class="progress"><div class="bar" id="progressBar"></div></div></div>
+          <section class="strategy-roadmap" id="strategyRoadmap" aria-label="Strategy roadmap">
+            <div class="strategy-roadmap-title">Strategy roadmap</div>
+            <div class="strategy-roadmap-subtitle">How your plan evolves as the opening develops</div>
+            <div class="strategy-roadmap-track" id="strategyRoadmapTrack"></div>
+            <div class="strategy-roadmap-detail">
+              <strong id="strategyRoadmapFocus"></strong>
+              <p id="strategyRoadmapGoal"></p>
+              <div class="strategy-roadmap-watch"><strong>Watch for:</strong> <span id="strategyRoadmapWatch"></span></div>
+              <div class="strategy-roadmap-detour" id="strategyRoadmapDetour" style="display:none"></div>
+            </div>
+            <div class="strategy-roadmap-status"><span id="strategyRoadmapStatus"></span><button class="strategy-roadmap-back" id="strategyRoadmapBack" style="display:none" type="button">Current objective</button></div>
+          </section>
 
           <div class="learn-actions"><button class="btn primary" id="opponent" style="display:none;width:100%">Play opponent's move →</button></div>
           <div style="display:none" aria-hidden="true"><span id="phaseBadge"></span><p id="description"></p><span id="promptLabel"></span><span id="prompt"></span><span id="explanation"></span><span id="hintText"></span><span id="feedback"></span></div>
@@ -1150,7 +1185,7 @@ function revealLatestCoachMove(){
  sizeCoachConversation(true);
 }
 function invalidateReview(){comparisonView=null;reviewSerial++;reviewData=null;reviewSelection=0;$('reviewResults').style.display='none';$('reviewStatus').textContent='Game changed. Analyse the current moves to refresh the review.';}
-function reset(){clearOutsideLinePreview();coachScrollPending=false;coachScrollGeneration++;$('chatZone').scrollTop=0;invalidateReview();comparisonView=null;variationPanelOpen=false;gameReviewOpen=false;coachAnswerText='';challengeStarted=false;challengeFinished=false;challengeScore=null;shownEngineFen='';simEvalRequest++;replySelectionToken++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();if(trainingMode==='learn'&&learnOpponent==='adaptive'&&mode==='play'&&current().t!==openings[selected].side)prepareOpponentReply();}
+function reset(){inspectedStrategyCheckpoint=null;clearOutsideLinePreview();coachScrollPending=false;coachScrollGeneration++;$('chatZone').scrollTop=0;invalidateReview();comparisonView=null;variationPanelOpen=false;gameReviewOpen=false;coachAnswerText='';challengeStarted=false;challengeFinished=false;challengeScore=null;shownEngineFen='';simEvalRequest++;replySelectionToken++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();if(trainingMode==='learn'&&learnOpponent==='adaptive'&&mode==='play'&&current().t!==openings[selected].side)prepareOpponentReply();}
 function startChallenge(){reset();challengeStarted=true;feedback='Challenge started. Play your opening against Stockfish.';render();if(current().t!==openings[selected].side)prepareOpponentReply();}
 function current(){return h.at(-1)}function suggested(){const s=current();return legal(s).find(m=>key(m)===routeLine()[s.i]?.[0])}
 function readablePv(s,pv){
@@ -1381,6 +1416,45 @@ function renderCapturedPieces(){
 }
 
 
+
+const strategyCheckpointData={"queenAccepted":[[0,"Challenge the centre","Use d4 and c4 to question Black's centre.","Watch whether Black accepts the c4 pawn."],[4,"Recover c4","Develop Nf3 and prepare e3, then use the bishop to regain c4.","Black may try ...b5 to hold the pawn."],[8,"Meet counterplay","Recover c4 and keep d4 supported as Black contests the centre.","...c5 challenges d4 and may open lines quickly."],[10,"Secure and coordinate","Castle, finish development and prepare central play.","Watch queenside expansion with ...a6 and ...b5."]],"queen":[[0,"Challenge d5","Support d4 and challenge Black's central pawn with c4.","Black can reinforce d5 instead of capturing."],[4,"Increase pressure","Develop Nc3 and the bishop while keeping d4 strong.","Black's ...Nf6 controls e4."],[8,"Support the centre","Use e3 and Nf3 to coordinate your pieces and prepare castling.","Black may castle and consolidate behind the d5 pawn."],[10,"Prepare a break","Finish development and consider when e4 is supported.","Don't force a central break before your pieces are ready."]],"slav":[[0,"Establish the centre","Play d4 and c4 to pressure Black's central pawns.","...c6 reinforces d5 without blocking Black's light bishop."],[4,"Develop efficiently","Bring out your knights and increase central control.","Black may exchange on c4 or develop its bishop first."],[8,"Challenge the extra pawn","Use a4 or e3 to prepare recovering c4 if Black captures.","...b5 may allow Black to defend the pawn temporarily."],[10,"Recover and secure","Develop your bishop, recover c4 when possible and prepare to castle.","Black's active bishop can put pressure on your central pieces."]],"albin":[[0,"Recognise ...e5","Use d4 and c4 while staying alert to Black's ...e5 countergambit.","...e5 offers material in exchange for initiative."],[4,"Contain the d-pawn","After accepting on e5, prepare for Black's advanced ...d4.","The d4 pawn can restrict your development."],[8,"Develop around d4","Bring out your pieces and prepare to challenge the advanced pawn.","Black can develop quickly and create tactical pressure."],[10,"Protect the king","Finish development and castle before chasing more material.","Watch checks and open diagonals from Black's bishops."]],"italian":[[0,"Claim central space","Use e4 and develop Nf3 quickly.","Black can contest e4 with ...e5 and ...Nc6."],[4,"Activate the bishop","Develop Bc4 and coordinate your kingside pieces.","Black can pressure f2 with ...Bc5."],[8,"Prepare d4","Support a central d4 push with c3 and your developed pieces.","Black's ...Nf6 may attack e4."],[10,"Use open lines","Recapture centrally, castle and coordinate your pieces.","Exchanges can open the centre while your king is exposed."]],"sicilian":[[0,"Challenge d4","As Black, use ...c5 to contest White's centre from the flank.","White may prepare d4 with Nf3."],[4,"Exchange centrally","Prepare to exchange your c-pawn for White's central d-pawn.","White can gain activity after recapturing on d4."],[8,"Pressure e4","Develop ...Nf6 and coordinate your queenside pieces.","White's knight on d4 and pawn on e4 need attention."],[10,"Build counterplay","Look for safe queenside play while finishing development.","White can still use space and tactics in the centre."]],"caro":[[0,"Prepare ...d5","As Black, support the central ...d5 break with ...c6.","White is building central control with e4."],[4,"Contest e4","Challenge White's centre and decide how to resolve pawn tension.","White can choose an exchange or an e5 advance."],[8,"Develop the bishop","Develop the light bishop while it has an open diagonal.","White's active knight can attack the bishop."],[10,"Keep it solid","Complete development and build a resilient position.","White may gain kingside space and chase your bishop."]]};
+let inspectedStrategyCheckpoint=null;
+function renderStrategyRoadmap(){
+ const root=$('strategyRoadmap'),show=trainingMode==='learn'&&!scenario;
+ root.style.display=show?'block':'none';
+ if(!show)return;
+ const checkpoints=strategyCheckpointData[selected]||[],ply=h.length-1;
+ if(!checkpoints.length)return;
+ const currentIndex=checkpoints.reduce((at,item,i)=>ply>=item[0]?i:at,0);
+ if(inspectedStrategyCheckpoint!==null&&inspectedStrategyCheckpoint>=checkpoints.length)inspectedStrategyCheckpoint=null;
+ const shownIndex=inspectedStrategyCheckpoint===null?currentIndex:inspectedStrategyCheckpoint;
+ const holder=$('strategyRoadmapTrack');holder.replaceChildren();
+ checkpoints.forEach((point,i)=>{
+  if(i){const connection=document.createElement('span');connection.className='strategy-roadmap-connector'+(i<=currentIndex?' passed':'');holder.append(connection);}
+  const outer=document.createElement('span');outer.className='strategy-roadmap-step';
+  const node=document.createElement('button');node.type='button';node.className='strategy-roadmap-node'+(i===currentIndex?' current':i<currentIndex?' passed':'')+(shownIndex===i&&shownIndex!==currentIndex?' inspecting':'');
+  node.textContent=point[1];node.title=(i===currentIndex?'Current objective: ':'View checkpoint: ')+point[1];
+  node.onclick=()=>{inspectedStrategyCheckpoint=i;renderStrategyRoadmap();};
+  outer.append(node);holder.append(outer);
+ });
+ const point=checkpoints[shownIndex];
+ $('strategyRoadmapFocus').textContent=point[1];
+ $('strategyRoadmapGoal').textContent=point[2];
+ $('strategyRoadmapWatch').textContent=point[3];
+ const back=$('strategyRoadmapBack');back.style.display=shownIndex===currentIndex?'none':'inline-block';
+ back.onclick=()=>{inspectedStrategyCheckpoint=null;renderStrategyRoadmap();};
+ $('strategyRoadmapStatus').textContent=shownIndex===currentIndex?'Current checkpoint · '+(currentIndex+1)+' of '+checkpoints.length:'Viewing checkpoint '+(shownIndex+1)+' · Board unchanged';
+ const detour=$('strategyRoadmapDetour');
+ // Never pretend that a scripted objective is still the immediate plan
+ // after the live game has left its prepared line.
+ const changed=ply>0&&current().i<0&&!outsideLinePreview;
+ detour.style.display=changed?'block':'none';
+ if(changed){
+  const newPlan=activeBranch?.plan||'The game has left the prepared line. Reassess development, king safety and the opponent’s immediate threats before choosing a plan.';
+  detour.textContent='Plan adjustment: '+newPlan;
+ }
+}
+
 function render(){syncOpeningChoices();requestAnimationFrame(alignCapturedTrayWithBoard);const s=scenario?scenarioPositions[scenarioIndex]:current(),moves=legal(s),status=gameStatus(h),op=openings[selected],step=op.line[s.i],hint=trainingMode==='learn'&&h.length-1>=guidedOpeningLimit()?null:suggested(),yourTurn=s.t===op.side,ended=status.done;$('openingSelect').value=openingParent(selected);$('variationSelect').value=selected;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x.dataset.mode===mode));$('turn').textContent=scenario?'Illustrative variation · '+(scenarioIndex===0?'Start':('Step '+scenarioIndex)):pendingReply?'Opponent is thinking…':animatingMove?(animatingMove.isOpponent?'Opponent is moving…':'Your move…'):status.text;$('player').textContent=scenario?'Use Next move to explore':pendingReply?'Opponent reply in progress':animatingMove?(animatingMove.isOpponent?'Opponent reply in progress':'Moving piece'):(mode==='play'?'Playing '+(op.side===1?'White':'Black'):'Study both sides');$('openingName').textContent=op.name;$('description').textContent=op.desc;$('tip').textContent=op.tip;const lessonLimit=guidedOpeningLimit();
 const lessonDone=Math.min(lessonLimit,Math.max(0,h.length-1));
 $('progressLabel').textContent=lessonDone+' / '+lessonLimit;const progressPct=100*lessonDone/lessonLimit;$('progressBar').style.width=progressPct+'%';$('openingProgress').style.display=trainingMode==='learn'&&learnOpponent!=='adaptive'?'':'none';
@@ -1398,6 +1472,7 @@ const topProgress=$('topProgressFill'); if(topProgress) topProgress.style.width=
 renderChallenge();
 renderCapturedPieces();
 renderCoachTools();
+renderStrategyRoadmap();
 if(!scenario)$('simEnginePanel').style.display='none';const st=strategies[selected];$('strategyIntro').textContent=st.intro;const objectives=$('objectiveList');objectives.replaceChildren();let count=scenario?(scenario.dynamic?Math.max(0,current().i):scenarios[selected].setup):Math.max(0,current().i);for(const [name,at,detail] of st.objectives){const row=document.createElement('div');row.className='strategy-item';const mark=document.createElement('span');mark.className='strategy-mark';mark.textContent=count>=at?'✓':'○';const body=document.createElement('div');const heading=document.createElement('div');heading.className='strategy-name';heading.textContent=name;const copy=document.createElement('div');copy.className='strategy-detail';copy.textContent=detail;body.append(heading,copy);row.append(mark,body);objectives.append(row);} $('phaseBadge').textContent=scenario?'Scenario':current().i<0?'Free play':current().i>=op.line.length?'Line complete':'Opening';$('strategyToggle').textContent=strategyOn?'◉ Hide strategy':'◉ Show strategy';$('scenarioIntro').textContent=scenario?.dynamic?scenario.summary:scenarios[selected].summary;const sm=$('comparisonSummary');sm.replaceChildren();sm.style.display=scenario?.comparison?'flex':'none';if(scenario?.comparison){const c=scenario.comparison;for(const [k,v] of [['Your move',c.played+' · '+c.scorePlayed],['Stockfish prefers',c.preferred+' · '+c.scoreBest]]){const row=document.createElement('div');row.className='compare-pair';const label=document.createElement('span');label.textContent=k;const value=document.createElement('strong');value.textContent=v;row.append(label,value);sm.append(row);}const note=document.createElement('div');note.className='compare-result';note.textContent=c.difference;sm.append(note);}$('scenarioStart').style.display=scenario?'none':'';$('scenarioControls').style.display=scenario?'':'none';if(scenario){if(scenario.dynamic&&lastSimShown!==scenarioIndex){lastSimShown=scenarioIndex;updateSimulationScore(scenarioIndex);} $('scenarioStepTitle').textContent=scenario?.comparison?(scenarioIndex===0?'Your original move':scenarioIndex===1?'Back at the decision':'Stockfish recommendation'):scenarioIndex===0?'Starting position':('Step '+scenarioIndex+' of '+scenario.moves.length);$('scenarioStepCopy').textContent=scenario?.comparison?(scenarioIndex===0?'Your original '+scenario.comparison.played+' · press Replay comparison':scenarioIndex===1?'Your move has been rewound. Watch Stockfish’s choice.':scenario.moves[1][1]):scenarioIndex===0?scenario.title:scenario.moves[scenarioIndex-1][1];$('scenarioNext').disabled=!!animatingMove||scenarioIndex>=scenario.moves.length;$('scenarioNext').textContent=scenario?.comparison?(scenarioIndex===0?'Replay comparison →':scenarioIndex===1?'Show best move →':'Comparison complete'):scenarioIndex>=scenario.moves.length?'End of illustration':'Next move →';}
 const previewBoard=!scenario&&outsideLinePreview?apply(s,outsideLinePreview.move):null;
 const board=$('board');board.replaceChildren();for(let j=0;j<64;j++){const i=(j>>3)*16+(j&7),b=document.createElement('button');b.type='button';b.className='square'+(((j>>3)+(j&7))%2?' dark':'');b.setAttribute('aria-label',sq(i)+' '+(s.b[i]==='.'?'empty':s.b[i]));if(strategyOn&&st.targets.includes(sq(i)))b.classList.add('strategic');if(!scenario&&comparisonView?.bestMove){if(i===comparisonView.bestMove[0])b.classList.add('compare-from');if(i===comparisonView.bestMove[1])b.classList.add('compare-to');}if(animatingMove&&animatingMove.isOpponent&&(i===animatingMove.from||i===animatingMove.to))b.classList.add('thinking');if(previewBoard){
