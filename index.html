@@ -467,7 +467,7 @@ function switchToBestMove(){
  const c=comparisonView;if(!c||animatingMove||pendingReply)return;
  // Keep all earlier moves but replace the decision and discard its now-inapplicable replies.
  replySelectionToken++;clearReplyState();
- h=h.slice(0,c.index+1);logs=logs.slice(0,c.index);notes=notes.slice(0,c.index);
+ invalidateReview();h=h.slice(0,c.index+1);logs=logs.slice(0,c.index);notes=notes.slice(0,c.index);
  routeHistory=routeHistory.slice(0,c.index);
  const previous=routeHistory.at(-1);
  activeBranch=previous?.branch||null;deviationInfo=previous?.info||null;
@@ -591,7 +591,7 @@ async function analysePlayedGame(){
      const sameBest=!!best&&fenOf(apply(before,best))===fenOf(after);
      // Mate scores cannot be converted into a finite centipawn loss reliably.
      const finite=beforeEval.mate===null&&afterEval.mate===null;
-     const loss=finite?Math.max(0,side*(beforeEval.evaluation-afterEval.evaluation)):sameBest?0:null;
+     const loss=sameBest?0:finite?Math.max(0,side*(beforeEval.evaluation-afterEval.evaluation)):null;
      const previousBalance=i===1?50:balanceForEngine(evaluations[i-1],baseline);
      const turning=Math.abs(balance-previousBalance)>=10;
      return {label:played,balance,quality:loss===null?'Mate sequence':qualityLabel(loss,sameBest),loss,bestLabel,turning};
@@ -626,7 +626,8 @@ async function checkBalanceScale(){
 let chatMode='quick',chatPerspective='coach',previewReplyEngine=false,previewAnalysis=null,trainingMode='learn',learnOpponent='guided',challengeStarted=false,challengeFinished=false,challengeScore=null;let selected='italian',mode='play',h=[original()],selectedSquare=-1,showHint=false,feedback='',promotion=null,logs=[],notes=[],lastSquares=[],pendingReply=null,previewReply=null,replyTimer=null,animatingMove=null,animationTimer=null;const $=id=>document.getElementById(id);
 function clearReplyState(){if(replyTimer){clearTimeout(replyTimer);replyTimer=null}if(animationTimer){clearTimeout(animationTimer);animationTimer=null}pendingReply=null;previewReply=null;previewReplyEngine=false;previewAnalysis=null;animatingMove=null;const ghost=$('moveGhost');if(ghost){ghost.className='move-ghost';ghost.style.display='none';ghost.textContent='';}}
 let chatPageStart=0;
-function reset(){reviewSerial++;reviewData=null;reviewSelection=0;comparisonView=null;challengeStarted=false;challengeFinished=false;challengeScore=null;shownEngineFen='';simEvalRequest++;replySelectionToken++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();if(trainingMode==='learn'&&learnOpponent==='adaptive'&&mode==='play'&&current().t!==openings[selected].side)prepareOpponentReply();}
+function invalidateReview(){reviewSerial++;reviewData=null;reviewSelection=0;$('reviewResults').style.display='none';$('reviewStatus').textContent='Game changed. Analyse the current moves to refresh the review.';}
+function reset(){invalidateReview();comparisonView=null;challengeStarted=false;challengeFinished=false;challengeScore=null;shownEngineFen='';simEvalRequest++;replySelectionToken++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();if(trainingMode==='learn'&&learnOpponent==='adaptive'&&mode==='play'&&current().t!==openings[selected].side)prepareOpponentReply();}
 function startChallenge(){reset();challengeStarted=true;feedback='Challenge started. Play your opening against Stockfish.';render();if(current().t!==openings[selected].side)prepareOpponentReply();}
 function current(){return h.at(-1)}function suggested(){const s=current();return legal(s).find(m=>key(m)===routeLine()[s.i]?.[0])}
 function readablePv(s,pv){
@@ -645,7 +646,7 @@ function engineExplanation(s,m){
  if(piece==='k')return 'I’m repositioning my king to '+to+'. Whether this is safe depends on the threats in the position.';
  return 'I’m moving the '+n+' from '+from+' to '+to+' to improve the position or address a potential threat.';
 }
-function record(m,engineSelected=false,analysis=null){reviewSerial++;reviewData=null;const s=current();routeHistory.push({branch:activeBranch,info:deviationInfo});guideMove(s,m);const text=moveLabel(s,m),lineIndex=s.i,correct=lineIndex>=0&&key(m)===routeLine()[lineIndex]?.[0];h.push(apply(s,m));logs.push(text);lastSquares=[m[0],m[1]];feedback=deviationInfo?.kind==='variation'&&lineIndex===activeBranch?.at?'Variation recognised: '+deviationInfo.name:correct?'✓ In line with the opening.':deviationInfo?.name||'Adapted continuation';notes.push({engineSelected,engineAnalysis:engineSelected?analysis:null,engineComment:engineSelected?engineExplanation(s,m):'',text,color:s.t,opening:selected,index:correct&&!activeBranch?lineIndex:-1,reason:activeBranch&&lineIndex>=activeBranch.at?routeLine()[lineIndex]?.[1]:correct?rationales[selected][lineIndex]:explainDeviation(s,m)});return correct;}
+function record(m,engineSelected=false,analysis=null){invalidateReview();const s=current();routeHistory.push({branch:activeBranch,info:deviationInfo});guideMove(s,m);const text=moveLabel(s,m),lineIndex=s.i,correct=lineIndex>=0&&key(m)===routeLine()[lineIndex]?.[0];h.push(apply(s,m));logs.push(text);lastSquares=[m[0],m[1]];feedback=deviationInfo?.kind==='variation'&&lineIndex===activeBranch?.at?'Variation recognised: '+deviationInfo.name:correct?'✓ In line with the opening.':deviationInfo?.name||'Adapted continuation';notes.push({engineSelected,engineAnalysis:engineSelected?analysis:null,engineComment:engineSelected?engineExplanation(s,m):'',text,color:s.t,opening:selected,index:correct&&!activeBranch?lineIndex:-1,reason:activeBranch&&lineIndex>=activeBranch.at?routeLine()[lineIndex]?.[1]:correct?rationales[selected][lineIndex]:explainDeviation(s,m)});return correct;}
 function squarePct(i){const row=i>>4,col=i&7;return {x:(col+0.5)*12.5+'%',y:(row+0.5)*12.5+'%'};}
 function shouldUseEngineReply(s){return !!deviationInfo&&(deviationInfo.kind==='warning'||deviationInfo.kind==='detour'||s.i<0);}
 async function prepareOpponentReply(){
@@ -849,7 +850,7 @@ document.querySelectorAll('[data-opening]').forEach(b=>b.onclick=()=>{selected=b
    requestAnimationFrame(()=>requestAnimationFrame(()=>{if(animatingMove)$('moveGhost').classList.add('moving')}));
    animationTimer=setTimeout(()=>{animationTimer=null;animatingMove=null;scenarioIndex++;render();},1550);
  }else{scenarioIndex++;render();}
-};$('scenarioExit').onclick=()=>{clearReplyState();leaveScenario()};$('hint').onclick=()=>{showHint=!showHint;render()};$('next').onclick=()=>{const m=previewReply||suggested()||(current().i<0&&current().t===openings[selected].side?freeReply(current()):null);if(m&&!pendingReply&&!animatingMove){if(mode==='play'&&current().t!==openings[selected].side){startMoveAnimation(m,true);}else play(m);}};$('opponent').onclick=()=>{const m=suggested();if(m)play(m)};$('restart').onclick=reset;$('back').onclick=()=>{if(scenario){scenarioIndex=Math.max(0,scenarioIndex-1);render();return;}if(pendingReply||animatingMove){clearReplyState();render();return;}if(h.length<2)return;const n=mode==='play'&&h.length>2&&h.at(-1).t===openings[selected].side?2:1;h=h.slice(0,-n);logs=logs.slice(0,-n);notes=notes.slice(0,-n);const restored=routeHistory.length>=n?routeHistory[routeHistory.length-n]:null;routeHistory=routeHistory.slice(0,-n);activeBranch=restored?.branch||null;deviationInfo=restored?.info||null;selectedSquare=-1;showHint=false;feedback='';lastSquares=[];render()};$('cancelPromo').onclick=()=>{promotion=null;render()};function fitBoardToViewport(){
+};$('scenarioExit').onclick=()=>{clearReplyState();leaveScenario()};$('hint').onclick=()=>{showHint=!showHint;render()};$('next').onclick=()=>{const m=previewReply||suggested()||(current().i<0&&current().t===openings[selected].side?freeReply(current()):null);if(m&&!pendingReply&&!animatingMove){if(mode==='play'&&current().t!==openings[selected].side){startMoveAnimation(m,true);}else play(m);}};$('opponent').onclick=()=>{const m=suggested();if(m)play(m)};$('restart').onclick=reset;$('back').onclick=()=>{if(scenario){scenarioIndex=Math.max(0,scenarioIndex-1);render();return;}if(pendingReply||animatingMove){clearReplyState();render();return;}if(h.length<2)return;invalidateReview();const n=mode==='play'&&h.length>2&&h.at(-1).t===openings[selected].side?2:1;h=h.slice(0,-n);logs=logs.slice(0,-n);notes=notes.slice(0,-n);const restored=routeHistory.length>=n?routeHistory[routeHistory.length-n]:null;routeHistory=routeHistory.slice(0,-n);activeBranch=restored?.branch||null;deviationInfo=restored?.info||null;selectedSquare=-1;showHint=false;feedback='';lastSquares=[];render()};$('cancelPromo').onclick=()=>{promotion=null;render()};function fitBoardToViewport(){
   const stage=document.querySelector('.board-stage');
   if(!stage)return;
   const top=stage.getBoundingClientRect().top;
