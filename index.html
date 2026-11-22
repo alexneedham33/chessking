@@ -369,11 +369,11 @@ function fetchEngine(s){
    const worker=await bootStockfish();
    return new Promise((resolve,reject)=>{
      const task={side:s.t,score:null,resolve:r=>{clearTimeout(timer);evalCache.set(fen,r);resolve(r);}};
-     const timer=setTimeout(()=>{if(stockfishState.task===task){stockfishState.task=null;reject(new Error('Stockfish analysis timed out'));}},18000);
+     const timer=setTimeout(()=>{if(stockfishState.task===task){stockfishState.task=null;reject(new Error('Stockfish analysis timed out'));}},30000);
      stockfishState.task=task;
      worker.postMessage('setoption name UCI_LimitStrength value false');worker.postMessage('setoption name UCI_ShowWDL value true');worker.postMessage('setoption name MultiPV value 3');
      worker.postMessage('position fen '+fen);
-     worker.postMessage('go depth 12');
+     worker.postMessage('go depth 16');
    });
  });
  stockfishState.chain=request.catch(()=>{});return request;
@@ -381,19 +381,27 @@ function fetchEngine(s){
 function fetchChallengeMove(s){const rating=Number($('challengeElo').value),fen=fenOf(s);
  const taskPromise=stockfishState.chain.catch(()=>{}).then(async()=>{const worker=await bootStockfish();return new Promise((resolve,reject)=>{const task={side:s.t,score:null,resolve:r=>{clearTimeout(timer);resolve(r);}};const timer=setTimeout(()=>{if(stockfishState.task===task){stockfishState.task=null;reject(Error('Opponent engine timed out'));}},18000);stockfishState.task=task;worker.postMessage('setoption name MultiPV value 1');worker.postMessage('setoption name UCI_LimitStrength value true');worker.postMessage('setoption name UCI_Elo value '+rating);worker.postMessage('position fen '+fen);worker.postMessage('go depth 10');});});stockfishState.chain=taskPromise.catch(()=>{});return taskPromise;}
 function engineValue(e){if(!e)return 50;if(e.mate!==null)return e.mate>0?99:1;return Math.max(1,Math.min(99,100/(1+Math.exp(-e.evaluation/1.55))));}
-// White expected score: wins + half of draws, on Stockfish's 0..1000 scale.
-function expectedWhite(e){
- const w=e?.wdl;
- return Array.isArray(w)&&w.length===3&&w.every(n=>Number.isInteger(n)&&n>=0)&&w.reduce((a,b)=>a+b,0)===1000?w[0]+w[1]/2:null;
+// Compare full-strength Stockfish evaluations with the initial position.
+// Logistic scaling makes small differences visible without treating engine WDL
+// probabilities as predictions about human players. 50/50 is the fixed baseline.
+function engineAdvantage(e){
+ if(!e)return null;
+ if(e.mate!==null&&e.mate!==undefined)return e.mate>0?100:-100;
+ return Number.isFinite(e.evaluation)?e.evaluation:null;
+}
+function normalizedBalance(advantage,baseline){
+ if(advantage===null||baseline===null)return null;
+ if(Math.abs(advantage)>=100)return advantage>0?100:0;
+ return 100/(1+Math.exp(-(advantage-baseline)/3));
 }
 function displayBalance(value,change,depth,error){
  const white=Math.max(0,Math.min(100,value)),black=100-white,lead=white-50;
  $('balanceWhite').style.width=white.toFixed(2)+'%';
  $('balanceWhitePct').textContent=white.toFixed(1);$('balanceBlackPct').textContent=black.toFixed(1);
- $('engineScore').textContent=error?'Balance unavailable':depth===null?'Even position':Math.abs(lead)<0.5?'Even position':(lead>0?'White':'Black')+' '+(Math.abs(lead)>=15?'strongly favoured':'slightly favoured');
+ $('engineScore').textContent=error?'Balance unavailable':depth===null?'Even position':Math.abs(lead)<2?'Even position':(lead>0?'White':'Black')+' '+(Math.abs(lead)>=25?'strongly favoured':Math.abs(lead)>=10?'favoured':'slightly favoured');
  $('engineDepth').textContent=depth===null?'Stockfish':'Stockfish · depth '+depth;
- $('balanceMoveChange').textContent=error?'Engine unavailable':depth===null?'Starting balance · 50/50':change===null?'Move change unavailable':Math.abs(change)<0.05?'No change this move':(change>0?'White':'Black')+' +'+Math.abs(change).toFixed(1)+' this move';
- $('engineCaption').textContent=error?'Stockfish evaluation unavailable; check local engine files.':'Shift in estimated engine expected score since the starting position; not win probability.';
+ $('balanceMoveChange').textContent=error?'Engine unavailable':depth===null?'Starting balance · 50/50':change===null?'Move change unavailable':Math.abs(change)<0.1?'Little change this move':(change>0?'White':'Black')+' +'+Math.abs(change).toFixed(1)+' this move';
+ $('engineCaption').textContent=error?'Stockfish evaluation unavailable; check local engine files.':'Relative positional strength from the opening, not a win probability. Both sides analysed at full strength.';
  $('outlookTrack').setAttribute('aria-label','Positional balance: White '+white.toFixed(1)+', Black '+black.toFixed(1));
 }
 function requestPositionEval(s){
@@ -411,9 +419,11 @@ function requestPositionEval(s){
    try{
      const [base,prior,now]=await Promise.all([fetchEngine(first),fetchEngine(previous),fetchEngine(s)]);
      if(token!==evalRequest||scenario)return;
-     const baseScore=expectedWhite(base),priorScore=expectedWhite(prior),nowScore=expectedWhite(now);
-     if(baseScore===null||nowScore===null){displayBalance(50,null,now?.depth??null,true);return;}
-     displayBalance(50+(nowScore-baseScore)/10,priorScore===null?null:(nowScore-priorScore)/10,now.depth,false);
+     const baseline=engineAdvantage(base);
+     const currentScore=normalizedBalance(engineAdvantage(now),baseline);
+     const previousScore=normalizedBalance(engineAdvantage(prior),baseline);
+     if(currentScore===null){displayBalance(50,null,now?.depth??null,true);return;}
+     displayBalance(currentScore,previousScore===null?null:currentScore-previousScore,now.depth,false);
    }catch(error){if(token===evalRequest&&!scenario)displayBalance(50,null,null,true);}
  },250);
 }
