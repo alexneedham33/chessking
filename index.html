@@ -259,7 +259,7 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 <div id="learnOpponentDescription" class="learn-opponent-description">Follow the prepared line or practise against Stockfish.</div>
 <label id="learnEloSetting" class="opponent-slider" style="display:none"><span class="opponent-slider-heading">Opponent strength <strong id="learnEloValue">1700 Elo (approx.)</strong></span><input type="range" id="learnElo" min="750" max="2800" step="50" value="1700"><span class="opponent-slider-range"><span>750 · Easier</span><span>2800 · Harder</span></span></label>
 <div class="opponent-assessment" id="learnEvalNote" style="display:none">Position evaluation and review always use full-strength Stockfish.</div></section>
-<section id="challengeSettings" class="challenge-settings" style="display:none"><div class="challenge-config"><label class="opponent-slider challenge-opponent-slider"><span class="opponent-slider-heading">Opponent strength <strong id="challengeEloValue">1700 Elo (approx.)</strong></span><input type="range" id="challengeElo" min="750" max="2800" step="50" value="1700"><span class="opponent-slider-range"><span>750 · Easier</span><span>2800 · Harder</span></span></label><label>Reach move <select id="challengeTarget"><option value="5">5</option><option value="10" selected>10</option><option value="15">15</option><option value="20">20</option></select></label><label>Position goal <select id="challengeGoal"><option value="equal">Equal or better</option><option value="slight">Slight disadvantage or better</option></select></label><button class="btn primary" id="challengeRestart">Start challenge ↻</button></div><div id="challengeStatus" class="challenge-status" aria-live="polite"></div><div id="challengeResults" class="challenge-results" style="display:none"></div></section></div></details>
+<section id="challengeSettings" class="challenge-settings" style="display:none"><div class="challenge-config"><label class="opponent-slider challenge-opponent-slider"><span class="opponent-slider-heading">Opponent strength <strong id="challengeEloValue">1700 Elo (approx.)</strong></span><input type="range" id="challengeElo" min="750" max="2800" step="50" value="1700"><span class="opponent-slider-range"><span>750 · Easier</span><span>2800 · Harder</span></span></label><label>Reach move <select id="challengeTarget"><option value="5">5</option><option value="10" selected>10</option><option value="15">15</option><option value="20">20</option></select></label><label>Position goal <select id="challengeGoal"><option value="equal">Roughly equal or better</option><option value="slight">Small disadvantage acceptable</option></select></label><button class="btn primary" id="challengeRestart">Start challenge ↻</button></div><div id="challengeStatus" class="challenge-status" aria-live="polite"></div><div id="challengeResults" class="challenge-results" style="display:none"></div></section></div></details>
 </nav>
 <div id="playChallengePanel" class="play-challenge-panel" style="display:none"><div class="play-challenge-heading"><strong>Opening challenge</strong><span>Reach your chosen move while developing a sound position</span></div></div>
 <div class="top-progress"><div class="top-progress-fill" id="topProgressFill"></div></div>
@@ -891,7 +891,8 @@ let variationPanelOpen=false,gameReviewOpen=false,coachAnswerText='';
 function explainCoachQuestion(type){
  const op=openings[selected],last=notes.at(-1),step=routeLine()[current().i];
  if(type==='why'){
-   coachAnswerText=last?last.text+' — '+last.reason:step?'Next: '+(current().i>=0?moveLabel(current(),legal(current()).find(m=>key(m)===step[0])):'')+'. '+step[1]:'Try a move to explore the ideas behind this opening.';
+   const nextMove=step?legal(current()).find(m=>key(m)===step[0]):null;
+   coachAnswerText=last?last.text+' — '+last.reason:step?'Next: '+(nextMove?moveLabel(current(),nextMove)+' — ':'')+step[1]:'Try a move to explore the ideas behind this opening.';
  }else if(type==='plan'){
    coachAnswerText=strategies[selected].intro;
  }
@@ -1053,7 +1054,9 @@ function challengeObjectives(){
 async function finalizeChallenge(){
  if(challengeFinished)return;
  challengeFinished=true;
+ gameReviewOpen=true;
  const state=current(),rows=challengeObjectives(),token=replySelectionToken;
+ $('reviewStatus').textContent='Opening challenge complete. Select Analyse played moves to see where you gained or lost an advantage.';
  challengeScore={rows,loading:true,eval:null};render();
  try{const e=await fetchEngine(state);if(token!==replySelectionToken||current()!==state||trainingMode!=='challenge')return;challengeScore={rows,loading:false,eval:e};}
  catch(err){challengeScore={rows,loading:false,eval:null};}
@@ -1128,7 +1131,7 @@ if(info){nav.style.display='block';nav.className='route-notice route-compact '+(
 $('engineDisclaimer').style.display=chatPerspective==='engine'?'':'none';
 renderMoveReview();
 $('whyPanel').style.display=recent.length?'':'none';$('chatWelcome').style.display=recent.length?'none':'';
-$('chatWelcome').textContent=chatPerspective==='engine'?'No engine-played moves yet.':'Learn'=== (trainingMode==='learn'&&learnOpponent==='guided'?'Learn':'Play')?'We will explore '+op.name+'. '+op.desc+' Play the suggested opening moves and I’ll explain the purpose of each one.':'Play naturally against Stockfish. The coach explains the moves you reach, and you can review important decisions.';
+$('chatWelcome').textContent=chatPerspective==='engine'?'No engine-played moves yet.':(trainingMode==='learn'&&learnOpponent==='guided')?'We will explore '+op.name+'. '+op.desc+' Play the suggested opening moves and I’ll explain the purpose of each one.':'Play naturally against Stockfish. The coach explains the moves you reach, and you can review important decisions.';
 $('whyContent').replaceChildren();recent.forEach(item=>{const entry=document.createElement('div');
 entry.className='why-entry '+(item.proposed?'proposed-bubble ':'')+(chatPerspective==='engine'?'engine-monologue ':'')+(item.color===1?'white-side':'black-side')+(item.color===speakingColor?' is-active':' is-muted');
 const title=document.createElement('div');title.className='why-title';title.textContent=(item.color===1?'White':'Black')+' · '+item.text;
