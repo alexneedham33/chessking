@@ -66,10 +66,12 @@ async function explainMove(payload){
   stockfishAfter:engine,
   stockfishBefore:prior&&Number.isFinite(prior.evaluation)?{evaluation:prior.evaluation,depth:prior.depth}:null
  };
+ // Detail is a preference for teaching depth, not a fixed-size response.
+ // The explanation expands only when the actual position warrants it.
  const detailGuidance={
-  brief:'BRIEF: One or two short sentences, approximately 15-30 words, maximum 40. Give only the main reason for the move, without an unnecessary follow-up.',
-  standard:'STANDARD: Two concise sentences, usually 30-55 words, maximum 65. Explain the central strategic idea and one meaningful consequence or next consideration.',
-  detailed:'DETAILED: Three or four useful sentences, usually 65-105 words, maximum 120. Explain the core idea, its positional or tactical consequence, and a sensible continuation when justified by the board. Never pad or repeat.'
+  brief:'BRIEF preference: Aim for 15-35 words for straightforward moves. For a genuinely critical tactic, serious mistake, or counterintuitive move, expand up to 65 words if the learner needs the extra explanation. Never omit the essential reason just to be short.',
+  standard:'STANDARD preference: Start with about 30-55 words when the position is straightforward. Use fewer words when little needs explaining; expand to around 85-100 words for meaningful tactics, sacrifices, turning points, or difficult positional consequences.',
+  detailed:'DETAILED preference: Provide helpful context and consequences, but be economical for obvious moves (around 35-60 words may be enough). Expand up to around 130 words only when the position contains multiple important, evidence-supported ideas. Do not pad ordinary moves.'
  };
  const instructions=[
   'You are an expert chess teacher for an early-intermediate learner. Produce ONE coherent explanation of the ACTUAL played move, not a separate strategic insight.',
@@ -78,7 +80,8 @@ async function explainMove(payload){
   'Use Stockfish evaluations and continuations only as supporting evidence for concrete consequences. They are calculations, not a statement of intent, and must not be confused with the move that was played.',
   'Explain what changed, why it matters, and one appropriate next consideration. Avoid repetition, unsupported threats or false confidence. Do not claim an advantage is decisive from a small evaluation change.',
   detailGuidance[detail],
-  'Adjust the level of detail for genuine tactical complexity, but obey the selected length cap. Prioritise clarity over hitting word targets.',
+  'First judge what this particular position genuinely needs. Routine development, straightforward recaptures and simple central pawn moves usually need one or two focused sentences. Explain critical captures, forcing sequences, tactical errors, sacrifices, unusual plans or meaningful evaluation swings in more depth, only when grounded in the position and Stockfish evidence.',
+  'The selected detail level is a default preference, NOT a required word target, sentence count, or rigid cap. Use fewer words whenever sufficient; add more only when they materially help understanding. Never inflate an ordinary move to meet a word target or under-explain a critical moment.',
   'Do not narrate obvious piece movement or repeat the move notation in prose (for example, avoid White has just played 1. d4, moving the pawn from d2 to d4). The move title already provides this. Mention origin or destination only if it teaches something important.',
   'Prioritise one clear lesson over exhaustive coverage. No filler, repetitive development advice, or speculative follow-ups. Use the actual resulting position to keep the explanation accurate.',
   'Prefer plain-language ideas such as the centre, kingside, pawn support, piece development and king safety. Avoid square coordinates unless knowing a particular square is essential to the lesson. Normally mention zero or one coordinate; never more than two distinct coordinates in a routine explanation. Avoid listing routes like c2 to c4, which the board already shows. When a coordinate is necessary, weave it naturally into the explanation.',
