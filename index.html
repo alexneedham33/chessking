@@ -372,6 +372,10 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 .coach-inline-settings[hidden]{display:none!important}
 .coach-inline-toggle{display:inline-flex;align-items:center;gap:4px;color:#b8c7dc;font-size:11px;white-space:nowrap;cursor:pointer}
 .coach-inline-toggle input{width:13px;height:13px;accent-color:#ae7ae9}
+.coach-detail-label{display:inline-flex;align-items:center;gap:5px;color:#b8c7dc;font-size:11px;white-space:nowrap}
+.coach-detail-select{background:#171e2b;color:#e9edf8;border:1px solid #39445a;border-radius:7px;padding:5px 7px;font-size:11px;font-weight:650}
+.coach-detail-select:focus-visible{outline:2px solid #b88cff;outline-offset:2px}
+.coach-detail-select:disabled{opacity:.5}
 .coach-ai-status{font-size:10px;color:#b8c7dc;white-space:nowrap}
 .coach-ai-status[hidden]{display:none!important}
 .coach-ai-status.error{color:#f0ad94}
@@ -435,7 +439,7 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
           <button class="detail-tab" data-detail-tab="simulator">Simulator</button><button class="detail-tab" data-detail-tab="review">Review</button>
         </div>
         <div class="detail-tab-content active" id="chatTabPane">
-          <div class="panel-header"><div class="learn-kicker">📖 <span>Opening coach</span></div><div class="coach-header-right"><span class="learn-meta" id="openingName">Queen's Gambit Accepted</span><div class="coach-inline-settings" id="strategicInsights" hidden><label class="coach-inline-toggle" title="Use the optional AI coach when available"><input type="checkbox" id="strategicAiToggle"> AI</label><span id="aiCoachStatus" class="coach-ai-status" role="status" aria-live="polite" hidden></span></div></div></div><div class="chat-mode-switch" role="group" aria-label="Chat explanation style" style="display:none"><button class="chat-mode-btn active" data-chat-mode="quick" aria-pressed="true">Quick</button><button class="chat-mode-btn" data-chat-mode="learn" aria-pressed="false">Learn</button></div>
+          <div class="panel-header"><div class="learn-kicker">📖 <span>Opening coach</span></div><div class="coach-header-right"><span class="learn-meta" id="openingName">Queen's Gambit Accepted</span><div class="coach-inline-settings" id="strategicInsights" hidden><label class="coach-inline-toggle" title="Use the optional AI coach when available"><input type="checkbox" id="strategicAiToggle"> AI</label><label class="coach-detail-label" for="coachDetailSelect">Detail <select id="coachDetailSelect" class="coach-detail-select" title="Explanation length for upcoming AI coaching"><option value="brief">Brief</option><option value="standard">Standard</option><option value="detailed">Detailed</option></select></label><span id="aiCoachStatus" class="coach-ai-status" role="status" aria-live="polite" hidden></span></div></div></div><div class="chat-mode-switch" role="group" aria-label="Chat explanation style" style="display:none"><button class="chat-mode-btn active" data-chat-mode="quick" aria-pressed="true">Quick</button><button class="chat-mode-btn" data-chat-mode="learn" aria-pressed="false">Learn</button></div>
           <div class="commentary-switch" role="group" aria-label="Chat perspective" style="display:none"><button class="commentary-btn active" data-perspective="coach">Opening coach</button><button class="commentary-btn" data-perspective="engine">Engine commentary</button></div><p class="engine-disclaimer" id="engineDisclaimer" style="display:none">Interpretations of engine moves, not Stockfish's actual thoughts.</p>
 <div class="move-review-toolbar" id="moveReviewToolbar"><div><strong>Understand your move</strong><span>Full-strength Stockfish checks meaningful differences</span></div><button class="btn" id="reviewMyMove">Review move</button></div>
 <div class="chat-zone" id="chatZone">
@@ -1432,10 +1436,11 @@ function renderCapturedPieces(){
 
 // Each move has one explanation. AI asynchronously replaces the scripted text.
 let strategicAiEnabled=false,strategicAiBusy=false,strategicAiFailed=false,strategicAiNonce=0,strategicAiStatus='';
+let coachDetail='standard';
 const aiRequestedPly=new Set(),coachMoveMessages=new Map();
 const AI_COACH_MIN_PLY=1,AI_COACH_INTERVAL=1,AI_COACH_GAME_LIMIT=24;
 let coachSeenPositionCount=1;
-try{strategicAiEnabled=localStorage.getItem('openingLab.aiInsights')==='on';}catch{}
+try{strategicAiEnabled=localStorage.getItem('openingLab.aiInsights')==='on';const saved=localStorage.getItem('openingLab.coachDetail');if(['brief','standard','detailed'].includes(saved))coachDetail=saved;}catch{}
 function coachEngineEvidence(position,analysis){
  if(!analysis||!Number.isFinite(analysis.depth)||analysis.depth<1)return null;
  const variations=[];
@@ -1483,7 +1488,7 @@ async function requestUnifiedMoveCoaching(ply){
  const move=legal(before).find(m=>key(m)===note.uci);
  if(!move)return;
  const nonce=strategicAiNonce,openingAtRequest=selected;
- const record={pending:true,message:'',engineGrounded:false};
+ const record={pending:true,message:'',engineGrounded:false,detail:coachDetail};
  coachMoveMessages.set(ply,record);
  aiRequestedPly.add(ply);
  strategicAiBusy=true;strategicAiStatus='analysing';
@@ -1500,7 +1505,7 @@ async function requestUnifiedMoveCoaching(ply){
    beforeFen:fenOf(before),afterFen:fenOf(after),
    opening:openings[openingAtRequest].name,player:openings[openingAtRequest].side===1?'White':'Black',
    played:playedMoveEvidence(before,move),scripted:note.reason,
-   history:logs.slice(Math.max(0,ply-10),ply),recentCoaching,engine,
+   history:logs.slice(Math.max(0,ply-10),ply),recentCoaching,engine,detail:record.detail,
    priorEngine:prior?{evaluation:prior.evaluation,depth:prior.depth}:null
   })});
   if(!response.ok)throw Error('AI coaching unavailable');
@@ -1520,7 +1525,7 @@ async function requestUnifiedMoveCoaching(ply){
 function refreshUnifiedMoveCoaching(){
  const root=$('strategicInsights'),toggle=$('strategicAiToggle'),status=$('aiCoachStatus');
  const visible=trainingMode==='learn'&&!scenario;
- root.hidden=!visible;toggle.checked=strategicAiEnabled;
+ root.hidden=!visible;toggle.checked=strategicAiEnabled;$('coachDetailSelect').value=coachDetail;$('coachDetailSelect').disabled=!strategicAiEnabled;
  if(coachSeenPositionCount>h.length){
   strategicAiNonce++;strategicAiBusy=false;
   for(const ply of coachMoveMessages.keys())if(ply>=h.length)coachMoveMessages.delete(ply);
@@ -1650,6 +1655,13 @@ $('guidedOpeningLength').onchange=()=>{
  chosenGuidedLength=next;
  try{localStorage.setItem(GUIDED_LENGTH_KEY,String(next));}catch{}
  reset();
+};
+$('coachDetailSelect').onchange=()=>{
+ const next=$('coachDetailSelect').value;
+ if(!['brief','standard','detailed'].includes(next))return;
+ coachDetail=next;
+ try{localStorage.setItem('openingLab.coachDetail',coachDetail);}catch{}
+ // Applies to new requests; preserve already generated explanations.
 };
 $('strategicAiToggle').onchange=()=>{
  strategicAiEnabled=$('strategicAiToggle').checked;
