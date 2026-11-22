@@ -1250,7 +1250,7 @@ $('feedback').textContent=feedback;$('feedback').style.display=feedback?'':'none
 for(const name of Object.keys(openings)){let s=original();for(const [uci]of openings[name].line){selected=name;const m=legal(s).find(m=>key(m)===uci);if(!m)throw Error('Invalid opening '+name+' '+uci);s=apply(s,m);}}selected='queenAccepted';
 for(const k of Object.keys(scenarios)){selected=k;setScenario();}selected='queenAccepted';$('learnOpponent').onchange=()=>{const choice=$('learnOpponent').value;if(choice==='adaptive')return;learnOpponent=choice;mode='play';reset();};
 $('reviewMyMove').onclick=compareWithBestMove;
-$('learnElo').oninput=()=>{saveOpponentElo($('learnElo').value);if(learnOpponent==='guided')learnOpponent='guidedEngine';renderChallenge();};
+$('learnElo').oninput=()=>{saveOpponentElo($('learnElo').value);const switching=learnOpponent==='guided';if(switching)learnOpponent='guidedEngine';if(switching)render();else renderChallenge();};
 $('coachVariation').onclick=showCoachVariation;
 $('coachGameReview').onclick=openGameReview;
 $('coachWhy').onclick=()=>explainCoachQuestion('why');
