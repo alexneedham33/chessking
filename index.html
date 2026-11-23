@@ -2229,6 +2229,22 @@ function coachMoveTactics(before,move){
  };
 }
 
+// Verify an engine-suggested move against the board BEFORE explaining it.
+// A rank-1 suggestion is not proof of a tactical purpose or a forced gain.
+function coachAlternativeEvidence(before,bestMove,playedMove,loss){
+ if(!bestMove||key(bestMove)===key(playedMove)||!Number.isFinite(loss)||loss<70)return null;
+ const alternativeAfter=apply(before,bestMove);
+ const tactics=coachMoveTactics(before,bestMove);
+ return {
+  move:coachPlainMove(before,bestMove),
+  uci:key(bestMove),
+  resultingFen:fenOf(alternativeAfter),
+  tacticalFacts:tactics,
+  boardFacts:coachBoardFacts(alternativeAfter),
+  explanationRule:'Only describe an attack or defence if the corresponding target appears in tacticalFacts. These are geometric observations, not proof the alternative is strategically better. Do not invent a threat, forced continuation, or capture.'
+ };
+}
+
 // Opening context is evidence, not a rule that the learner must follow.
 function coachOpeningContext(ply){
  const played=notes.slice(0,ply).map(item=>item?.uci).filter(Boolean);
@@ -2381,7 +2397,7 @@ async function requestUnifiedMoveCoaching(ply){
   // Centipawn thresholds are coaching heuristics, not move classifications.
   const swing=moveAssessment?.evaluationChangeForMoverCentipawns;
   const loss=moveAssessment?.centipawnLoss;
-  const noteworthyLoss=Number.isFinite(loss)&&loss>=50;
+  const noteworthyLoss=Number.isFinite(loss)&&loss>=70;
   const majorLoss=Number.isFinite(loss)&&loss>=120;
   const majorGain=Number.isFinite(swing)&&swing>=80;
   const coachingFocus=majorLoss?'turning-point':noteworthyLoss?'meaningful-mistake':majorGain?'meaningful-improvement':'strategic';
@@ -2410,9 +2426,18 @@ async function requestUnifiedMoveCoaching(ply){
    evaluationPolicy:'The normalized balance is NOT a win probability. Do not quote exact percentages or centipawns unless explicitly requested. Do not treat the first Stockfish choice as the only good move. If evidence is missing or approximate, avoid confident judgments.',
    languagePolicy:'Explain moves in plain English, e.g. "move the queen to d2" rather than "7.Qd2", and "move the rook to g1" rather than "Rg1". Do not use algebraic move notation, move-number prefixes, or unexplained abbreviations in the coaching message. Give one specific lesson from the current position; avoid repeating broad opening principles. Distinguish opponent and learner moves. Use tacticalFacts for exactly what the moved piece attacks or defends and which immediate legal replies can capture it or give check; geometric attacks are not automatically legal or strong. Do not claim a piece protects pawns not listed as defended. Do not assert a tactical threat or reason for an alternative unless the supplied legal variation and board facts support it. If uncertain, say so. Normal moves: 2-3 useful sentences; significant mistakes: up to 4, without filler.'
   };
-  // Suggested alternatives appear in the coaching assessment only if the
-  // loss is meaningful. Keep the underlying Stockfish line as evidence.
-  if(moveAssessment&&!noteworthyLoss)moveAssessment.suggestedMove=null;
+  // Offer an alternative only after a substantial, depth-limited loss.
+  // Validate its LEGAL move and resulting attacks/defences separately.
+  const bestMoveForCoaching=prior?.best?legal(before).find(candidate=>key(candidate)===prior.best):null;
+  const alternativeEvidence=coachAlternativeEvidence(before,bestMoveForCoaching,move,loss);
+  if(moveAssessment&&!alternativeEvidence){
+   moveAssessment.suggestedMove=null;
+   moveAssessment.suggestedMovePlainEnglish=null;
+  }
+  coachingGuidance.explainAlternatives=!!alternativeEvidence;
+  coachingGuidance.alternativePolicy=alternativeEvidence
+   ?'A better alternative is available with verified after-move board facts. Mention it ONLY when explaining a material mistake and do not assert a tactical reason not in alternativeEvidence.'
+   :'Do not recommend another move, name Stockfish alternatives, or criticize a reasonable move merely because it is not engine rank one.';
   const recentCoaching=[...coachMoveMessages.entries()]
    .filter(([at,item])=>at<ply&&!item.pending&&item.message).slice(-3).map(([,item])=>item.message);
   const response=await fetch('/api/coach/move',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
@@ -2429,6 +2454,7 @@ async function requestUnifiedMoveCoaching(ply){
    history:logs.slice(Math.max(0,ply-10),ply),recentCoaching,engine,detail:record.detail,moveAssessment,positionAssessment,
    boardFacts:{before:coachBoardFacts(before),after:coachBoardFacts(after)},
    tacticalFacts:coachMoveTactics(before,move),
+   alternativeEvidence,
    openingContext:coachOpeningContext(ply),
    coachingLevel:coachExplanationLevel(),
    // Move descriptions are generated from legal moves, not guessed by the AI.
