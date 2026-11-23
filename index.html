@@ -580,6 +580,39 @@ html:fullscreen .side>.capture-tray-frame{padding:14px}
 /* The white-side evaluation bar uses Chess King's purple accent instead of
    sharing the coaching card's white surface colour. */
 .balance-white-side{background:#9d4edd}
+
+/* Consistent, readable controls around the board without adding another row. */
+.compact-toolbar .custom-select-trigger{
+ font-size:14px;
+ font-weight:700;
+ height:44px;
+ padding:9px 12px;
+}
+.compact-toolbar .custom-select-option{font-size:14px}
+.compact-toolbar .player-colour-switch{height:44px}
+.compact-toolbar .player-colour-switch button{font-size:14px;padding:8px 11px}
+.compact-toolbar>.global-strength>summary{height:44px;font-size:14px}
+.compact-toolbar #settingsModeSummary{font-size:14px}
+.board-controls .btn{font-size:14px;min-height:44px;font-weight:700}
+@media(max-width:700px){
+ .compact-toolbar .custom-select-trigger,.compact-toolbar .player-colour-switch{height:42px}
+ .compact-toolbar .player-colour-switch button{font-size:13px}
+ .compact-toolbar>.global-strength>summary{height:42px}
+ .board-controls .btn{font-size:12px;min-height:42px}
+}
+/* Board-inspired accent on the captured-piece labels, not the entire light card. */
+.capture-tray-label{
+ display:table;
+ background:#e2d5bd;
+ border:1px solid #c6b799;
+ border-radius:7px;
+ padding:5px 9px;
+ margin-bottom:8px;
+ color:#242c39;
+ font-size:14px;
+ font-weight:750;
+}
+@media(max-width:650px){.capture-tray-label{font-size:12px;padding:4px 7px}}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -1560,7 +1593,7 @@ function renderChallenge(){
 const openingStrategies=['queenAccepted','queen','italian','sicilian','caro'];
 const variationGroups={
  queenAccepted:[['queenAccepted','Main line']],
- queen:[['queen','Main line (…e6)'],['slav','Slav Defence (…c6)'],['albin','Albin Countergambit (…e5)']],
+ queen:[['queen','Main line'],['slav','Slav Defence'],['albin','Albin Countergambit']],
  italian:[['italian','Main line']],
  sicilian:[['sicilian','Main line']],
  caro:[['caro','Main line']]
