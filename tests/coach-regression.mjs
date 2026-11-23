@@ -123,3 +123,40 @@ test('42 bishop route evidence remains an objective set of empty squares',()=>{
  assert.ok(r.newlyClearSquares.includes('e7'));
  assert.ok(r.newlyClearSquares.includes('d6'));
 });
+
+// Validate the same post-generation safeguards used in deployed Lambda.
+const lambdaSource=readFileSync(resolve(root,'lambda-coach/index.mjs'),'utf8');
+const guardStart=lambdaSource.indexOf('const words=text=>');
+const guardEnd=lambdaSource.indexOf('async function generateCoaching(',guardStart);
+assert.ok(guardStart>=0&&guardEnd>guardStart,'Lambda guard implementation present');
+const guardContext={};vm.createContext(guardContext);
+vm.runInContext(lambdaSource.slice(guardStart,guardEnd)+
+ '\nthis.guard={checkExplanation,coachingBudget,unsupportedStructuralClaims};',guardContext);
+const bishopPositionBefore=pos({c8:'b',f8:'b',d7:'.',e7:'p',d5:'p',e2:'P',d4:'P'});
+const bishopPositionAfter=pos({c8:'b',f8:'b',d7:'.',e6:'p',e7:'.',d5:'p',e2:'P',d4:'P'});
+const guardInput={strategicFacts:changes(bishopPositionBefore,bishopPositionAfter),tacticalFacts:{}};
+const guard=m=>Array.from(guardContext.guard.unsupportedStructuralClaims(m,guardInput));
+test('43 regression: e6 falsely opens bishop on c8 is flagged',()=>{
+ assert.ok(guard('Black reinforces d5 and opens the bishop on c8.').some(x=>x.includes('bishop on c8')));
+});
+test('44 regression: e6 genuinely opens bishop on f8 is accepted',()=>{
+ assert.equal(guard('Black opens the bishop on f8.').length,0);
+});
+test('45 regression: false claim of blocked e-file is flagged',()=>{
+ assert.ok(guard('The centre remains blocked on the e-file.').some(x=>x.includes('e-file')));
+});
+test('46 regression: false both central files closed is flagged',()=>{
+ assert.ok(guard('Both central files are closed for now.').length>0);
+});
+test('47 regression: accurately blocked d-file is accepted',()=>{
+ assert.equal(guard('The d-file is blocked by pawns on d4 and d5.').length,0);
+});
+test('48 regression: pawns on e-file are not a fully open file',()=>{
+ assert.ok(guard('The e-file is open.').some(x=>x.includes('e-file')));
+});
+test('49 regression: not open e-file is allowed',()=>{
+ assert.equal(guard('The e-file is not open.').length,0);
+});
+test('50 regression: bishop on c8 described as blocked is allowed when newly blocked',()=>{
+ assert.equal(guard('The move blocks the bishop on c8.').length,0);
+});
