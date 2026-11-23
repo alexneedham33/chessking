@@ -1,0 +1,10 @@
+# Local API credentials and environment overrides
+.env
+.env.*
+!.env.example
+
+# Common local development artifacts
+node_modules/
+__pycache__/
+*.pyc
+.DS_Store
