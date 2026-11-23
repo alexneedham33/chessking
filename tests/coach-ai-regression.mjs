@@ -49,8 +49,8 @@ const sha=obj=>crypto.createHash('sha256').update(JSON.stringify(obj)).digest('h
 const otherSequences={
  // Reconstructed legal continuations of the recorded scenario. These are
  // reproducible board positions, not claims about the opponent's actual game.
- '14-white-e-pawn-takes-d5':['g8f6','e4d5'],
- '15-black-e-pawn-takes-d5':['g8f6','e4d5','e6d5']
+ '14-white-e-pawn-takes-d5':['b8d7','e4d5'],
+ '15-black-e-pawn-takes-d5':['b8d7','e4d5','e6d5']
 };
 const base=['d2d4','d7d5','g1f3','g8f6','b1c3','e7e6','e2e4','f8b4','a2a3','b4a5','f1d3','a5c3','b2c3'];
 function sequenceFor(item){
