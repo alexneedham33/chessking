@@ -1327,8 +1327,9 @@ function readPlayerSide(){try{const raw=localStorage.getItem(PLAYER_SIDE_KEY);re
 let chosenPlayerSide=readPlayerSide();
 function playerSide(){return chosenPlayerSide===null?openings[selected].side:chosenPlayerSide;}
 function boardFlipped(){return playerSide()===-1;}
+let ghostMoveReference=null;
 let chatMode='learn',chatPerspective='coach',previewReplyEngine=false,previewAnalysis=null,trainingMode='learn',learnOpponent=loadOpponentMode(),challengeStarted=false,challengeFinished=false,challengeScore=null;let selected='queenAccepted',mode='play',h=[original()],selectedSquare=-1,showHint=false,feedback='',promotion=null,logs=[],notes=[],lastSquares=[],pendingReply=null,previewReply=null,replyTimer=null,animatingMove=null,animationTimer=null;const $=id=>document.getElementById(id);
-function clearReplyState(){if(replyTimer){clearTimeout(replyTimer);replyTimer=null}if(animationTimer){clearTimeout(animationTimer);animationTimer=null}pendingReply=null;previewReply=null;previewReplyEngine=false;previewAnalysis=null;animatingMove=null;const ghost=$('moveGhost');if(ghost){ghost.className='move-ghost';ghost.style.display='none';ghost.style.transitionDuration='';ghost.textContent='';}}
+function clearReplyState(){if(replyTimer){clearTimeout(replyTimer);replyTimer=null}if(animationTimer){clearTimeout(animationTimer);animationTimer=null}pendingReply=null;previewReply=null;previewReplyEngine=false;previewAnalysis=null;animatingMove=null;ghostMoveReference=null;const ghost=$('moveGhost');if(ghost){ghost.className='move-ghost';ghost.style.display='none';ghost.style.transitionDuration='';ghost.textContent='';}}
 let variationPanelOpen=false,gameReviewOpen=false,coachAnswerText='';
 function explainCoachQuestion(type){
  const op=openings[selected],last=notes.at(-1),step=routeLine()[current().i];
@@ -1528,7 +1529,7 @@ function startMoveAnimation(m,isOpponent,autoReplyAfterManual=false,manual=false
     if(trainingMode==='challenge'&&!scenario&&(current().t===1&&current().full>Number($('challengeTarget').value)||gameStatus(h).done)){finalizeChallenge();render();return;}
     if(!isOpponent&&mode==='play'&&!gameStatus(h).done&&current().t!==playerSide()&&(
       trainingMode==='challenge'||
-      (trainingMode==='learn'&&learnOpponent==='guided'&&(h.length-1>=guidedOpeningLimit()||playerSide()===-1)))){
+      (trainingMode==='learn'&&learnOpponent==='guided'&&playerSide()===-1&&h.length-1<guidedOpeningLimit()))){
       await prepareOpponentReply();return;
     }
     render();
@@ -1929,7 +1930,31 @@ const board=$('board');board.classList.toggle('flipped',boardFlipped());board.re
  if(i===outsideLinePreview.move[1])b.classList.add('offline-preview-to');
 }else if(!scenario&&i===selectedSquare)b.classList.add('sel');else if(lastSquares.includes(i))b.classList.add('last');
 const movingAway=animatingMove&&i===animatingMove.from;const displayPiece=movingAway?'.':previewBoard?previewBoard.b[i]:s.b[i];const pieceNode=pieceImage(displayPiece);if(pieceNode){if(!scenario&&comparisonView?.bestMove&&i===comparisonView.bestMove[0])pieceNode.classList.add('proposed-piece');b.append(pieceNode);}if(!scenario&&selectedSquare>=0&&moves.some(m=>m[0]===selectedSquare&&m[1]===i)||showHint&&selectedSquare<0&&hint&&hint[1]===i){const dot=document.createElement('span');dot.className=s.b[i]==='.'?'dot':'capture';b.append(dot);}if(!scenario&&showHint&&selectedSquare<0&&hint&&hint[0]===i)b.classList.add('sel');if((i&7)===0){const c=document.createElement('span');c.className='coord';c.textContent=8-(i>>4);b.append(c);}if((i>>4)===7){const c=document.createElement('span');c.className='file';c.textContent=sq(i)[0];b.append(c);}b.onclick=()=>clickSquare(i);board.append(b);}updateCoachSquareHighlight();
-const ghost=$('moveGhost');if(ghost){if(animatingMove){const from=squarePct(animatingMove.from),to=squarePct(animatingMove.to),piece=animatingMove.piece;ghost.style.display='flex';ghost.className='move-ghost active';ghost.style.setProperty('--from-x',from.x);ghost.style.setProperty('--from-y',from.y);ghost.style.setProperty('--to-x',to.x);ghost.style.setProperty('--to-y',to.y);ghost.innerHTML='';const gp=pieceImage(piece);if(gp){gp.alt='';ghost.append(gp);}}else{ghost.className='move-ghost';ghost.style.display='none';ghost.innerHTML='';}}
+const ghost=$('moveGhost');
+if(ghost){
+ if(animatingMove){
+  // AI/engine updates may rerender during a move. Initialise the moving
+  // piece only once; resetting its origin would replay the CSS transition.
+  if(ghostMoveReference!==animatingMove){
+   ghostMoveReference=animatingMove;
+   const from=squarePct(animatingMove.from),to=squarePct(animatingMove.to);
+   ghost.className='move-ghost active';
+   ghost.style.display='flex';
+   ghost.style.setProperty('--from-x',from.x);
+   ghost.style.setProperty('--from-y',from.y);
+   ghost.style.setProperty('--to-x',to.x);
+   ghost.style.setProperty('--to-y',to.y);
+   ghost.replaceChildren();
+   const gp=pieceImage(animatingMove.piece);
+   if(gp){gp.alt='';ghost.append(gp);}
+  }
+ }else{
+  ghostMoveReference=null;
+  ghost.className='move-ghost';
+  ghost.style.display='none';
+  ghost.replaceChildren();
+ }
+}
 $('hint').style.display=scenario?'none':mode==='play'?'':'none';$('next').style.display=scenario?'none':'';$('next').disabled=trainingMode==='challenge'||(learnOpponent==='guided'&&h.length-1<guidedOpeningLimit()&&!(previewReply||suggested()))||ended||!!pendingReply||!!animatingMove;$('hint').disabled=ended||(learnOpponent==='stockfish'? !yourTurn:!hint)||!!pendingReply||!!animatingMove;$('back').disabled=!!pendingReply||!!animatingMove||(!scenario&&h.length===1);$('opponent').style.display='none';
 if(pendingReply||animatingMove?.isOpponent){$('promptLabel').textContent='OPPONENT';$('prompt').textContent='Typical reply incoming';$('explanation').textContent='Watch how the opponent develops their position.';} else if(ended){$('promptLabel').textContent='GAME OVER';$('prompt').textContent=status.text;$('explanation').textContent='Restart to try again.';}else if(s.i===routeLine().length){$('promptLabel').textContent='COMPLETE';$('prompt').textContent='Opening complete!';$('explanation').textContent='You have finished the prepared line. Keep playing or restart.';}else if(s.i<0){$('promptLabel').textContent='FREE PLAY';$('prompt').textContent='Explore the position';$('explanation').textContent='You have departed from the guided opening. Any legal move is still available.';}else{$('promptLabel').textContent=mode==='play'?(yourTurn?'YOUR TURN':'OPPONENT TO MOVE'):'NEXT IN THE LINE';$('prompt').textContent=mode==='play'&&yourTurn&&!showHint?'Find the next move':hint?moveLabel(s,hint):'Opening complete';$('explanation').textContent=mode==='play'&&yourTurn&&!showHint?'Make your move, or reveal a hint.':step?.[1]||'';}
 if(scenario){$('promptLabel').textContent='SCENARIO';$('prompt').textContent=scenario.title;$('explanation').textContent=scenarioIndex===0?scenario.summary:scenario.moves[scenarioIndex-1][1];}// One chronological conversation page. A new page begins when the messages reach the board's bottom.
