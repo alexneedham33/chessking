@@ -2200,6 +2200,31 @@ async function requestUnifiedMoveCoaching(ply){
    // Keep coaching working even when extra Stockfish analysis is unavailable.
    console.warn('Move comparison unavailable:',error);
   }
+  // Engine evidence is always available, but only spotlight significant
+  // changes. A different engine first choice is not itself an error.
+  // Centipawn thresholds are coaching heuristics, not move classifications.
+  const swing=moveAssessment?.evaluationChangeForMoverCentipawns;
+  const loss=moveAssessment?.centipawnLoss;
+  const noteworthyLoss=Number.isFinite(loss)&&loss>=50;
+  const majorLoss=Number.isFinite(loss)&&loss>=120;
+  const majorGain=Number.isFinite(swing)&&swing>=80;
+  const coachingFocus=majorLoss?'turning-point':noteworthyLoss?'meaningful-mistake':majorGain?'meaningful-improvement':'strategic';
+  const coachingGuidance={
+   focus:coachingFocus,
+   significantChange:coachingFocus!=='strategic',
+   explainAlternatives:!!noteworthyLoss,
+   instruction:coachingFocus==='strategic'
+    ?'Describe what this move achieves, the threats or ideas it creates, and the natural plan. Do not critique a reasonable move simply because Stockfish prefers another, and do not cite minor evaluation or positional-balance changes.'
+    :majorLoss
+    ?'This is a major worsening for the mover. Clearly explain the concrete tactical or positional reason, consequences and (if justified by engine evidence) one instructive alternative. Avoid scolding or raw numeric scores.'
+    :noteworthyLoss
+    ?'This move appears to worsen the mover\'s position meaningfully. Explain the concrete reason and mention a better alternative only if it teaches something useful. Avoid numerical nitpicking.'
+    :'The position improved noticeably for the mover. Explain the concrete opportunity or strategic benefit; do not insist on an engine alternative.',
+   evaluationPolicy:'The normalized balance is NOT a win probability. Do not quote exact percentages or centipawns unless explicitly requested. Do not treat the first Stockfish choice as the only good move. If evidence is missing or approximate, avoid confident judgments.'
+  };
+  // Suggested alternatives appear in the coaching assessment only if the
+  // loss is meaningful. Keep the underlying Stockfish line as evidence.
+  if(moveAssessment&&!noteworthyLoss)moveAssessment.suggestedMove=null;
   const recentCoaching=[...coachMoveMessages.entries()]
    .filter(([at,item])=>at<ply&&!item.pending&&item.message).slice(-3).map(([,item])=>item.message);
   const response=await fetch('/api/coach/move',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
@@ -2207,12 +2232,12 @@ async function requestUnifiedMoveCoaching(ply){
    opening:openings[openingAtRequest].name,player:playerSide()===1?'White':'Black',
    played:playedMoveEvidence(before,move),
    // Off-line scripted guidance is a heuristic, not evidence that a self-chosen move is useful.
-   scripted:(note.manual?'Learner-selected legal move. Assess its merits objectively; no positive purpose is presumed.':note.reason)+
-    (moveAssessment?.evaluationChangeForMoverCentipawns!==null&&moveAssessment?.evaluationChangeForMoverCentipawns!==undefined?
-     ' Stockfish comparison: mover evaluation change '+moveAssessment.evaluationChangeForMoverCentipawns+' centipawns; estimated loss '+moveAssessment.centipawnLoss+' centipawns.' : '')+
-    (positionAssessment?.moverChange!==null&&positionAssessment?.moverChange!==undefined?
-     ' Positional balance change for the mover: '+positionAssessment.moverChange+' points (normalized index, NOT win probability).' : '')+
-    (moveAssessment?.suggestedMove?' Stockfish preferred: '+moveAssessment.suggestedMove+'.':''),
+   // Put coaching priorities inside scripted as well for older server
+   // handlers that do not yet read the new structured coachingGuidance.
+   scripted:(note.manual?'Learner-selected legal move. Assess it objectively. ':note.reason+' ')+
+    coachingGuidance.instruction+' '+coachingGuidance.evaluationPolicy+
+    (noteworthyLoss&&moveAssessment?.suggestedMove?' Instructive alternative: '+moveAssessment.suggestedMove+'.':''),
+   coachingGuidance,
    history:logs.slice(Math.max(0,ply-10),ply),recentCoaching,engine,detail:record.detail,moveAssessment,positionAssessment,
    moveOrigin:note.manual?'player':note.engineSelected?'engine':note.inPreparedLine?'prepared':'automatic',
    priorEngine:priorEngine|| (prior?{evaluation:prior.evaluation,depth:prior.depth}:null)
