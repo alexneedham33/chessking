@@ -408,7 +408,10 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 .board-shell{padding-top:18px}
 .board.flipped{transform:rotate(180deg)}
 .board.flipped .square{transform:rotate(180deg)}
-.player-side-control select{min-width:105px;max-width:125px}
+.player-colour-switch{display:flex;align-items:center;padding:3px;background:#141b2a;border:1px solid #354159;border-radius:10px;gap:2px}
+.player-colour-switch button{background:transparent;border:0;border-radius:7px;padding:7px 12px;font-size:12px;font-weight:700;color:#aeb9ca}
+.player-colour-switch button.active{background:#8550dd;color:white}
+.player-colour-switch button:focus-visible{outline:2px solid #c9a4fa;outline-offset:2px}
 @media(max-width:700px){.board-stage{margin-left:10px!important;width:min(calc(100% - 12px),var(--board-fit,720px))!important}}
 </style></head><body>
 <div class="app">
@@ -423,7 +426,7 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
  <label class="toolbar-field"><span>Opening strategy</span><select id="openingSelect"><option value="queenAccepted">Queen's Gambit Accepted</option><option value="queen">Queen's Gambit Declined</option><option value="italian">Italian Game</option><option value="sicilian">Sicilian Defence</option><option value="caro">Caro–Kann Defence</option></select></label>
  <label class="toolbar-field"><span>Variation</span><select id="variationSelect" aria-label="Opening variation"><option value="queenAccepted">Main line</option></select></label>
  
- <label class="toolbar-field player-side-control" for="playAs"><span>Play as</span><select id="playAs" aria-label="Choose playing colour"><option value="1">White</option><option value="-1">Black</option></select></label>
+ <div class="toolbar-field player-side-control"><span>Play as</span><div class="player-colour-switch" role="group" aria-label="Choose playing colour"><button type="button" id="playWhite" aria-pressed="true">White</button><button type="button" id="playBlack" aria-pressed="false">Black</button></div></div>
  <label id="challengeToggleWrap" class="challenge-toggle" style="display:none"><input type="checkbox" id="challengeToggle"> Opening challenge</label>
  <div class="learn-opponent-head"><label for="learnOpponent"><strong>Practice mode</strong></label><select id="learnOpponent" aria-label="Practice mode"><option value="guided">Guided → Stockfish</option><option value="stockfish">Stockfish from start</option></select></div>
  <div class="guided-length-setting"><label for="guidedOpeningLength"><strong>Guided moves</strong></label><select id="guidedOpeningLength" aria-label="Guided opening length"><option value="6">3 moves per side · Short</option><option value="10" selected>5 moves per side · Recommended</option><option value="16">8 moves per side · Deep</option></select><span class="guided-length-note">Only available lengths for this variation are shown. Changing this restarts the opening.</span></div>
@@ -990,7 +993,7 @@ async function simulateWithEngine(){if(simBuilding||pendingReply||animatingMove)
   const analysis=k===0?startEval:await fetchEngine(st);
   if(!analysis.best)break;
   pv.push(analysis.best);
-  const uci=analysis.best;const move=legal(st).find(m=>key(m)===uci);if(!move)break;const name=moveLabel(st,move);moves.push([uci,(st.t===openings[selected].side?'Strong continuation for your side: ':'Strong opponent response: ')+name+'. Watch how Stockfish’s position evaluation changes.']);st=apply(st,move);positions.push(st);}if(!moves.length)throw Error('No legal principal variation returned');scenario={title:'Stockfish: what could happen next',summary:'Stockfish selects a strong move for each player from this position. This is an illustrative continuation, not a forced outcome.',moves,dynamic:true,engine:true};scenarioPositions=positions;scenarioIndex=0;lastSimShown=-1;variationPanelOpen=true;render();}catch(error){engineStatus='unavailable';alert('Stockfish could not analyse this position. Install the engine assets beside the HTML file and serve them from a local web server.');}finally{simBuilding=false;if(b)b.disabled=false;}}
+  const uci=analysis.best;const move=legal(st).find(m=>key(m)===uci);if(!move)break;const name=moveLabel(st,move);moves.push([uci,(st.t===playerSide()?'Strong continuation for your side: ':'Strong opponent response: ')+name+'. Watch how Stockfish’s position evaluation changes.']);st=apply(st,move);positions.push(st);}if(!moves.length)throw Error('No legal principal variation returned');scenario={title:'Stockfish: what could happen next',summary:'Stockfish selects a strong move for each player from this position. This is an illustrative continuation, not a forced outcome.',moves,dynamic:true,engine:true};scenarioPositions=positions;scenarioIndex=0;lastSimShown=-1;variationPanelOpen=true;render();}catch(error){engineStatus='unavailable';alert('Stockfish could not analyse this position. Install the engine assets beside the HTML file and serve them from a local web server.');}finally{simBuilding=false;if(b)b.disabled=false;}}
 
 // Review is a non-destructive snapshot of the game. It never modifies move history.
 let reviewSerial=0,reviewData=null,reviewSelection=0,reviewBusy=false;
@@ -1372,7 +1375,7 @@ async function finalizeChallenge(){
 }
 function renderChallenge(){
  const isPlay=trainingMode==='challenge';
- $('playAs').value=String(playerSide());
+ for(const [id,colour] of [['playWhite',1],['playBlack',-1]]){const button=$(id),active=playerSide()===colour;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));}
  $('playAs').value=String(playerSide());
  const guidedLearn=trainingMode==='learn'&&learnOpponent==='guided';
  $('learnOpponentSettings').style.display=trainingMode==='learn'?'block':'none';
@@ -1718,7 +1721,14 @@ sizeCoachConversation(true);
 $('feedback').textContent=feedback;$('feedback').style.display=feedback?'':'none';$('hintText').textContent=showHint&&hint?'Hint: '+moveLabel(s,hint)+' — '+step[1]:status.claim?'Draw may be claimed: '+status.claim:'';$('hint').textContent=showHint?'Hide hint':'✧ Hint';$('plyCount').textContent=logs.length+' plies';$('history').replaceChildren();if(!logs.length){const e=document.createElement('span');e.style.gridColumn='1/-1';e.textContent='Your moves will appear here.';$('history').append(e);}else logs.forEach(x=>{const e=document.createElement('span');e.textContent=x;$('history').append(e);});$('promotion').style.display=promotion?'grid':'none';$('promoChoices').replaceChildren();if(promotion)promotion.forEach(m=>{const e=document.createElement('button');e.textContent=({q:'♛',r:'♜',b:'♝',n:'♞'})[m[2]];e.onclick=()=>{promotion=null;play(m,true)};$('promoChoices').append(e);});}
 for(const name of Object.keys(openings)){let s=original();for(const [uci]of openings[name].line){selected=name;const m=legal(s).find(m=>key(m)===uci);if(!m)throw Error('Invalid opening '+name+' '+uci);s=apply(s,m);}}selected='queenAccepted';
 for(const k of Object.keys(scenarios)){selected=k;setScenario();}selected='queenAccepted';$('learnOpponent').onchange=()=>{learnOpponent=$('learnOpponent').value==='stockfish'?'stockfish':'guided';try{localStorage.setItem(OPPONENT_MODE_KEY,learnOpponent);}catch{}trainingMode='learn';mode='play';$('opponentDropdown').open=false;reset();};
-$('playAs').onchange=()=>{chosenPlayerSide=Number($('playAs').value)===-1?-1:1;try{localStorage.setItem(PLAYER_SIDE_KEY,String(chosenPlayerSide));}catch{}trainingMode='learn';mode='play';reset();};
+function setPlayingColour(colour){
+ if(playerSide()===colour)return;
+ chosenPlayerSide=colour;
+ try{localStorage.setItem(PLAYER_SIDE_KEY,String(chosenPlayerSide));}catch{}
+ trainingMode='learn';mode='play';reset();
+}
+$('playWhite').onclick=()=>setPlayingColour(1);
+$('playBlack').onclick=()=>setPlayingColour(-1);
 $('reviewMyMove').onclick=compareWithBestMove;
 function updateOpponentDifficulty(value){
  saveOpponentElo(value);
