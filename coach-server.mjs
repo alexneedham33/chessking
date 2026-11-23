@@ -54,6 +54,13 @@ async function explainMove(payload){
  if(typeof scripted!=='string'||scripted.length>900)throw Error('Invalid lesson text');
  const engine=cleanEngineEvidence(payload.engine);
  const prior=payload.priorEngine&&typeof payload.priorEngine==='object'?payload.priorEngine:null;
+ const rawAssessment=payload.moveAssessment;
+ const moveAssessment=rawAssessment&&rawAssessment.manual===true?{
+  manual:true,playedIsEngineChoice:rawAssessment.playedIsEngineChoice===true,
+  centipawnLoss:Number.isFinite(rawAssessment.centipawnLoss)&&rawAssessment.centipawnLoss>=0&&rawAssessment.centipawnLoss<=20000?Math.round(rawAssessment.centipawnLoss):null,
+  approximate:true,
+  suggestedMove:typeof rawAssessment.suggestedMove==='string'?rawAssessment.suggestedMove.slice(0,35):null
+ }:null;
  const context={
   opening:String(opening||'').slice(0,100),student:player==='Black'?'Black':'White',
   beforeFen,afterFen,
@@ -63,6 +70,7 @@ async function explainMove(payload){
   originalExplanation:scripted,
   moveHistory:Array.isArray(history)?history.slice(-10).map(x=>String(x).slice(0,40)):[],
   recentCoaching:Array.isArray(recentCoaching)?recentCoaching.slice(-3).map(x=>String(x).slice(0,500)):[],
+  moveAssessment,
   stockfishAfter:engine,
   stockfishBefore:prior&&Number.isFinite(prior.evaluation)?{evaluation:prior.evaluation,depth:prior.depth}:null
  };
@@ -78,6 +86,10 @@ async function explainMove(payload){
   'FIRST anchor in played.label, played.piece, the beforeFen and afterFen. Name the correct side and the piece that just moved. A Stockfish principal variation starts AFTER the played move; NEVER describe an engine candidate as though it was the played move.',
   'Use the originalExplanation as potentially helpful lesson context, but it may be generic, outdated or wrong; correct it if it conflicts with the board.',
   'Use Stockfish evaluations and continuations only as supporting evidence for concrete consequences. They are calculations, not a statement of intent, and must not be confused with the move that was played.',
+  'Judge the played move impartially BEFORE explaining it. A legal move is not necessarily good, clever, or useful. Never assume a strategic purpose or invent a justification merely because the user moved a piece.',
+  'When moveAssessment.manual is true, this was a move the learner chose, possibly after undoing a guided move. Evaluate its actual consequences instead of praising it. If the move wastes time, worsens safety, loses castling rights, overlooks a threat or is inferior, say so constructively and explain a better alternative when supported by engine data.',
+  'When moveAssessment.centipawnLoss is present, it is a rough shallow-search comparison: a small difference is inconclusive, a substantial difference warrants caution, and a large difference may signal a serious mistake. Do not claim certainty from shallow numerical results. If no reliable comparison is available, do not label the move excellent or bad categorically; explain observable consequences and uncertainty.',
+  'When a move is within the prepared opening line, explain its educational purpose without claiming it is the best move. For any move, assess possible weaknesses as well as benefits; do not automatically describe a quiet king move or unusual detour as improving safety or supporting a plan.',
   'Track the broader opening strategy across the move history, but do not describe the overarching plan on every move. Bring it into the explanation when a new plan emerges, an existing plan changes, a strategic choice or tradeoff becomes important, or a previously introduced idea now pays off. On routine moves that continue an already understood plan, explain only the specific new point or consequence.',
   'Help the learner build transferable chess thinking, rather than memorising move order. Choose the single most useful teaching angle for this move: practical purpose, positional change, opponent response, key threat, strategic shift, or tactical point. Do not force a principle, strategic recap, or formula into every explanation. Remain natural and encouraging without talking down to the learner.',
   'Explain what changed, why it matters strategically, and one appropriate next consideration where relevant. Avoid repetition, unsupported threats or false confidence. Do not claim an advantage is decisive from a small evaluation change.',
