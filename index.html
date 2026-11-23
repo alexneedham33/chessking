@@ -307,7 +307,7 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 .main{align-items:stretch}
 .side{display:flex;flex-direction:column;gap:14px;align-self:stretch;min-height:0;padding-bottom:var(--capture-board-alignment,0px);box-sizing:border-box}
 .side>.engine-panel,.side>.trainer-panel{flex:0 0 auto}
-.board-stage{grid-template-columns:minmax(0,1fr)!important;grid-template-rows:auto auto!important;row-gap:0!important;gap:0!important;width:min(100%,var(--board-fit,720px))!important}
+.board-stage{grid-template-columns:minmax(0,1fr)!important;grid-template-rows:auto auto!important;row-gap:0!important;gap:0!important;width:min(calc(100% - 22px),var(--board-fit,720px))!important;margin-left:18px!important;margin-right:auto!important}
 .board-stage>.board-wrap{grid-column:1!important;grid-row:1!important}
 .board-stage>.board-controls{grid-column:1!important;grid-row:2!important}
 .side>.capture-tray{margin-top:auto;flex:0 0 auto;background:#c9ced6;border:1px solid #9da5b1;border-radius:16px;overflow:hidden;box-shadow:0 12px 28px rgba(0,0,0,.20)}
@@ -404,6 +404,12 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 .compact-toolbar>.guided-length-setting select{max-width:195px}
 .compact-toolbar>.guided-length-setting .guided-length-note{display:none}
 @media(max-width:1050px){.compact-toolbar>.learn-opponent-head,.compact-toolbar>.guided-length-setting{flex:1 1 auto}.compact-toolbar>.learn-opponent-head select,.compact-toolbar>.guided-length-setting select{flex:1;max-width:none}}
+/* A small consistent left gutter, with the board top aligned to its panel. */
+.board-shell{padding-top:18px}
+.board.flipped{transform:rotate(180deg)}
+.board.flipped .square{transform:rotate(180deg)}
+.player-side-control select{min-width:105px;max-width:125px}
+@media(max-width:700px){.board-stage{margin-left:10px!important;width:min(calc(100% - 12px),var(--board-fit,720px))!important}}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -417,6 +423,7 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
  <label class="toolbar-field"><span>Opening strategy</span><select id="openingSelect"><option value="queenAccepted">Queen's Gambit Accepted</option><option value="queen">Queen's Gambit Declined</option><option value="italian">Italian Game</option><option value="sicilian">Sicilian Defence</option><option value="caro">Caro–Kann Defence</option></select></label>
  <label class="toolbar-field"><span>Variation</span><select id="variationSelect" aria-label="Opening variation"><option value="queenAccepted">Main line</option></select></label>
  
+ <label class="toolbar-field player-side-control" for="playAs"><span>Play as</span><select id="playAs" aria-label="Choose playing colour"><option value="1">White</option><option value="-1">Black</option></select></label>
  <label id="challengeToggleWrap" class="challenge-toggle" style="display:none"><input type="checkbox" id="challengeToggle"> Opening challenge</label>
  <div class="learn-opponent-head"><label for="learnOpponent"><strong>Practice mode</strong></label><select id="learnOpponent" aria-label="Practice mode"><option value="guided">Guided → Stockfish</option><option value="stockfish">Stockfish from start</option></select></div>
  <div class="guided-length-setting"><label for="guidedOpeningLength"><strong>Guided moves</strong></label><select id="guidedOpeningLength" aria-label="Guided opening length"><option value="6">3 moves per side · Short</option><option value="10" selected>5 moves per side · Recommended</option><option value="16">8 moves per side · Deep</option></select><span class="guided-length-note">Only available lengths for this variation are shown. Changing this restarts the opening.</span></div>
@@ -432,10 +439,7 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
   <main class="main">
     <section class="left">
       <div class="board-shell">
-        <div class="board-headline">
-          <span id="turn" class="board-title">White to move</span>
-          <span class="muted" id="player">Playing White</span>
-        </div>
+         
 <div class="board-stage">
           <div class="board-wrap">
             <div class="board" id="board" aria-label="Interactive chess board"></div>
