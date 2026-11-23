@@ -59,3 +59,24 @@ The entire app runs locally in your browser once the engine files are downloaded
 ## Engine licence
 
 Stockfish is free software licensed under GPLv3. If redistributing Stockfish engine files, comply with its licensing and source-distribution obligations. See https://github.com/official-stockfish/Stockfish and the licence provided with the npm distribution.
+
+## Deploy the AWS AI coach
+
+The deployed AWS Lambda function is managed separately from the static website.
+Its version-controlled handler is at `lambda-coach/index.mjs`.
+After updating the frontend or prompt contract, copy that file's contents into
+AWS Lambda function `opening-lab-coach` → Code → `index.mjs` and click
+**Deploy**. This manual Lambda deployment is required; Amplify/GitHub only
+deploy the website.
+
+The coach request includes deterministic board occupancy and key-square attack
+facts from `index.html`, plus plain-English legal moves and Stockfish evidence.
+The handler instructs the model to explain moves without algebraic shorthand
+(e.g. "move the queen to d2" rather than "7.Qd2") and avoid unverified
+tactical interpretations. These instructions reduce errors but do not
+mathematically guarantee chess accuracy. Test several known positions,
+especially mistakes and suggestions, after deploying.
+
+The AWS endpoint is currently protected only by throttling, not authentication.
+Do not expose it for unrestricted public use; implement API access protection,
+request validation and spending safeguards first.
