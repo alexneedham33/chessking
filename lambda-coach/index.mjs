@@ -113,9 +113,9 @@ function unsupportedExchangeClaims(message,input){
  const evidence=input.tacticalFacts?.exchangeEvidence;
  if(!evidence)return [];
  const issues=[];
- const freeWin=/\\b(?:won|wins?|winning|gained?|gains?)\\s+(?:back\\s+)?(?:a\\s+|the\\s+)?(?:piece|material|bishop|knight)\\b/i;
- const explicitlyFree=/\\b(?:free|for nothing|without compensation|without losing a piece|for no compensation)\\b/i;
- const claimedGain=freeWin.test(message)&&!/\\b(?:win|won|wins?|winning)\\s+back\\b/i.test(message);
+ const freeWin=/\b(?:won|wins?|winning|gained?|gains?)\s+(?:back\s+)?(?:a\s+|the\s+)?(?:piece|material|bishop|knight)\b/i;
+ const explicitlyFree=/\b(?:free|for nothing|without compensation|without losing a piece|for no compensation)\b/i;
+ const claimedGain=freeWin.test(message)&&!/\b(?:win|won|wins?|winning)\s+back\b/i.test(message);
  const trade=evidence.completedExchange;
  if(trade?.sameSquareRecapture&&trade.equalValuePieces&&claimedGain)
   issues.push('This move completed an equal-value exchange, not a free piece win. Say the piece was recaptured or exchanged and mention actual structural consequences.');
@@ -124,7 +124,7 @@ function unsupportedExchangeClaims(message,input){
    issues.push('The captured piece can immediately be recaptured. Do not claim it was won for free without a verified engine continuation.');
  }
  if(!evidence.captured&&evidence.captureOptions?.some(x=>x.hasLegalRecapture)&&
-   /\\b(?:wins?|winning|won)\\s+(?:a\\s+|the\\s+)?(?:pawn|piece|material)\\b/i.test(message))
+   /\b(?:wins?|winning|won)\s+(?:a\s+|the\s+)?(?:pawn|piece|material)\b/i.test(message))
   issues.push('An available capture of the moved piece can be recaptured. Do not label it a material win without verified engine evidence.');
  return [...new Set(issues)];
 }
