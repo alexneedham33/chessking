@@ -2110,7 +2110,7 @@ function coachEngineEvidence(position,analysis){
   for(const uci of option.pv.slice(0,6)){
    const move=legal(board).find(m=>key(m)===uci);
    if(!move)break;
-   moves.push({uci,label:moveLabel(board,move),piece:board.b[move[0]].toLowerCase(),capture:board.b[move[1]]!=='.'||move[3]==='ep',castle:move[3]==='castle',from:sq(move[0]),to:sq(move[1]),side:board.t===1?'White':'Black'});
+   moves.push({uci,label:moveLabel(board,move),plainEnglish:coachPlainMove(board,move),piece:board.b[move[0]].toLowerCase(),capture:board.b[move[1]]!=='.'||move[3]==='ep',castle:move[3]==='castle',from:sq(move[0]),to:sq(move[1]),side:board.t===1?'White':'Black'});
    board=apply(board,move);
   }
   if(!moves.length)continue;
@@ -2131,11 +2131,51 @@ function coachEngineEvidence(position,analysis){
  };
 }
 
+// Deterministic board facts for the AI. Never infer board occupancy in the prompt.
+const coachPieceNames={p:'pawn',n:'knight',b:'bishop',r:'rook',q:'queen',k:'king'};
+function coachPlainMove(position,move){
+ const [from,to,promotion,flag]=move;
+ const colour=position.t===1?'White':'Black';
+ const piece=coachPieceNames[position.b[from].toLowerCase()]||'piece';
+ if(flag==='castle')return colour+' castles '+(to>from?'kingside':'queenside');
+ const captured=flag==='ep'?'pawn':coachPieceNames[position.b[to].toLowerCase()];
+ const capture=flag==='ep'||position.b[to]!=='.';
+ let text=colour+' moves '+(position.b[from].toLowerCase()==='p'?'a pawn':'the '+piece)+
+  ' from '+sq(from)+' to '+sq(to);
+ if(capture)text+=', capturing '+(captured?'a '+captured:'a piece');
+ if(promotion)text+=', promoting to '+coachPieceNames[promotion];
+ const next=apply(position,move);
+ if(checked(next))text+=legal(next).length?' and giving check':' and giving checkmate';
+ return text;
+}
+function coachBoardFacts(position){
+ const white=[],black=[];
+ for(let square=0;square<128;square++){
+  if(!on(square)||position.b[square]==='.')continue;
+  const piece=position.b[square];
+  const name=coachPieceNames[piece.toLowerCase()]+' on '+sq(square);
+  (side(piece)===1?white:black).push(name);
+ }
+ const watched=['c4','c5','d4','d5','e4','e5','f6','g4'];
+ const squares=Object.fromEntries(watched.map(name=>{
+  const i=index(name),piece=position.b[i];
+  return [name,{
+   occupant:piece==='.'?'empty':(side(piece)===1?'White ':'Black ')+coachPieceNames[piece.toLowerCase()],
+   attackedByWhite:attacked(position,i,1),
+   attackedByBlack:attacked(position,i,-1)
+  }];
+ }));
+ return {sideToMove:position.t===1?'White':'Black',
+  pieces:{White:white,Black:black},
+  keySquares:squares,
+  whiteInCheck:checked(position,1),blackInCheck:checked(position,-1)};
+}
+
 function clearPendingCoaching(){
  for(const [ply,item] of coachMoveMessages)if(item.pending)coachMoveMessages.delete(ply);
 }
 function playedMoveEvidence(position,move){
- return {uci:key(move),label:moveLabel(position,move),side:position.t===1?'White':'Black',
+ return {uci:key(move),label:moveLabel(position,move),plainEnglish:coachPlainMove(position,move),side:position.t===1?'White':'Black',
   piece:position.b[move[0]].toLowerCase(),from:sq(move[0]),to:sq(move[1]),
   capture:position.b[move[1]]!=='.'||move[3]==='ep',castle:move[3]==='castle',
   check:checked(apply(position,move))};
@@ -2182,6 +2222,7 @@ async function requestUnifiedMoveCoaching(ply){
     centipawnLoss:loss,approximate:true,
     depth:Math.min(prior.depth||12,afterEval?.depth||12),
     suggestedMove:bestMove?moveLabel(before,bestMove):null,
+    suggestedMovePlainEnglish:bestMove?coachPlainMove(before,bestMove):null,
     evaluationBefore:beforeCp,evaluationAfter:afterCp,
     evaluationChangeCentipawns:deltaCp,
     evaluationChangeForMoverCentipawns:deltaCp===null?null:before.t*deltaCp,
@@ -2245,7 +2286,7 @@ async function requestUnifiedMoveCoaching(ply){
     ?'Explain the meaningful downside and a useful alternative if relevant.'
     :'Explain why this improvement matters.',
    evaluationPolicy:'The normalized balance is NOT a win probability. Do not quote exact percentages or centipawns unless explicitly requested. Do not treat the first Stockfish choice as the only good move. If evidence is missing or approximate, avoid confident judgments.',
-   languagePolicy:'Sound like a natural, friendly chess coach, not a scripted report. Use clear everyday language, explain any unfamiliar term briefly, and be concise. Focus on what the actual position supports; do not force a particular opening phrase or a lesson where there is little to say.'
+   languagePolicy:'Explain moves in plain English, e.g. "move the queen to d2" rather than "7.Qd2", and "move the rook to g1" rather than "Rg1". Do not use algebraic move notation, move-number prefixes, or unexplained abbreviations in the coaching message. Give one specific lesson from the current position; avoid repeating broad opening principles. Distinguish opponent and learner moves. Do not assert a tactical threat or reason for an alternative unless the supplied legal variation and board facts support it. If uncertain, say so. Use 2-5 natural sentences depending on complexity.'
   };
   // Suggested alternatives appear in the coaching assessment only if the
   // loss is meaningful. Keep the underlying Stockfish line as evidence.
@@ -2264,6 +2305,9 @@ async function requestUnifiedMoveCoaching(ply){
     :note.manual?'Learner-selected move.':note.reason||'Prepared move.',
    coachingGuidance,
    history:logs.slice(Math.max(0,ply-10),ply),recentCoaching,engine,detail:record.detail,moveAssessment,positionAssessment,
+   boardFacts:{before:coachBoardFacts(before),after:coachBoardFacts(after)},
+   // Move descriptions are generated from legal moves, not guessed by the AI.
+   playedPlainEnglish:coachPlainMove(before,move),
    moveOrigin:note.manual?'player':note.engineSelected?'engine':note.inPreparedLine?'prepared':'automatic',
    priorEngine:priorEngine|| (prior?{evaluation:prior.evaluation,depth:prior.depth}:null)
   })});
