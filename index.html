@@ -2198,8 +2198,8 @@ function coachOpeningContext(ply){
   const known=opening.line||[];
   let count=0;
   while(count<played.length&&count<known.length&&played[count]===known[count]?.[0])count++;
-  if(count>=4&&count===Math.min(played.length,known.length))
-   matches.push({id,count,name:opening.name});
+  if(count>=4)
+   matches.push({id,count,name:opening.name,stillOnKnownLine:count===Math.min(played.length,known.length)});
  }
  matches.sort((a,b)=>b.count-a.count);
  const strongest=matches[0];
@@ -2215,8 +2215,9 @@ function coachOpeningContext(ply){
   variation:strongest.id!==openingParent(strongest.id)?opening.name:'Main line',
   description:opening.desc,plan:opening.tip,
   matchedMoveCount:strongest.count,
-  confidence:'exact move-order match to built-in opening line',
-  guidance:'This is an opening identification, not proof of the player\'s intent or a commitment to a strategy. Base present plans on the actual board.'
+  stillOnKnownLine:strongest.stillOnKnownLine,
+  confidence:'exact historical move-order match to built-in opening line',
+  guidance:'This is a recognised opening history, not proof of the player\'s intent or a commitment to a strategy. If stillOnKnownLine is false, the game has departed from the recognised variation; treat its plan as background only and base advice on the current board.'
  };
 }
 function coachExplanationLevel(){
