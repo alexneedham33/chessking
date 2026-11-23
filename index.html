@@ -2148,21 +2148,57 @@ async function requestUnifiedMoveCoaching(ply){
   let engine=null;
   try{engine=coachEngineEvidence(after,await fetchEngine(after,12));}catch{}
   if(nonce!==strategicAiNonce||h[ply]!==after||coachMoveMessages.get(ply)!==record||selected!==openingAtRequest)return;
-  const prior=evalCache.get('16:'+fenOf(before))||evalCache.get('12:'+fenOf(before));
-  let moveAssessment=null;
-  if(note.manual){
-   try{
-    const best=await fetchEngine(before,12);
+  // Evaluate both sides of EVERY coached move on the same depth, not only
+  // manually selected moves. Engine scores are White-relative pawn units.
+  // The balance bar is a normalized positional index, NOT a win probability.
+  let prior=null,baseline=null,moveAssessment=null,positionAssessment=null,priorEngine=null;
+  try{
+   prior=await fetchEngine(before,12);
+   if(nonce!==strategicAiNonce||h[ply]!==after||coachMoveMessages.get(ply)!==record||selected!==openingAtRequest)return;
+   priorEngine=coachEngineEvidence(before,prior);
+   const afterEval=evalCache.get('12:'+fenOf(after));
+   const beforeCp=Number.isFinite(prior.evaluation)?prior.evaluation:null;
+   const afterCp=Number.isFinite(afterEval?.evaluation)?afterEval.evaluation:null;
+   const bestMove=prior.best?legal(before).find(candidate=>key(candidate)===prior.best):null;
+   const bestUci=bestMove?key(bestMove):null;
+   const same=bestUci===note.uci;
+   // A negative swing in the mover's favour is a loss, whichever colour moved.
+   const deltaCp=beforeCp!==null&&afterCp!==null?Math.round((afterCp-beforeCp)*100):null;
+   const loss=deltaCp===null?null:Math.max(0,-before.t*deltaCp);
+   moveAssessment={
+    manual:!!note.manual,playedIsEngineChoice:!!same,
+    centipawnLoss:loss,approximate:true,
+    depth:Math.min(prior.depth||12,afterEval?.depth||12),
+    suggestedMove:bestMove?moveLabel(before,bestMove):null,
+    evaluationBefore:beforeCp,evaluationAfter:afterCp,
+    evaluationChangeCentipawns:deltaCp,
+    evaluationChangeForMoverCentipawns:deltaCp===null?null:before.t*deltaCp,
+    // Stockfish continuation BEFORE the choice: what it was expecting.
+    expectedContinuation:priorEngine?.variations?.[0]?.moves||[]
+   };
+   // The top gauge normalizes against the initial position. Share its scale
+   // and delta so the Coach can explain the same shift users actually see.
+   const initial=original();
+   baseline=evalCache.get('12:'+fenOf(initial))||evalCache.get('16:'+fenOf(initial));
+   if(!baseline){
+    baseline=await fetchEngine(initial,12);
     if(nonce!==strategicAiNonce||h[ply]!==after||coachMoveMessages.get(ply)!==record||selected!==openingAtRequest)return;
-    const bestMove=legal(before).find(candidate=>key(candidate)===best.best);
-    const same=bestMove&&key(bestMove)===note.uci;
-    const loss=Number.isFinite(best.evaluation)&&Number.isFinite(engine?.evaluation)?
-     Math.max(0,before.t*(best.evaluation-engine.evaluation)):null;
-    moveAssessment={manual:true,playedIsEngineChoice:!!same,
-     centipawnLoss:loss===null?null:Math.round(loss*100),
-     approximate:true,depth:Math.min(best.depth,engine?.depth||best.depth),
-     suggestedMove:bestMove?moveLabel(before,bestMove):null};
-   }catch{moveAssessment={manual:true,playedIsEngineChoice:false,centipawnLoss:null,approximate:true,suggestedMove:null};}
+   }
+   const baselineValue=engineAdvantage(baseline);
+   const beforeBalance=normalizedBalance(engineAdvantage(prior),baselineValue);
+   const afterBalance=normalizedBalance(engineAdvantage(afterEval),baselineValue);
+   positionAssessment={
+    perspective:'White',scale:'normalized positional strength relative to starting position, not win probability',
+    whiteBefore:beforeBalance===null?null:Number(beforeBalance.toFixed(1)),
+    whiteAfter:afterBalance===null?null:Number(afterBalance.toFixed(1)),
+    whiteChange:beforeBalance===null||afterBalance===null?null:Number((afterBalance-beforeBalance).toFixed(1)),
+    mover:before.t===1?'White':'Black',
+    moverChange:beforeBalance===null||afterBalance===null?null:Number(((afterBalance-beforeBalance)*before.t).toFixed(1)),
+    stockfishDepth:Math.min(prior.depth||12,afterEval?.depth||12)
+   };
+  }catch(error){
+   // Keep coaching working even when extra Stockfish analysis is unavailable.
+   console.warn('Move comparison unavailable:',error);
   }
   const recentCoaching=[...coachMoveMessages.entries()]
    .filter(([at,item])=>at<ply&&!item.pending&&item.message).slice(-3).map(([,item])=>item.message);
@@ -2171,10 +2207,15 @@ async function requestUnifiedMoveCoaching(ply){
    opening:openings[openingAtRequest].name,player:playerSide()===1?'White':'Black',
    played:playedMoveEvidence(before,move),
    // Off-line scripted guidance is a heuristic, not evidence that a self-chosen move is useful.
-   scripted:note.manual?'Learner-selected legal move. Assess its merits objectively; no positive purpose is presumed.':note.reason,
-   history:logs.slice(Math.max(0,ply-10),ply),recentCoaching,engine,detail:record.detail,moveAssessment,
+   scripted:(note.manual?'Learner-selected legal move. Assess its merits objectively; no positive purpose is presumed.':note.reason)+
+    (moveAssessment?.evaluationChangeForMoverCentipawns!==null&&moveAssessment?.evaluationChangeForMoverCentipawns!==undefined?
+     ' Stockfish comparison: mover evaluation change '+moveAssessment.evaluationChangeForMoverCentipawns+' centipawns; estimated loss '+moveAssessment.centipawnLoss+' centipawns.' : '')+
+    (positionAssessment?.moverChange!==null&&positionAssessment?.moverChange!==undefined?
+     ' Positional balance change for the mover: '+positionAssessment.moverChange+' points (normalized index, NOT win probability).' : '')+
+    (moveAssessment?.suggestedMove?' Stockfish preferred: '+moveAssessment.suggestedMove+'.':''),
+   history:logs.slice(Math.max(0,ply-10),ply),recentCoaching,engine,detail:record.detail,moveAssessment,positionAssessment,
    moveOrigin:note.manual?'player':note.engineSelected?'engine':note.inPreparedLine?'prepared':'automatic',
-   priorEngine:prior?{evaluation:prior.evaluation,depth:prior.depth}:null
+   priorEngine:priorEngine|| (prior?{evaluation:prior.evaluation,depth:prior.depth}:null)
   })});
   if(!response.ok){const details=await response.json().catch(()=>({}));const error=new Error(details.error||'AI request failed');error.httpStatus=response.status;throw error;}
   const result=await response.json();
