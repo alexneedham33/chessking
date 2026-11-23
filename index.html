@@ -1277,7 +1277,7 @@ function startMoveAnimation(m,isOpponent,autoReplyAfterManual=false,manual=false
     // A manually chosen move needs a baseline for a fair assessment.
     if(manual)fetchEngine(current(),12).catch(()=>{});
   }
-  const engineSelected=!!(isOpponent&&previewReplyEngine),engineAnalysis=engineSelected?previewAnalysis:null;previewReplyEngine=false;previewAnalysis=null;
+  const engineSelected=!!previewReplyEngine,engineAnalysis=engineSelected?previewAnalysis:null;previewReplyEngine=false;previewAnalysis=null;
   animatingMove={move:m,piece,from:m[0],to:m[1],isOpponent};
   selectedSquare=-1;showHint=false;
   render();
@@ -1763,8 +1763,8 @@ $('variationSelect').onchange=()=>{selected=$('variationSelect').value;reset();}
   const move=result.best?legal(position).find(m=>key(m)===result.best):null;
   pendingReply=null;
   if(move){
-   previewReplyEngine=opponentTurn;
-   previewAnalysis=opponentTurn?result:null;
+   previewReplyEngine=true;
+   previewAnalysis=result;
    startMoveAnimation(move,opponentTurn);
    return;
   }
