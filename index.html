@@ -2171,6 +2171,69 @@ function coachBoardFacts(position){
   whiteInCheck:checked(position,1),blackInCheck:checked(position,-1)};
 }
 
+// Opening context is evidence, not a rule that the learner must follow.
+function coachOpeningContext(ply){
+ const played=notes.slice(0,ply).map(item=>item?.uci).filter(Boolean);
+ const inGuided=trainingMode==='learn'&&learnOpponent==='guided';
+ if(inGuided){
+  const opening=openings[selected],prepared=routeLine(),limit=guidedOpeningLimit();
+  let matching=0;
+  while(matching<played.length&&matching<prepared.length&&played[matching]===prepared[matching]?.[0])matching++;
+  const onPreparedLine=matching===Math.min(played.length,limit);
+  return {
+   source:'selected-guided',name:opening.name,
+   family:openings[openingParent(selected)]?.name||opening.name,
+   variation:selected!==openingParent(selected)?opening.name:'Main line',
+   description:opening.desc,plan:opening.tip,
+   preparedMoveCount:limit,completedMoves:Math.min(ply,limit),
+   phase:ply<=limit?'guided-opening':'free-play-after-guided-opening',
+   stillOnPreparedLine:onPreparedLine,
+   guidance:'Treat the selected opening as the original training plan. After the prepared moves, or if the position changes, reassess the real board and do not insist on continuing the plan.'
+  };
+ }
+ // Quick Play recognition uses only actual recorded legal moves. Do not
+ // infer an opening from the selection dropdown or a single ambiguous move.
+ const matches=[];
+ for(const [id,opening] of Object.entries(openings)){
+  const known=opening.line||[];
+  let count=0;
+  while(count<played.length&&count<known.length&&played[count]===known[count]?.[0])count++;
+  if(count>=4&&count===Math.min(played.length,known.length))
+   matches.push({id,count,name:opening.name});
+ }
+ matches.sort((a,b)=>b.count-a.count);
+ const strongest=matches[0];
+ const tied=matches.filter(item=>item.count===strongest?.count);
+ if(!strongest||tied.length!==1)return {
+  source:'unrecognised',name:null,plan:null,
+  guidance:'No opening has been identified confidently. Explain the position without assigning an opening label.'
+ };
+ const opening=openings[strongest.id];
+ return {
+  source:'detected-from-moves',name:opening.name,
+  family:openings[openingParent(strongest.id)]?.name||opening.name,
+  variation:strongest.id!==openingParent(strongest.id)?opening.name:'Main line',
+  description:opening.desc,plan:opening.tip,
+  matchedMoveCount:strongest.count,
+  confidence:'exact move-order match to built-in opening line',
+  guidance:'This is an opening identification, not proof of the player\'s intent or a commitment to a strategy. Base present plans on the actual board.'
+ };
+}
+function coachExplanationLevel(){
+ const opponentRating=opponentElo();
+ return {
+  opponentElo:opponentRating,
+  note:'This ELO controls Stockfish opponent difficulty; it is not a verified player rating.',
+  explanationStyle:opponentRating<1200?'beginner':opponentRating<1900?'intermediate':'advanced',
+  guidance:opponentRating<1200
+   ?'Use everyday language, define chess ideas briefly, and focus on immediate threats and plans.'
+   :opponentRating<1900
+   ?'Explain concrete plans and tactical reasons using accessible language without unexplained jargon.'
+   :'Explain subtle positional trade-offs and engine-supported continuations, still using plain-English move names.',
+  preserveAnalysis:'Always use full-strength Stockfish evidence regardless of opponent difficulty.'
+ };
+}
+
 function clearPendingCoaching(){
  for(const [ply,item] of coachMoveMessages)if(item.pending)coachMoveMessages.delete(ply);
 }
@@ -2306,6 +2369,8 @@ async function requestUnifiedMoveCoaching(ply){
    coachingGuidance,
    history:logs.slice(Math.max(0,ply-10),ply),recentCoaching,engine,detail:record.detail,moveAssessment,positionAssessment,
    boardFacts:{before:coachBoardFacts(before),after:coachBoardFacts(after)},
+   openingContext:coachOpeningContext(ply),
+   coachingLevel:coachExplanationLevel(),
    // Move descriptions are generated from legal moves, not guessed by the AI.
    playedPlainEnglish:coachPlainMove(before,move),
    moveOrigin:note.manual?'player':note.engineSelected?'engine':note.inPreparedLine?'prepared':'automatic',
