@@ -1127,7 +1127,7 @@ function renderCoachTools(){
  varRoot.style.display=variationPanelOpen?'block':'none';
  reviewHost.style.display=gameReviewOpen?'block':'none';
  simHost.style.display=scenario?'block':'none';
- const playMode=trainingMode==='challenge'||learnOpponent==='adaptive';
+ const playMode=trainingMode==='challenge'||learnOpponent==='stockfish';
  $('moveReviewToolbar').style.display=playMode&&h.length>1?'flex':'none';
 $('coachAnswer').textContent=coachAnswerText;
  $('coachAnswer').style.display=coachAnswerText?'block':'none';
@@ -1762,7 +1762,7 @@ $('variationSelect').onchange=()=>{selected=$('variationSelect').value;reset();}
 };$('scenarioExit').onclick=()=>{clearReplyState();leaveScenario()};$('hint').onclick=()=>{if(outsideLinePreview){clearOutsideLinePreview();showHint=true;}else showHint=!showHint;render()};async function advanceLearnStockfishMove(){
  if(pendingReply||animatingMove||gameStatus(h).done)return;
  const position=current(),opponentTurn=position.t!==openings[selected].side;
- if(opponentTurn){
+ if(opponentTurn&&learnOpponent==='guided'){
   const scripted=scriptedStockfishOpeningReply(position);
   if(scripted){previewReplyEngine=false;previewAnalysis=null;startMoveAnimation(scripted,true);return;}
  }
