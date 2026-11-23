@@ -89,19 +89,17 @@ async function explainMove(payload){
   'Prioritise one clear lesson over exhaustive coverage. Do not stack several restatements of the same benefit (for example, developing a knight, increasing activity, and reinforcing the centre) if one explanation conveys it. No filler or generic closing sentence. Use the actual resulting position to stay accurate.',
   'Prefer plain-language ideas such as the centre, kingside, pawn support, piece development and king safety. Avoid square coordinates unless knowing a particular square is essential to the lesson. Normally mention zero or one coordinate; never more than two distinct coordinates in a routine explanation. Avoid listing routes like c2 to c4, which the board already shows. When a coordinate is necessary, weave it naturally into the explanation.',
   'If the provided evidence cannot justify a tactical claim, omit it. Keep plain, encouraging language rather than generic stock phrases. Do not invent an unseen move.',
-  'Look ahead at the provided Stockfish variations AFTER the played move, considering only the first few plies. Identify a genuinely important upcoming capture/exchange, forcing check, credible threat to either king, tactical trap or strategic decision. For an exchange, explain whether it is worthwhile and why, based on material, activity, king safety or pawn structure as supported.',
-  'The secondary observation is OPTIONAL. Include one only when a concrete, non-obvious and useful possibility is supported by the resulting position AND engine continuation. Do not surface routine development or invent threats. If Stockfish evidence is absent, return null.',
-  'Describe potential lines conditionally, not as guaranteed opponent moves. Distinguish an available capture or check from a forcing threat; never treat a principal variation as compulsory. Identify whose opportunity or risk it is.',
-  'Keep the main explanation focused on the played move and avoid repeating the optional observation. When warranted, the secondary note is normally 20-35 words, expanding only for a consequential trade or danger requiring a clear why. It must add genuinely new insight, not rephrase the main text. Prefer a shorter complete message over two long paragraphs.',
-  'Output JSON with a message (required string) and lookout (string or null). Use lookout:null for most ordinary moves. No headings, markdown, numbered lists or other fields.'
+  'Use Stockfish continuations for selective look-ahead. Only when a concrete, important trade, forcing check, credible threat or tactical opportunity is useful, mention it briefly WITHIN the main explanation. Explain whether an exchange is worthwhile and why when evidence supports it. Do not create a separate secondary observation.',
+  'Never claim an engine continuation is guaranteed. Keep possible replies conditional and do not repeat strategic ideas in multiple sentences. If nothing important lies ahead, just teach the present move.',
+  'Output JSON containing only one message string. No headings, markdown, extra fields or numbered lists.'
  ].join(' ');
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),25000);
  try{
   const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',signal:controller.signal,headers:{
    'Authorization':'Bearer '+process.env.OPENAI_API_KEY,'Content-Type':'application/json'
-  },body:JSON.stringify({model,store:false,instructions,input:JSON.stringify(context),max_output_tokens:500,
+  },body:JSON.stringify({model,store:false,instructions,input:JSON.stringify(context),max_output_tokens:300,
    text:{format:{type:'json_schema',name:'chess_move_explanation',strict:true,
-    schema:{type:'object',additionalProperties:false,properties:{message:{type:'string'},lookout:{type:['string','null']}},required:['message','lookout']}}}
+    schema:{type:'object',additionalProperties:false,properties:{message:{type:'string'}},required:['message']}}}
   })});
   if(!response.ok){
    const errorBody=(await response.text()).slice(0,1200);
@@ -112,8 +110,7 @@ async function explainMove(payload){
    .filter(x=>x.type==='output_text').map(x=>x.text).join('');
   const result=JSON.parse(raw);
   if(typeof result.message!=='string'||result.message.trim().length<15||result.message.length>900)throw Error('Invalid coach message');
-  if(result.lookout!==null&&result.lookout!==undefined&&(typeof result.lookout!=='string'||result.lookout.length>500))result.lookout=null;
-  return {message:result.message.trim(),lookout:engine&&typeof result.lookout==='string'&&result.lookout.trim().length>=15?result.lookout.trim():null,engineGrounded:!!engine};
+  return {message:result.message.trim(),engineGrounded:!!engine};
  }finally{clearTimeout(timer);}
 }
 
@@ -140,7 +137,7 @@ const server=http.createServer(async(req,res)=>{
       upstreamStatus===429?'AI provider rate limit — retry shortly':
       upstreamStatus===401||upstreamStatus===403?'AI key or provider access issue':
       upstreamStatus>=500?'AI provider temporarily unavailable':
-      err instanceof SyntaxError||/Invalid coach (message|lookout)/.test(err.message)?'AI returned an incomplete explanation — retry':
+      err instanceof SyntaxError||/Invalid coach message/.test(err.message)?'AI returned an incomplete explanation — retry':
       'AI request failed — retry';
     json(res,status,{error:message});
    }
