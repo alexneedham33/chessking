@@ -638,6 +638,14 @@ html:fullscreen .side>.capture-tray-frame{padding:14px}
  .capture-piece-tile{width:34px;height:38px}
  .capture-piece-tile .capture-piece{width:28px;height:32px}
 }
+/* One uncomplicated coach heading, with warm, easy-on-the-eye learning cards. */
+:root{--coach-light-surface:#e9e7e3}
+.trainer-panel .why-content>.why-entry.white-side,
+.trainer-panel .why-content>.why-entry.black-side{background:var(--coach-light-surface)!important}
+.side>.capture-tray-frame>.capture-tray{background:var(--coach-light-surface)!important;border-color:#d0cdc8}
+.capture-tray-side+.capture-tray-side{border-left-color:#cfcbc6}
+.trainer-panel .panel-header{margin-bottom:12px}
+.coach-internal-status{display:none!important}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -695,7 +703,7 @@ html:fullscreen .side>.capture-tray-frame{padding:14px}
           <button class="detail-tab" data-detail-tab="simulator">Simulator</button><button class="detail-tab" data-detail-tab="review">Review</button>
         </div>
         <div class="detail-tab-content active" id="chatTabPane">
-          <div class="panel-header"><div class="learn-kicker">📖 <span>Opening coach</span></div><div class="coach-header-right"><span class="learn-meta" id="openingName">Queen's Gambit Accepted</span><div class="coach-inline-settings" id="strategicInsights" hidden><label class="coach-inline-toggle" title="Use the optional AI coach when available"><input type="checkbox" id="strategicAiToggle"> AI</label><label class="coach-detail-label" for="coachDetailSelect">Detail <select id="coachDetailSelect" class="coach-detail-select" title="Explanation length for upcoming AI coaching"><option value="brief">Brief</option><option value="standard">Standard</option><option value="detailed">Detailed</option></select></label><span id="aiCoachStatus" class="coach-ai-status" role="status" aria-live="polite" hidden></span><button type="button" class="coach-ai-retry" id="aiCoachRetry" hidden title="Retry the current move's AI explanation">Retry</button></div></div></div><div class="chat-mode-switch" role="group" aria-label="Chat explanation style" style="display:none"><button class="chat-mode-btn active" data-chat-mode="quick" aria-pressed="true">Quick</button><button class="chat-mode-btn" data-chat-mode="learn" aria-pressed="false">Learn</button></div>
+          <div class="panel-header"><div class="learn-kicker">📖 <span>Opening coach</span></div></div><div id="strategicInsights" class="coach-internal-status" aria-hidden="true" hidden><span id="aiCoachStatus" role="status" hidden></span><button type="button" id="aiCoachRetry" hidden>Retry</button></div><span id="openingName" hidden></span><div class="chat-mode-switch" role="group" aria-label="Chat explanation style" style="display:none"><button class="chat-mode-btn active" data-chat-mode="quick" aria-pressed="true">Quick</button><button class="chat-mode-btn" data-chat-mode="learn" aria-pressed="false">Learn</button></div>
           <div class="commentary-switch" role="group" aria-label="Chat perspective" style="display:none"><button class="commentary-btn active" data-perspective="coach">Opening coach</button><button class="commentary-btn" data-perspective="engine">Engine commentary</button></div><p class="engine-disclaimer" id="engineDisclaimer" style="display:none">Interpretations of engine moves, not Stockfish's actual thoughts.</p>
 <div class="move-review-toolbar" id="moveReviewToolbar"><div><strong>Understand your move</strong><span>Full-strength Stockfish checks meaningful differences</span></div><button class="btn" id="reviewMyMove">Review move</button></div>
 <div class="chat-zone" id="chatZone">
@@ -1780,12 +1788,12 @@ function renderCapturedPieces(){
 
 
 // Each move has one explanation. AI asynchronously replaces the scripted text.
-let strategicAiEnabled=false,strategicAiBusy=false,strategicAiFailed=false,strategicAiNonce=0,strategicAiStatus='',strategicAiError='';
-let coachDetail='standard';
+let strategicAiEnabled=true,strategicAiBusy=false,strategicAiFailed=false,strategicAiNonce=0,strategicAiStatus='',strategicAiError='';
+const coachDetail='adaptive';
 const aiRequestedPly=new Set(),coachMoveMessages=new Map();
 const AI_COACH_MIN_PLY=1,AI_COACH_INTERVAL=1,AI_COACH_GAME_LIMIT=24;
 let coachSeenPositionCount=1;
-try{strategicAiEnabled=localStorage.getItem('openingLab.aiInsights')==='on';const saved=localStorage.getItem('openingLab.coachDetail');if(['brief','standard','detailed'].includes(saved))coachDetail=saved;}catch{}
+// AI coaching is built in: no toggle or user-facing length setting.
 function coachEngineEvidence(position,analysis){
  if(!analysis||!Number.isFinite(analysis.depth)||analysis.depth<1)return null;
  const variations=[];
@@ -1891,9 +1899,8 @@ async function requestUnifiedMoveCoaching(ply){
  }
 }
 function refreshUnifiedMoveCoaching(){
- const root=$('strategicInsights'),toggle=$('strategicAiToggle'),status=$('aiCoachStatus');
+ const status=$('aiCoachStatus');
  const visible=trainingMode==='learn'&&!scenario;
- root.hidden=!visible;toggle.checked=strategicAiEnabled;$('coachDetailSelect').value=coachDetail;$('coachDetailSelect').disabled=!strategicAiEnabled;
  if(coachSeenPositionCount>h.length){
   strategicAiNonce++;strategicAiBusy=false;
   for(const ply of coachMoveMessages.keys())if(ply>=h.length)coachMoveMessages.delete(ply);
@@ -2071,20 +2078,6 @@ $('aiCoachRetry').onclick=()=>{
  if(!notes[ply-1]?.uci)return;
  aiRequestedPly.delete(ply);strategicAiFailed=false;strategicAiError='';strategicAiStatus='';
  requestUnifiedMoveCoaching(ply);render();
-};
-$('coachDetailSelect').onchange=()=>{
- const next=$('coachDetailSelect').value;
- if(!['brief','standard','detailed'].includes(next))return;
- coachDetail=next;
- try{localStorage.setItem('openingLab.coachDetail',coachDetail);}catch{}
- // Applies to new requests; preserve already generated explanations.
-};
-$('strategicAiToggle').onchange=()=>{
- strategicAiEnabled=$('strategicAiToggle').checked;
- strategicAiFailed=false;strategicAiStatus='';strategicAiNonce++;strategicAiBusy=false;aiRequestedPly.clear();
- clearPendingCoaching();
- try{localStorage.setItem('openingLab.aiInsights',strategicAiEnabled?'on':'off');}catch{}
- render();
 };
 $('challengeToggle').onchange=()=>{
  trainingMode=$('challengeToggle').checked?'challenge':'learn';
