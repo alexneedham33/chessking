@@ -2229,6 +2229,74 @@ function coachMoveTactics(before,move){
  };
 }
 
+// Position-based strategic facts. Report what actually changed, not a generic
+// judgement that doubled pawns, a pin, or the bishop pair is always good/bad.
+function coachStrategicSnapshot(position){
+ const pawns={},bishops={},pins=[];
+ for(const [name,col] of [['White',1],['Black',-1]]){
+  const files=Array.from({length:8},()=>[]);
+  let bishopCount=0;
+  for(let i=0;i<128;i++)if(on(i)&&side(position.b[i])===col){
+   if(position.b[i].toLowerCase()==='p')files[i&7].push(sq(i));
+   if(position.b[i].toLowerCase()==='b')bishopCount++;
+  }
+  pawns[name]={
+   doubled:files.flatMap((list,file)=>list.length>1?[{file:'abcdefgh'[file],squares:list}]:[]),
+   isolated:files.flatMap((list,file)=>list.length&&!(files[file-1]?.length)&&!(files[file+1]?.length)?list:[])
+  };
+  bishops[name]={count:bishopCount,hasPair:bishopCount>=2};
+  const king=position.b.indexOf(col===1?'K':'k');
+  if(king<0)continue;
+  for(const delta of dirs.k){
+   let first=-1,at=king+delta;
+   while(on(at)){
+    const piece=position.b[at];
+    if(piece!=='.'){
+     if(first<0){
+      if(side(piece)!==col)break;
+      first=at;
+     }else{
+      const sliding=(Math.abs(delta)===1||Math.abs(delta)===16)?'rq':'bq';
+      if(side(piece)===-col&&sliding.includes(piece.toLowerCase()))
+       pins.push({pinnedSide:name,pinnedPiece:coachPieceNames[position.b[first].toLowerCase()],
+        pinnedSquare:sq(first),pinnerPiece:coachPieceNames[piece.toLowerCase()],
+        pinnerSquare:sq(at),kingSquare:sq(king),kind:'absolute'});
+      break;
+     }
+    }
+    at+=delta;
+   }
+  }
+ }
+ return {pawns,bishops,pins};
+}
+function coachStrategicChanges(before,after){
+ const old=coachStrategicSnapshot(before),now=coachStrategicSnapshot(after);
+ const changes=[];
+ const identity=pin=>pin.pinnedSide+':'+pin.pinnedSquare+':'+pin.pinnerSquare;
+ const previousPins=new Set(old.pins.map(identity));
+ const latestPins=new Set(now.pins.map(identity));
+ for(const pin of now.pins)if(!previousPins.has(identity(pin)))changes.push({type:'pin-created',...pin});
+ for(const pin of old.pins)if(!latestPins.has(identity(pin)))changes.push({type:'pin-ended',...pin});
+ for(const colour of ['White','Black']){
+  const beforeDouble=new Set(old.pawns[colour].doubled.map(x=>x.file));
+  const afterDouble=new Set(now.pawns[colour].doubled.map(x=>x.file));
+  for(const x of now.pawns[colour].doubled)if(!beforeDouble.has(x.file))
+   changes.push({type:'doubled-pawns-created',side:colour,...x});
+  for(const x of old.pawns[colour].doubled)if(!afterDouble.has(x.file))
+   changes.push({type:'doubled-pawns-removed',side:colour,...x});
+  const oldIso=new Set(old.pawns[colour].isolated),newIso=new Set(now.pawns[colour].isolated);
+  for(const square of newIso)if(!oldIso.has(square))changes.push({type:'isolated-pawn-created',side:colour,square});
+  for(const square of oldIso)if(!newIso.has(square))changes.push({type:'isolated-pawn-removed',side:colour,square});
+  if(old.bishops[colour].hasPair!==now.bishops[colour].hasPair)
+   changes.push({type:now.bishops[colour].hasPair?'bishop-pair-gained':'bishop-pair-lost',side:colour});
+ }
+ return {
+  before:old,after:now,changes,
+  interpretation:'Pins are king-line absolute pins verified by ray scanning. Doubled/isolated pawns and bishop pairs are objective board features, NOT automatic assessments of good or bad. Explain a feature when it is newly created, removed, or tactically relevant. If a bishop was traded for a knight, describe the piece exchange only using actual captured pieces; retaining two bishops is a positional resource, not proof of an advantage.'
+ };
+}
+
 // Verify an engine-suggested move against the board BEFORE explaining it.
 // A rank-1 suggestion is not proof of a tactical purpose or a forced gain.
 function coachAlternativeEvidence(before,bestMove,playedMove,loss,priorEngine){
@@ -2484,6 +2552,7 @@ async function requestUnifiedMoveCoaching(ply){
    history:logs.slice(Math.max(0,ply-10),ply),recentCoaching,engine,detail:record.detail,moveAssessment,positionAssessment,
    boardFacts:{before:coachBoardFacts(before),after:coachBoardFacts(after)},
    tacticalFacts:coachMoveTactics(before,move),
+   strategicFacts:coachStrategicChanges(before,after),
    alternativeEvidence,
    openingContext:coachOpeningContext(ply),
    coachingLevel:coachExplanationLevel(),
