@@ -541,7 +541,11 @@ html.app-fullscreen .compact-toolbar,html:fullscreen .compact-toolbar{padding-le
  .capture-piece-group .capture-piece{width:30px;height:37px}
  .capture-piece-count{font-size:12px}
 }
-/* Keep every light UI surface on the coach card's shared off-white palette. */
+/* Compact coach explanations: side badge and heading flow directly into prose. */
+.trainer-panel .why-title{margin-bottom:10px!important}
+.trainer-panel .why-copy>p:first-child{margin-top:0}
+.trainer-panel .why-entry.coach-ai-message{min-height:0}
+ /* Keep every light UI surface on the coach card's shared off-white palette. */
 :root{--coach-light-surface:#f5f5f6}
 .trainer-panel .why-content>.why-entry.white-side,
 .trainer-panel .why-content>.why-entry.black-side{background:var(--coach-light-surface)!important}
@@ -1900,7 +1904,7 @@ $('chatWelcome').textContent=chatPerspective==='engine'?'No engine-played moves 
 $('whyContent').replaceChildren();recent.forEach(item=>{const entry=document.createElement('div');
 entry.className='why-entry '+(item.proposed?'proposed-bubble ':'')+(chatPerspective==='engine'?'engine-monologue ':'')+(item.color===1?'white-side':'black-side')+(item.color===speakingColor?' is-active':' is-muted');
 const title=document.createElement('div');title.className='why-title';
- const moveHeading=document.createElement('span');moveHeading.textContent=(item.color===1?'White':'Black')+' · '+item.text;
+ const moveHeading=document.createElement('span');moveHeading.textContent=item.color===1?'White':'Black';
  const sideBadge=document.createElement('span');sideBadge.className='coach-side-badge '+(item.color===1?'coach-white-badge':'coach-black-badge');
  sideBadge.setAttribute('aria-label',item.color===1?'White to play':'Black to play');
  sideBadge.title=item.color===1?'White move':'Black move';
@@ -1908,9 +1912,6 @@ const title=document.createElement('div');title.className='why-title';
  if(badgePiece){badgePiece.className='coach-side-piece';sideBadge.append(badgePiece);}
  title.append(sideBadge,moveHeading);
 const copy=document.createElement('div');copy.className='why-copy';
-const analysisLabel=document.createElement('div');analysisLabel.className='why-analysis-label';
-analysisLabel.textContent=item.engineAnalysis?'Stockfish analysis':'Move explanation';
-copy.append(analysisLabel);
 if(item.proposed){const summary=document.createElement('div');summary.className='proposal-inline-label';summary.textContent=previewReplyEngine?'Stockfish suggestion · not played yet':'Illustrative response · not played yet';copy.append(summary);const why=document.createElement('p');why.textContent=item.reason;copy.append(why);const hint=document.createElement('div');hint.className='proposal-inline-hint';hint.textContent='Highlighted on board · Next move to play';copy.append(hint);}else if(chatPerspective==='engine'){
  const analysis=item.engineAnalysis;
  const thought=document.createElement('p');thought.textContent=item.engineComment;copy.append(thought);
@@ -1933,7 +1934,6 @@ if(item.proposed){const summary=document.createElement('div');summary.className=
   item.__i+1===h.length-1&&item.__i+1>=AI_COACH_MIN_PLY&&aiRequestedPly.size<AI_COACH_GAME_LIMIT;
  if(ai||queuedAi||previewAi)entry.classList.add('coach-ai-message');
  if(ai?.pending||queuedAi||previewAi){
-  analysisLabel.textContent='Preparing explanation';
   const pending=document.createElement('div');pending.className='unified-coach-pending';
   pending.setAttribute('role','status');
   const spinner=document.createElement('span');spinner.className='unified-coach-spinner';spinner.setAttribute('aria-hidden','true');
@@ -1943,10 +1943,6 @@ if(item.proposed){const summary=document.createElement('div');summary.className=
   const explanation=document.createElement('p');
   addCoachSquareReferences(explanation,ai?.message||item.reason);
   copy.append(explanation);
- }
- if(ai?.message){
-  const source=document.createElement('div');source.className='unified-coach-source';
-  source.textContent=ai.engineGrounded?'AI-assisted · Stockfish-grounded':'AI-assisted · position-grounded';copy.append(source);
  }
 }
 entry.append(title,copy);$('whyContent').append(entry);});
