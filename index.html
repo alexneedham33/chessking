@@ -2193,7 +2193,47 @@ function coachPieceAttackSquares(position,from){
  }
  return targets;
 }
-function coachMoveTactics(before,move){
+// The legality of a capture and the material outcome of an exchange are distinct.
+// For a legal capture of the moved piece, check whether the other side can
+// recapture the capturing piece on the very next ply. This is NOT an engine
+// verdict: each sequence is a legal option, not a forced or profitable line.
+function coachExchangeEvidence(before,move,previousBefore=null,previousMove=null){
+ const after=apply(before,move),target=move[1];
+ const pieceNames=coachPieceNames;
+ const value={p:1,n:3,b:3,r:5,q:9,k:0};
+ const capturedSquare=move[3]==='ep'?target+16*before.t:target;
+ const victim=before.b[capturedSquare];
+ const captured=victim==='.'?null:{piece:pieceNames[victim.toLowerCase()],square:sq(capturedSquare),value:value[victim.toLowerCase()]};
+ const captureOptions=legal(after).filter(reply=>reply[1]===target&&(reply[3]==='ep'||after.b[reply[1]]!=='.')).slice(0,6).map(reply=>{
+  const next=apply(after,reply),recaptures=legal(next).filter(again=>
+   again[1]===target&&(again[3]==='ep'||next.b[again[1]]!=='.')
+  ).slice(0,4).map(again=>({move:coachPlainMove(next,again),uci:key(again),
+   withPiece:pieceNames[next.b[again[0]].toLowerCase()]}));
+  return {move:coachPlainMove(after,reply),uci:key(reply),
+   withPiece:pieceNames[after.b[reply[0]].toLowerCase()],
+   capturedPiece:pieceNames[after.b[target].toLowerCase()],
+   recaptures,hasLegalRecapture:recaptures.length>0};
+ });
+ let completedExchange=null;
+ if(captured&&previousBefore&&previousMove&&previousMove[1]===target){
+  const priorVictim=previousMove[3]==='ep'?previousBefore.b[previousMove[1]+16*previousBefore.t]:previousBefore.b[target];
+  const priorAfter=apply(previousBefore,previousMove);
+  if(priorVictim!=='.'&&priorAfter.b[target]===victim&&
+   side(priorVictim)===before.t){
+   const previousValue=value[priorVictim.toLowerCase()];
+   completedExchange={
+    sameSquareRecapture:true,square:sq(target),
+    previousCapture:{piece:pieceNames[priorVictim.toLowerCase()],value:previousValue},
+    currentCapture:captured,
+    equalValuePieces:previousValue===captured.value,
+    interpretation:'Two opposing pieces were captured on the same square in successive moves. If equal-value pieces were exchanged, do not call the recapture a free piece win; explain the exchange.'
+   };
+  }
+ }
+ return {captured,captureOptions,completedExchange,
+  interpretation:'All listed captures and recaptures are individually legal for successive positions, not forced or engine-recommended. A possible capture is not necessarily a profitable material gain. A legal recapture may exchange pieces of different value.'};
+}
+function coachMoveTactics(before,move,previousBefore=null,previousMove=null){
  const after=apply(before,move),mover=before.t,to=move[1],from=move[0];
  const movedPiece=after.b[to],movedType=movedPiece.toLowerCase();
  const attackedSquares=coachPieceAttackSquares(after,to);
@@ -2204,8 +2244,6 @@ function coachMoveTactics(before,move){
   const target={piece:coachPieceNames[piece.toLowerCase()],square:sq(square)};
   (side(piece)===mover?defended:attackedEnemy).push(target);
  }
- // Legal captures are determined separately from geometric attacked squares.
- // There is no guarantee the move is good; Stockfish provides that assessment.
  const opponentReplies=legal(after);
  const captureReplies=opponentReplies.filter(reply=>
    reply[3]==='ep'||after.b[reply[1]]!=='.'
@@ -2215,6 +2253,7 @@ function coachMoveTactics(before,move){
  });
  const checkingReplies=opponentReplies.filter(reply=>checked(apply(after,reply))).slice(0,5).map(reply=>coachPlainMove(after,reply));
  const legalCapturesOfMovedPiece=captureReplies.filter(reply=>reply.capturesMovedPiece).slice(0,4);
+ const exchangeEvidence=coachExchangeEvidence(before,move,previousBefore,previousMove);
  return {
   movedPiece:{colour:mover===1?'White':'Black',type:coachPieceNames[movedType],from:sq(from),to:sq(to)},
   movedPieceAttacks:attackedSquares.map(sq),
@@ -2222,10 +2261,11 @@ function coachMoveTactics(before,move){
   friendlyPiecesDefendedByMovedPiece:defended,
   movedPieceUnderAttack:attacked(after,to,-mover),
   legalImmediateCapturesOfMovedPiece:legalCapturesOfMovedPiece,
+  exchangeEvidence,
   opponentLegalCheckingReplies:checkingReplies,
   inCheckAfterMove:checked(after),
   givesCheck:checked(after,-mover),
-  note:'Attacked squares are geometric, not a claim that every capture is legal or tactically sound. Friendly pieces defended is exact for the moved piece. Legal replies are exact, but not ranked for quality.'
+  note:'Attacked squares are geometric, not a claim that every capture is legal or tactically sound. Exchange evidence identifies legal one-ply responses, potential recaptures, and an immediately preceding same-square exchange when history is available. None proves profit.'
  };
 }
 
@@ -2294,6 +2334,10 @@ function coachTeachingPriorities(before,move,after,strategic,tactics){
   add(78,'direct-attack',tactics.enemyPiecesAttackedByMovedPiece);
  if(tactics.legalImmediateCapturesOfMovedPiece?.length)
   add(76,'moved-piece-capturable',tactics.legalImmediateCapturesOfMovedPiece);
+ if(tactics.exchangeEvidence?.completedExchange)
+  add(94,'completed-exchange',tactics.exchangeEvidence.completedExchange);
+ if(tactics.exchangeEvidence?.captureOptions?.some(x=>x.hasLegalRecapture))
+  add(80,'capture-has-recapture-options',tactics.exchangeEvidence.captureOptions.filter(x=>x.hasLegalRecapture).slice(0,3));
  for(const change of strategic.changes){
   const rating=change.type.startsWith('pin-')?82:
    change.type.startsWith('doubled-')?72:
@@ -2620,7 +2664,11 @@ async function requestUnifiedMoveCoaching(ply){
    ?'A better alternative is supported by legal board evidence and a Stockfish principal variation. Describe a specific reply or recapture ONLY if explicitly present in alternativeEvidence.stockfishContinuation. Do not assume a line is forced or a recapture safe. If the line provides no clear advantage to explain, simply mention the alternative without manufacturing a tactical reason.'
    :'Do not recommend another move, name Stockfish alternatives, or criticize a reasonable move merely because it is not engine rank one.';
   const strategicFacts=coachStrategicChanges(before,after);
-  const tacticalFacts=coachMoveTactics(before,move);
+  const priorNote=ply>=2?notes[ply-2]:null;
+  const previousBefore=ply>=2?h[ply-2]:null;
+  const previousMove=previousBefore&&priorNote?.uci
+   ?legal(previousBefore).find(m=>key(m)===priorNote.uci):null;
+  const tacticalFacts=coachMoveTactics(before,move,previousBefore,previousMove);
   const teachingPriorities=coachTeachingPriorities(before,move,after,strategicFacts,tacticalFacts);
   const recentCoaching=[...coachMoveMessages.entries()]
    .filter(([at,item])=>at<ply&&!item.pending&&item.message).slice(-3).map(([,item])=>item.message);
