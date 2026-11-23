@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - index.html
+      - lambda-coach/index.mjs
       - tests/coach-regression.mjs
       - tests/coach-ai-regression.mjs
       - tests/coach-review-cases.json
@@ -10,6 +11,7 @@ on:
   pull_request:
     paths:
       - index.html
+      - lambda-coach/index.mjs
       - tests/coach-regression.mjs
       - .github/workflows/coach-regression.yml
 jobs:
