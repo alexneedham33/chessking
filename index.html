@@ -895,6 +895,25 @@ html.app-fullscreen .side>.opening-progress-frame,html:fullscreen .side>.opening
     gap:18px;justify-content:start
   }
 }
+/* A slightly stronger, still compact title treatment. The underline is
+   decorative and stays beneath the title, not across the whole toolbar. */
+.top .logo{
+ display:inline-flex;align-items:center;position:relative;
+ gap:8px;padding-bottom:7px;
+ font-size:29px;font-weight:830;line-height:1.12;letter-spacing:-.65px;
+}
+.top .logo-mark{font-size:31px;line-height:1;color:#c49afb;flex:none}
+.top .logo-wordmark{white-space:nowrap}
+.top .logo::after{
+ content:"";position:absolute;left:39px;bottom:0;
+ width:68px;height:3px;border-radius:999px;
+ background:linear-gradient(90deg,#9953ef,#c28cff 76%,rgba(194,140,255,0));
+}
+@media(max-width:700px){
+ .top .logo{font-size:25px;gap:7px;padding-bottom:6px}
+ .top .logo-mark{font-size:27px}
+ .top .logo::after{left:34px;width:58px}
+}
 /* Icon-only optional expanded-view comparison. Move only expanded workspace lower,
    and let fitBoardToViewport reserve its entire action row on short screens. */
 /* Match the expand button's top edge to the visible Opening Lab title,
@@ -908,7 +927,7 @@ html.app-fullscreen .app,html:fullscreen .app{padding-top:60px;padding-bottom:8p
 <div class="app">
   <header class="top">
     <div class="brandblock">
-      <div class="logo">♕ Opening Lab</div>
+      <div class="logo"><span class="logo-mark" aria-hidden="true">♕</span><span class="logo-wordmark">Opening Lab</span></div>
     </div>
     <div class="actions"><button class="btn icon-expand" type="button" id="fullscreen" aria-label="Expand view" title="Expand view" aria-pressed="false">⛶</button></div>
   </header>
