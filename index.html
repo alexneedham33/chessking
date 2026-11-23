@@ -648,11 +648,29 @@ html:fullscreen .side>.capture-tray-frame{padding:14px}
 .coach-internal-status{display:none!important}
 /* Optional cached deeper coaching inside the existing light message card. */
 .trainer-panel .coach-more-actions{margin-top:14px;padding-top:11px;border-top:1px solid #ccc7c0}
-.trainer-panel .coach-more-btn{border:0;background:transparent;color:#6e3cba;font-size:13px;font-weight:750;padding:5px 0;cursor:pointer}
+.trainer-panel .coach-more-btn{border:0;background:transparent;color:#6e3cba;font-size:15px;font-weight:750;padding:5px 0;cursor:pointer}
 .trainer-panel .coach-more-btn:hover{text-decoration:underline;color:#552398}
 .trainer-panel .coach-more-btn:disabled{opacity:.45;cursor:wait;text-decoration:none}
 .trainer-panel .coach-more-btn:focus-visible{outline:2px solid #8750df;outline-offset:3px;border-radius:4px}
 .trainer-panel .coach-extra-detail{font-size:inherit;line-height:inherit;margin-top:10px;color:#33343a}
+/* Separate progress card: unobtrusive during the lesson, celebratory at handoff. */
+.side>.opening-progress-card{
+ flex:0 0 auto;min-width:0;display:block;
+ background:#0a0d15;border:1px solid #22293b;border-radius:20px;
+ padding:15px 17px 12px;box-shadow:0 14px 38px rgba(0,0,0,.19);
+ transition:border-color .25s ease,box-shadow .25s ease;
+}
+.opening-progress-card .opening-progress-heading{margin:0;align-items:center}
+.opening-progress-card .opening-progress-heading .muted{font-size:15px;color:#b0bacc;font-weight:650}
+.opening-progress-card .opening-progress-heading .badge{font-size:14px}
+.opening-progress-card .progress{margin:12px 0 4px}
+.opening-progress-card.is-complete{border-color:#9855e9;box-shadow:0 0 0 1px rgba(171,100,255,.19),0 0 24px rgba(153,78,235,.13)}
+.opening-progress-card.is-complete .opening-progress-heading .muted{color:#e6d5fc;font-size:17px;font-weight:800}
+.opening-progress-card .stockfish-handoff{margin:13px 0 3px;align-items:flex-start;gap:10px;color:#ddd0f4;font-size:15px;line-height:1.45;font-weight:650}
+.opening-progress-card .stockfish-handoff-dot{width:9px;height:9px;margin-top:6px;background:#b579f5}
+.trainer-panel .coach-side-badge{width:39px;height:43px;flex:0 0 39px;border-radius:8px}
+.trainer-panel .coach-side-piece{width:32px;height:36px}
+@media(max-width:650px){.side>.opening-progress-card{padding:13px}.trainer-panel .coach-side-badge{width:34px;height:38px;flex-basis:34px}.trainer-panel .coach-side-piece{width:28px;height:32px}}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -727,7 +745,6 @@ html:fullscreen .side>.capture-tray-frame{padding:14px}
  <p id="openingPreviewReason"></p>
  <div class="opening-preview-actions"><span id="openingPreviewExpected"></span><button type="button" id="openingPreviewDismiss" class="opening-preview-dismiss">Return to position</button></div>
 </div>
-          <div id="openingProgress"><div class="row" style="margin-top:12px"><span class="muted" id="openingProgressTitle">Opening progress</span><span class="badge" id="progressLabel">0 / 11</span></div><div class="progress"><div class="bar" id="progressBar"></div></div><div id="stockfishHandoff" class="stockfish-handoff" role="status" aria-live="polite" hidden><span class="stockfish-handoff-dot" aria-hidden="true"></span><span>Guided line complete · Stockfish now chooses the moves</span></div></div>
           <div class="learn-actions"><button class="btn primary" id="opponent" style="display:none;width:100%">Play opponent's move →</button></div>
           <div style="display:none" aria-hidden="true"><span id="phaseBadge"></span><p id="description"></p><span id="promptLabel"></span><span id="prompt"></span><span id="explanation"></span><span id="hintText"></span><span id="feedback"></span></div>
         </div>
@@ -764,6 +781,17 @@ html:fullscreen .side>.capture-tray-frame{padding:14px}
           </details>
         </div>
         <div style="display:none" aria-hidden="true"><span id="plyCount"></span><div id="history"></div></div>
+      </section>
+      <section id="openingProgress" class="opening-progress-card" aria-label="Opening progress">
+        <div class="row opening-progress-heading">
+          <span class="muted" id="openingProgressTitle">Opening progress</span>
+          <span class="badge" id="progressLabel">0 / 10</span>
+        </div>
+        <div class="progress"><div class="bar" id="progressBar"></div></div>
+        <div id="stockfishHandoff" class="stockfish-handoff" role="status" aria-live="polite" hidden>
+          <span class="stockfish-handoff-dot" aria-hidden="true"></span>
+          <span id="stockfishHandoffText">Opening sequence completed. Stockfish now takes over.</span>
+        </div>
       </section>
       <div class="capture-tray-frame">
        <div class="capture-tray" aria-label="Captured pieces">
@@ -1979,9 +2007,11 @@ const lessonDone=Math.min(lessonLimit,Math.max(0,h.length-1));
 $('progressLabel').textContent=lessonDone+' / '+lessonLimit;const progressPct=100*lessonDone/lessonLimit;$('progressBar').style.width=progressPct+'%';
 const showingGuidedProgress=trainingMode==='learn'&&learnOpponent==='guided';
 $('openingProgress').style.display=showingGuidedProgress?'':'none';
-const atHandoff=showingGuidedProgress&&!scenario&&h.length-1>=lessonLimit&&h.length-1<=lessonLimit+2;
-$('openingProgressTitle').textContent=showingGuidedProgress&&h.length-1>=lessonLimit?'Guided opening complete':'Opening progress';
+const atHandoff=showingGuidedProgress&&!scenario&&h.length-1>=lessonLimit;
+$('openingProgress').classList.toggle('is-complete',atHandoff);
+$('openingProgressTitle').textContent=atHandoff?'Opening sequence completed':'Opening progress';
 $('stockfishHandoff').hidden=!atHandoff;
+if(atHandoff)$('stockfishHandoffText').textContent='Stockfish now takes over at approximately '+opponentElo()+' Elo. Continue one move per click.';
 $('openingLineWarning').style.display=outsideLinePreview?'block':'none';
 if(outsideLinePreview){
  $('openingPreviewHeading').textContent=outsideLinePreview.heading;
