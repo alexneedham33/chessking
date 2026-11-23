@@ -1002,7 +1002,9 @@ function opponentSearchDepth(rating){
 const SCRIPTED_OPENING_PLIES=10;
 // Follow each selected variation through its complete prepared line before
 // transitioning to Stockfish. Branches have their own natural ending.
-function guidedOpeningLimit(){return routeLine().length;}
+// Guided practice defaults to five moves per side (10 half-moves),
+// or the full line for a shorter opening. Stockfish then takes over.
+function guidedOpeningLimit(){return Math.min(10,routeLine().length);}
 function isLockedOpeningPhase(){
  return trainingMode==='learn'&&!scenario&&learnOpponent==='guided'&&
         h.length-1<guidedOpeningLimit();
