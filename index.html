@@ -1259,7 +1259,7 @@ function clearOutsideLinePreview(){
 function rejectOutsideOpeningLine(move){
  const position=current(),expected=suggested();
  outsideLinePreview={move,heading:'Guided move: '+(expected?moveLabel(position,expected):'follow the prepared variation'),reason:'',expected:''};
- outsideLineWarning='Preview only — the move has not been played.';
+ outsideLineWarning='Guided opening: play the highlighted move to continue.';
  selectedSquare=-1;promotion=null;showHint=false;render();
 }
 function scriptedStockfishOpeningReply(position){
@@ -1763,7 +1763,7 @@ function startMoveAnimation(m,isOpponent,autoReplyAfterManual=false,manual=false
     if(trainingMode==='challenge'&&!scenario&&(current().t===1&&current().full>Number($('challengeTarget').value)||gameStatus(h).done)){finalizeChallenge();render();return;}
     if(!isOpponent&&mode==='play'&&!gameStatus(h).done&&current().t!==playerSide()&&(
       trainingMode==='challenge'||
-      (trainingMode==='learn'&&(learnOpponent==='stockfish'||learnOpponent==='guided'&&(h.length-1>=guidedOpeningLimit()||playerSide()===-1))))){
+      (trainingMode==='learn'&&(learnOpponent==='stockfish'||learnOpponent==='guided'&&h.length-1>=guidedOpeningLimit())))){
       await prepareOpponentReply();return;
     }
     render();
@@ -2145,7 +2145,7 @@ $('enginePanel').style.display=showOpeningProgress?'none':'';
 $('openingProgressInner').classList.toggle('is-complete',atHandoff);
 $('openingProgressTitle').textContent=atHandoff?'Opening sequence completed':'Opening progress';
 $('stockfishHandoff').hidden=!atHandoff;
-if(atHandoff)$('stockfishHandoffText').textContent='Stockfish takes over · '+opponentElo()+' Elo · One move per click';
+if(atHandoff)$('stockfishHandoffText').textContent='Stockfish takes over · '+opponentElo()+' Elo · Play on the board';
 $('openingLineWarning').style.display=outsideLinePreview?'block':'none';
 if(outsideLinePreview){
  $('openingPreviewHeading').textContent=outsideLinePreview.heading;
