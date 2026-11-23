@@ -1,32 +1,70 @@
-# Chess coach regression tests
+# Opening Lab chess-coach regression testing
 
-## Scope
+There are two complementary suites.
 
-This suite separates two different questions:
+## 1. Deterministic chess facts — free, automatic
 
-1. **Is the computed chess evidence correct?** Run `node --test tests/coach-regression.mjs`. These deterministic tests read the actual chess-analysis functions from `index.html`, with no API charges or AWS access. GitHub Actions runs them on relevant pushes and pull requests.
-2. **Is the AI's lesson useful?** Use `tests/coach-review-cases.json` as a frozen review checklist. It records expected lessons and previously observed failure modes. The scores deliberately start blank. They are **not** automatic OpenAI-model test results.
+```bash
+node --test tests/coach-regression.mjs
+```
 
-## How to run
+36 tests verify geometry, absolute pins, central-file status, doubled/isolated pawns and bishop-pair changes. GitHub Actions runs this automatically when relevant files change.
+
+## 2. AI explanation regression — replayable positions
+
+```bash
+node tests/coach-ai-regression.mjs
+```
+
+This free **offline mode** replays fixed legal move sequences using the **production chess rules**, generates the same board/tactical/strategic evidence used by Opening Lab, and writes a JSON report to `tests/reports/`. It does **not** call GPT and does not claim AI explanations have passed.
+
+There are currently **15 complete legal replay fixtures** (13 moves from the recorded bishop-for-knight sequence plus two alternative central-pawn continuation snapshots). The other **9 of the 24 review prompts** are explicitly marked as skipped until a complete move sequence or exact FEN plus payload is recorded. The reconstruction of the central-pawn line is an illustrative fixed scenario, not a claim about a previously played Stockfish game.
+
+### Run real coaching requests
+
+Start the usual local proxy in terminal 1:
 
 ```bash
 cd ~/chessking
 git pull origin main
-node --test tests/coach-regression.mjs
+node local-server.mjs
 ```
 
-Look for zero failures and a test count of 36. The CI workflow is **Chess coach regression** under GitHub Actions.
+Then, in terminal 2:
 
-## Reviewing model explanations fairly
+```bash
+cd ~/chessking
+node tests/coach-ai-regression.mjs --live --limit 6
+```
 
-For a reproducible qualitative comparison, fix (a) the exact board/FEN and move, (b) the engine depth and analysis output, (c) the coaching model and prompt version, and (d) the input payload. Black's Quick Play replies vary, so simply repeating *White* moves does not reliably reproduce the same position.
+`--live` explicitly authorizes up to the specified number of requests to **your currently deployed AWS Lambda** through `http://127.0.0.1:8000/api/coach/move`. These calls can incur OpenAI API charges, including the Lambda's one-pass repair request. Start with 6, then use `--limit 15` to cover all complete positions. Never paste or hardcode an API key; the existing local proxy handles requests.
 
-The 24 review cases include historical examples, selected alternative-move failures, tactical warnings, and structural issues. Cases with `referenceSequence: "main-line"` supply the recorded move order. Cases marked as separate scenarios are **review prompts**, not fully captured engine fixtures; they require an exact FEN and payload to be collected before an apples-to-apples model comparison.
+The script saves model messages, input fingerprints, incomplete/skipped cases, basic factual and length warnings, and four **blank** human-review dimensions. It exits nonzero on request errors.
 
-For each exact position, save the input payload and the output, then score four dimensions from 0 to 5: board accuracy, tactical validity, teaching usefulness, and clarity. Record every invented move, unverified material gain, unsupported defence, or false centre classification as a hard factual failure even if the response is otherwise fluent.
+**Important:** The replay payloads contain real, deterministic board facts, but deliberately have **no fabricated Stockfish evaluations or principal variations**. As a result, they test the coach's ability to use board evidence and explain ordinary moves, but **do not test model claims about best alternatives**. Engine-specific and high-stakes tactical scenarios need separately frozen, genuine Stockfish payloads.
 
-Compare the aggregate score and **hard-failure count**, not just the most impressive individual answer. Only promote an AI or prompt change after it has been checked against the same frozen inputs.
+### Compare before / after
 
-## What is deliberately *not* asserted
+Run a baseline first and note the saved file path, for example `tests/reports/coach-live-2026-11-23T23-59-00-000Z.json`. After an update, run:
 
-These tests do **not** automatically call GPT-5.4 mini, validate Stockfish's evaluation, or certify every tactical claim. The structural tests are unit tests of geometry and before/after facts. The review checklist provides a repeatable baseline for later live or recorded-output evaluation. A pass means these particular invariants hold, not that every model explanation is correct.
+```bash
+node tests/coach-ai-regression.mjs --live --limit 6 --baseline tests/reports/YOUR-BASELINE.json
+```
+
+The new report includes a per-case `samePosition` and `sameEvidence` check and the old and new warning counts. Compare only cases whose positions and evidence both match. Model responses are nondeterministic, so run more than one trial when assessing subtle changes.
+
+### Run a specific case
+
+```bash
+node tests/coach-ai-regression.mjs --live --case 13-white-b-pawn-takes-c3
+```
+
+The human quality rubric in `tests/coach-review-cases.json` contains 24 named checks with expected lessons and historical failure modes. Review the full coach text for **correctness, tactical insight, teaching value, and conciseness**, each 0–5, and mark factual hallucinations even if the automated warnings miss them.
+
+Automated checks flag only a limited subset of possible issues (e.g., inaccurate claims about direct pawn defence, unsupported alternatives and response lengths). **Zero warnings does not mean a response is correct.**
+
+### CI
+
+The GitHub Actions workflow **Chess coach regression** runs the 36 mechanical tests and the offline AI-fixture replay on pushes and PRs affecting the test code. It makes no paid API requests. Generated reports are ignored by Git.
+
+The goal is reproducible evidence, not a misleading overall “AI accuracy score.” Once full position+engine payloads exist, we can expand the fixed set to cover every case and measure true prompt/model changes.
