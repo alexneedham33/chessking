@@ -650,6 +650,42 @@ html:fullscreen .side>.capture-tray-frame{padding:14px}
 .app{padding-top:24px;padding-bottom:32px}
 html.app-fullscreen .app,html:fullscreen .app{padding-top:22px;padding-bottom:28px}
 @media(max-width:700px){.app{padding-top:20px;padding-bottom:26px}}
+/* Match the Opening Coach's outer panel exactly; contain all progress
+   content in an aligned inner panel. Only the inner border highlights at 10/10. */
+.side>.opening-progress-frame{
+ flex:0 0 auto;min-width:0;
+ background:#0a0d15;border:1px solid #171c29;border-radius:22px;
+ padding:18px;box-shadow:0 18px 56px rgba(0,0,0,.28);
+}
+.opening-progress-inner{
+ min-width:0;background:#121724;border:1px solid #293144;
+ border-radius:20px;padding:22px 24px;
+ transition:border-color .25s ease,box-shadow .25s ease;
+}
+.opening-progress-heading{align-items:center;margin:0}
+.opening-progress-heading .muted{font-size:16px;color:#b5bed0;font-weight:650}
+.opening-progress-heading .badge{font-size:15px;padding:6px 12px}
+.opening-progress-inner .progress{margin:14px 0 0}
+.opening-progress-inner.is-complete{
+ border-color:#a65cff;
+ box-shadow:inset 0 0 0 1px rgba(166,92,255,.22),0 0 18px rgba(166,92,255,.12);
+}
+.opening-progress-inner.is-complete .opening-progress-heading .muted{
+ color:#e7d6fc;font-size:17px;font-weight:800;
+}
+.opening-progress-inner .stockfish-handoff{
+ display:flex;align-items:flex-start;gap:10px;
+ margin:15px 0 0;color:#d7c6ee;font-size:15px;font-weight:650;line-height:1.5;
+}
+.opening-progress-inner .stockfish-handoff[hidden]{display:none!important}
+.opening-progress-inner .stockfish-handoff-dot{
+ background:#a963ef;width:9px;height:9px;margin-top:6px;flex:none;
+}
+@media(max-width:650px){
+ .side>.opening-progress-frame{padding:14px}
+ .opening-progress-inner{padding:18px 20px}
+}
+html.app-fullscreen .side>.opening-progress-frame,html:fullscreen .side>.opening-progress-frame{padding:14px}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -761,15 +797,17 @@ html.app-fullscreen .app,html:fullscreen .app{padding-top:22px;padding-bottom:28
         </div>
         <div style="display:none" aria-hidden="true"><span id="plyCount"></span><div id="history"></div></div>
       </section>
-      <section id="openingProgress" class="opening-progress-card" aria-label="Opening progress">
-        <div class="row opening-progress-heading">
-          <span class="muted" id="openingProgressTitle">Opening progress</span>
-          <span class="badge" id="progressLabel">0 / 10</span>
-        </div>
-        <div class="progress"><div class="bar" id="progressBar"></div></div>
-        <div id="stockfishHandoff" class="stockfish-handoff" role="status" aria-live="polite" hidden>
-          <span class="stockfish-handoff-dot" aria-hidden="true"></span>
-          <span id="stockfishHandoffText">Opening sequence completed. Stockfish now takes over.</span>
+      <section id="openingProgress" class="panel opening-progress-frame" aria-label="Opening progress">
+        <div id="openingProgressInner" class="opening-progress-inner">
+          <div class="row opening-progress-heading">
+            <span class="muted" id="openingProgressTitle">Opening progress</span>
+            <span class="badge" id="progressLabel">0 / 10</span>
+          </div>
+          <div class="progress"><div class="bar" id="progressBar"></div></div>
+          <div id="stockfishHandoff" class="stockfish-handoff" role="status" aria-live="polite" hidden>
+            <span class="stockfish-handoff-dot" aria-hidden="true"></span>
+            <span id="stockfishHandoffText">Opening sequence completed. Stockfish now takes over.</span>
+          </div>
         </div>
       </section>
       <div class="capture-tray-frame">
@@ -1940,7 +1978,7 @@ const atHandoff=showingGuidedProgress&&!scenario&&h.length-1===lessonLimit;
 // Show progress during the prepared sequence, celebrate on its final move,
 // then hide it as soon as Stockfish free play begins. Undo restores it.
 $('openingProgress').style.display=showingGuidedProgress&&!scenario&&h.length-1<=lessonLimit?'':'none';
-$('openingProgress').classList.toggle('is-complete',atHandoff);
+$('openingProgressInner').classList.toggle('is-complete',atHandoff);
 $('openingProgressTitle').textContent=atHandoff?'Opening sequence completed':'Opening progress';
 $('stockfishHandoff').hidden=!atHandoff;
 if(atHandoff)$('stockfishHandoffText').textContent='Stockfish now takes over at approximately '+opponentElo()+' Elo. Continue one move per click.';
