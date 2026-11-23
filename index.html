@@ -723,6 +723,38 @@ html.app-fullscreen .side>.opening-progress-frame,html:fullscreen .side>.opening
 @media(max-width:650px){
  .side>.trainer-panel{height:clamp(310px,48dvh,420px)}
 }
+/* Guided opening and positional evaluation share a stable top-right slot.
+   Only one appears at once, without shifting the coach below. */
+.side>.opening-top-slot{flex:0 0 172px;min-height:172px;min-width:0;display:flex;flex-direction:column}
+.opening-top-slot>.opening-progress-frame,
+.opening-top-slot>.engine-panel{
+ width:100%;height:100%;min-height:0;flex:1 1 auto;margin:0;
+ box-sizing:border-box;
+}
+.opening-top-slot>.opening-progress-frame{
+ padding:12px 15px;
+ display:flex;align-items:stretch;
+}
+.opening-top-slot>.opening-progress-frame>.opening-progress-inner{
+ width:100%;padding:14px 16px;border-radius:15px;
+ display:flex;flex-direction:column;justify-content:center;
+}
+.opening-top-slot .opening-progress-heading{flex:0 0 auto}
+.opening-top-slot .opening-progress-inner .progress{flex:0 0 auto;margin:12px 0 0}
+.opening-top-slot .stockfish-handoff{margin:12px 0 0;font-size:13px;line-height:1.35}
+.opening-top-slot>.engine-panel{
+ display:flex;flex-direction:column;justify-content:center;
+ padding:14px 16px;
+}
+.opening-top-slot>.engine-panel .balance-explain{display:none}
+.opening-top-slot>.engine-panel .balance-numbers{margin-top:8px}
+/* The captured material panel remains anchored to the bottom. */
+.side>.capture-tray-frame{margin-top:auto}
+@media(max-width:650px){
+ .side>.opening-top-slot{flex-basis:172px;min-height:172px}
+ .opening-top-slot>.opening-progress-frame{padding:10px 12px}
+ .opening-top-slot>.opening-progress-frame>.opening-progress-inner{padding:12px 13px}
+}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -767,12 +799,27 @@ html.app-fullscreen .side>.opening-progress-frame,html:fullscreen .side>.opening
       </div>
     </section>
     <aside class="side">
+      <div class="opening-top-slot" aria-label="Lesson status">
+      <section id="openingProgress" class="panel opening-progress-frame" aria-label="Opening progress">
+        <div id="openingProgressInner" class="opening-progress-inner">
+          <div class="row opening-progress-heading">
+            <span class="muted" id="openingProgressTitle">Opening progress</span>
+            <span class="badge" id="progressLabel">0 / 10</span>
+          </div>
+          <div class="progress"><div class="bar" id="progressBar"></div></div>
+          <div id="stockfishHandoff" class="stockfish-handoff" role="status" aria-live="polite" hidden>
+            <span class="stockfish-handoff-dot" aria-hidden="true"></span>
+            <span id="stockfishHandoffText">Opening sequence completed. Stockfish now takes over.</span>
+          </div>
+        </div>
+      </section>
       <div class="engine-panel" id="enginePanel" aria-label="Stockfish positional balance relative to starting position">
  <div class="engine-line"><span>Positional balance · <small id="engineDepth">Stockfish</small></span><span class="balance-summary" id="engineScore" aria-live="polite">Even position</span></div>
  <div class="position-balance" role="img" id="outlookTrack" aria-label="White 50, Black 50"><div class="balance-white-side" id="balanceWhite" style="width:50%"></div><div class="balance-black-side"></div></div>
  <div class="balance-numbers"><span>White <strong id="balanceWhitePct">50.0</strong></span><span class="balance-change" id="balanceMoveChange">Starting balance · 50/50</span><span>Black <strong id="balanceBlackPct">50.0</strong></span></div>
  <div class="balance-explain" id="engineCaption">Relative shift in Stockfish expected score, not win probability.</div>
  </div>
+      </div>
       <section class="panel trainer-panel">
         <div class="detail-tabs" id="detailTabs" style="display:none" aria-hidden="true">
           <button class="detail-tab active" data-detail-tab="chat">Chat</button>
@@ -833,19 +880,6 @@ html.app-fullscreen .side>.opening-progress-frame,html:fullscreen .side>.opening
           </details>
         </div>
         <div style="display:none" aria-hidden="true"><span id="plyCount"></span><div id="history"></div></div>
-      </section>
-      <section id="openingProgress" class="panel opening-progress-frame" aria-label="Opening progress">
-        <div id="openingProgressInner" class="opening-progress-inner">
-          <div class="row opening-progress-heading">
-            <span class="muted" id="openingProgressTitle">Opening progress</span>
-            <span class="badge" id="progressLabel">0 / 10</span>
-          </div>
-          <div class="progress"><div class="bar" id="progressBar"></div></div>
-          <div id="stockfishHandoff" class="stockfish-handoff" role="status" aria-live="polite" hidden>
-            <span class="stockfish-handoff-dot" aria-hidden="true"></span>
-            <span id="stockfishHandoffText">Opening sequence completed. Stockfish now takes over.</span>
-          </div>
-        </div>
       </section>
       <div class="capture-tray-frame">
        <div class="capture-tray" aria-label="Captured pieces">
@@ -2001,7 +2035,9 @@ const showingGuidedProgress=trainingMode==='learn'&&learnOpponent==='guided';
 const atHandoff=showingGuidedProgress&&!scenario&&h.length-1===lessonLimit;
 // Show progress during the prepared sequence, celebrate on its final move,
 // then hide it as soon as Stockfish free play begins. Undo restores it.
-$('openingProgress').style.display=showingGuidedProgress&&!scenario&&h.length-1<=lessonLimit?'':'none';
+const showOpeningProgress=showingGuidedProgress&&!scenario&&h.length-1<=lessonLimit;
+$('openingProgress').style.display=showOpeningProgress?'':'none';
+$('enginePanel').style.display=showOpeningProgress?'none':'';
 $('openingProgressInner').classList.toggle('is-complete',atHandoff);
 $('openingProgressTitle').textContent=atHandoff?'Opening sequence completed':'Opening progress';
 $('stockfishHandoff').hidden=!atHandoff;
