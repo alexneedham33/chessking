@@ -193,3 +193,19 @@ test('57 does not flag a conditional capture with verified recapture',()=>{
  const evidence={captured:null,captureOptions:[{uci:'f6e4',hasLegalRecapture:true}]};
  assert.equal(exchangeGuard('Black can capture the e4 pawn, but White can recapture the knight.',evidence).length,0);
 });
+
+test('58 flags equal-value knight-for-bishop claim as a win',()=>{
+ const evidence={captured:{piece:'knight',value:3},captureOptions:[
+  {uci:'b2c3',capturedPiece:'bishop',hasLegalRecapture:true}]};
+ assert.ok(exchangeGuard('Black wins the knight on c3.',evidence).length>0);
+});
+test('59 allows accurately describing equal-value capture with recapture',()=>{
+ const evidence={captured:{piece:'knight',value:3},captureOptions:[
+  {uci:'b2c3',capturedPiece:'bishop',hasLegalRecapture:true}]};
+ assert.equal(exchangeGuard('Black captures the knight, but the b-pawn can recapture the bishop.',evidence).length,0);
+});
+test('60 flags undefended pawn when a legal recapture exists',()=>{
+ const evidence={captured:null,captureOptions:[
+  {uci:'f6e4',capturedPiece:'pawn',hasLegalRecapture:true}]};
+ assert.ok(exchangeGuard('The e4 pawn is undefended.',evidence).length>0);
+});
