@@ -601,18 +601,43 @@ html:fullscreen .side>.capture-tray-frame{padding:14px}
  .board-controls .btn{font-size:12px;min-height:42px}
 }
 /* Board-inspired accent on the captured-piece labels, not the entire light card. */
+/* Keep White / Black headings plain; reserve the board-coloured tile for
+   each actual captured piece, as in the Opening Coach badges. */
 .capture-tray-label{
- display:table;
- background:#e2d5bd;
- border:1px solid #c6b799;
- border-radius:7px;
- padding:5px 9px;
- margin-bottom:8px;
+ display:block;
+ background:transparent;
+ border:0;
+ border-radius:0;
+ padding:0;
+ margin-bottom:9px;
  color:#242c39;
- font-size:14px;
+ font-size:16px;
  font-weight:750;
 }
-@media(max-width:650px){.capture-tray-label{font-size:12px;padding:4px 7px}}
+.capture-piece-tile{
+ display:inline-flex;
+ justify-content:center;
+ align-items:center;
+ flex:0 0 auto;
+ width:39px;
+ height:43px;
+ border-radius:8px;
+ border:1px solid #c6b799;
+ background:#e2d5bd;
+}
+.capture-piece-tile .capture-piece{
+ display:block;
+ width:32px;
+ height:36px;
+ object-fit:contain;
+ filter:none;
+}
+.capture-piece-group{gap:4px}
+@media(max-width:650px){
+ .capture-tray-label{font-size:14px}
+ .capture-piece-tile{width:34px;height:38px}
+ .capture-piece-tile .capture-piece{width:28px;height:32px}
+}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -1731,7 +1756,8 @@ function renderCapturedPieces(){
    if(!groupPieces.length)continue;
    const group=document.createElement('span');group.className='capture-piece-group';
    const icon=pieceImage(groupPieces[0]);if(!icon)continue;
-   icon.className='capture-piece';group.append(icon);
+   const tile=document.createElement('span');tile.className='capture-piece-tile';
+   icon.className='capture-piece';tile.append(icon);group.append(tile);
    if(groupPieces.length>1){const count=document.createElement('span');count.className='capture-piece-count';count.textContent='×'+groupPieces.length;group.append(count);}
    root.append(group);
   }
