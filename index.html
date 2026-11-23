@@ -1387,7 +1387,7 @@ async function finalizeChallenge(){
 function renderChallenge(){
  const isPlay=trainingMode==='challenge';
  for(const [id,colour] of [['playWhite',1],['playBlack',-1]]){const button=$(id),active=playerSide()===colour;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));}
- $('playAs').value=String(playerSide());
+
  const guidedLearn=trainingMode==='learn'&&learnOpponent==='guided';
  $('learnOpponentSettings').style.display=trainingMode==='learn'?'block':'none';
  $('learnOpponent').value=learnOpponent;
