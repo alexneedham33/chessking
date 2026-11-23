@@ -1329,7 +1329,7 @@ function playerSide(){return chosenPlayerSide===null?openings[selected].side:cho
 function boardFlipped(){return playerSide()===-1;}
 let ghostMoveReference=null;
 let chatMode='learn',chatPerspective='coach',previewReplyEngine=false,previewAnalysis=null,trainingMode='learn',learnOpponent=loadOpponentMode(),challengeStarted=false,challengeFinished=false,challengeScore=null;let selected='queenAccepted',mode='play',h=[original()],selectedSquare=-1,showHint=false,feedback='',promotion=null,logs=[],notes=[],lastSquares=[],pendingReply=null,previewReply=null,replyTimer=null,animatingMove=null,animationTimer=null;const $=id=>document.getElementById(id);
-function clearReplyState(){if(replyTimer){clearTimeout(replyTimer);replyTimer=null}if(animationTimer){clearTimeout(animationTimer);animationTimer=null}pendingReply=null;previewReply=null;previewReplyEngine=false;previewAnalysis=null;animatingMove=null;ghostMoveReference=null;const ghost=$('moveGhost');if(ghost){ghost.className='move-ghost';ghost.style.display='none';ghost.style.transitionDuration='';ghost.textContent='';}}
+function clearReplyState(){if(replyTimer){clearTimeout(replyTimer);replyTimer=null}if(animationTimer){clearTimeout(animationTimer);animationTimer=null}pendingReply=null;previewReply=null;previewReplyEngine=false;previewAnalysis=null;animatingMove=null;ghostMoveReference=null;const ghost=$('moveGhost');if(ghost){ghost.style.transition='none';ghost.className='move-ghost';ghost.style.display='none';ghost.textContent='';}}
 let variationPanelOpen=false,gameReviewOpen=false,coachAnswerText='';
 function explainCoachQuestion(type){
  const op=openings[selected],last=notes.at(-1),step=routeLine()[current().i];
@@ -1504,8 +1504,6 @@ function queueReply(m){pendingReply=m;feedback='Opponent is thinking...';render(
 function startMoveAnimation(m,isOpponent,autoReplyAfterManual=false,manual=false){
   if(isOpponent){replyTimer=null;pendingReply=null;previewReply=null;}
   const guided=trainingMode==='learn'&&!scenario;
-  const ghost=$('moveGhost');
-  if(ghost)ghost.style.transitionDuration='';
   // Show the pending coach bubble as the piece moves.
   if(guided)coachScrollPending=true;
   const piece=current().b[m[0]];
@@ -1518,10 +1516,22 @@ function startMoveAnimation(m,isOpponent,autoReplyAfterManual=false,manual=false
   }
   const engineSelected=!!previewReplyEngine,engineAnalysis=engineSelected?previewAnalysis:null;previewReplyEngine=false;previewAnalysis=null;
   animatingMove={move:m,piece,from:m[0],to:m[1],isOpponent};
+  const thisAnimation=animatingMove;
   selectedSquare=-1;showHint=false;
   render();
-  // Wait one frame to ensure the piece begins at the origin before travelling.
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{if(animatingMove){const ghost=$('moveGhost');if(ghost)ghost.classList.add('moving');}}));
+  // Never let an old transition pull the piece backwards toward the next
+  // move's starting square: commit the origin with animation disabled first.
+  const ghost=$('moveGhost');
+  if(ghost){
+   ghost.style.transition='none';
+   ghost.classList.remove('moving');
+   void ghost.getBoundingClientRect();
+  }
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+   if(animatingMove!==thisAnimation)return;
+   const movingGhost=$('moveGhost');
+   if(movingGhost){movingGhost.style.transition='';movingGhost.classList.add('moving');}
+  }));
   animationTimer=setTimeout(async()=>{
     animationTimer=null;
     record(m,engineSelected,engineAnalysis,manual,isOpponent);
@@ -1950,6 +1960,7 @@ if(ghost){
   }
  }else{
   ghostMoveReference=null;
+  ghost.style.transition='none';
   ghost.className='move-ghost';
   ghost.style.display='none';
   ghost.replaceChildren();
