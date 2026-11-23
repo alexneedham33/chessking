@@ -413,6 +413,14 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 .player-colour-switch button.active{background:#8550dd;color:white}
 .player-colour-switch button:focus-visible{outline:2px solid #c9a4fa;outline-offset:2px}
 @media(max-width:700px){.board-stage{margin-left:10px!important;width:min(calc(100% - 12px),var(--board-fit,720px))!important}}
+/* Give the board a close-fitting column instead of leaving a broad empty strip.
+   The coach gains the unused width; the board retains a small inset gutter. */
+@media(min-width:1021px){
+ .main{grid-template-columns:minmax(520px,min(54vw,780px)) minmax(360px,1fr)}
+}
+@media(max-width:1020px){
+ .main{grid-template-columns:minmax(0,1fr)}
+}
 </style></head><body>
 <div class="app">
   <header class="top">
