@@ -462,14 +462,16 @@ html.app-fullscreen .compact-toolbar,html:fullscreen .compact-toolbar{padding-le
 .compact-toolbar>.compact-opening{flex:1 1 185px}
 .compact-toolbar>.compact-variation{flex:1 1 125px}
 @media(max-width:800px){.compact-toolbar>.compact-mode{flex:0 1 140px}}
-/* Desktop spacing experiment: centre the workspace without shrinking the 720px board.
-   Keep its toolbar/heading offsets and the right-edge Expand View alignment. */
+/* Centre the normal desktop workspace. Keep the board's left position
+   unchanged and make only the coaching column a little narrower. */
 @media (min-width:1250px){
   .app{max-width:1460px;padding:10px 26px 12px}
-  .main{grid-template-columns:minmax(0,800px) minmax(0,1fr);gap:18px}
+  .main{grid-template-columns:minmax(0,800px) minmax(0,550px);gap:18px;justify-content:start}
+  .top{max-width:1368px}
   .board-shell{padding-bottom:6px}
   .board-controls{margin-top:7px}
 }
+
 /* Align the first right-hand status card with the actual chessboard squares,
    not the outer shell. Keep the captured pieces anchored to the board bottom. */
 @media (min-width:1021px){
@@ -880,6 +882,19 @@ html.app-fullscreen .side>.opening-progress-frame,html:fullscreen .side>.opening
 }
 .trainer-panel #openingLineWarning #openingPreviewReason,
 .trainer-panel #openingLineWarning .opening-preview-actions{display:none!important}
+/* Expanded mode must use the same centred, board-led composition instead
+   of reverting to an edge-to-edge grid. Still let the viewport-fit sizing
+   shrink the board if the control row would otherwise fall below the screen. */
+@media (min-width:1250px){
+  html.app-fullscreen .app,html:fullscreen .app{
+    max-width:1380px;width:100%;margin-inline:auto;
+    padding-left:20px;padding-right:20px
+  }
+  html.app-fullscreen .main,html:fullscreen .main{
+    grid-template-columns:minmax(0,800px) minmax(0,1fr);
+    gap:18px;justify-content:start
+  }
+}
 </style></head><body>
 <div class="app">
   <header class="top">
