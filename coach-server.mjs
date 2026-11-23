@@ -45,6 +45,7 @@ function cleanEngineEvidence(input){
 // Principal variations start AFTER the move; they are not the played move.
 async function explainMove(payload){
  const {beforeFen,afterFen,opening,player,played,scripted,history,recentCoaching}=payload;
+ const expanding=payload.expand===true;
  const detail=['brief','standard','detailed','adaptive'].includes(payload.detail)?payload.detail:'adaptive';
  const fenOk=x=>typeof x==='string'&&x.length<=130&&/^[prnbqkPRNBQK1-8/]+ [wb] /.test(x);
  if(!fenOk(beforeFen)||!fenOk(afterFen))throw Error('Invalid move position');
@@ -53,6 +54,8 @@ async function explainMove(payload){
     !['p','n','b','r','q','k'].includes(played.piece))throw Error('Invalid played move');
  if(typeof scripted!=='string'||scripted.length>900)throw Error('Invalid lesson text');
  const engine=cleanEngineEvidence(payload.engine);
+ const baseExplanation=typeof payload.baseExplanation==='string'?payload.baseExplanation.trim().slice(0,900):'';
+ if(expanding&&baseExplanation.length<15)throw Error('Missing original explanation');
  const prior=payload.priorEngine&&typeof payload.priorEngine==='object'?payload.priorEngine:null;
  const moveOrigin=['player','engine','prepared','automatic'].includes(payload.moveOrigin)?payload.moveOrigin:'automatic';
  const rawAssessment=payload.moveAssessment;
@@ -69,6 +72,7 @@ async function explainMove(payload){
    from:String(played.from||'').slice(0,2),to:String(played.to||'').slice(0,2),
    capture:played.capture===true,castle:played.castle===true,check:played.check===true},
   originalExplanation:scripted,
+  ...(expanding?{alreadyTaught:baseExplanation}:{}),
   moveHistory:Array.isArray(history)?history.slice(-10).map(x=>String(x).slice(0,40)):[],
   recentCoaching:Array.isArray(recentCoaching)?recentCoaching.slice(-3).map(x=>String(x).slice(0,500)):[],
   moveAssessment,moveOrigin,
@@ -115,11 +119,20 @@ async function explainMove(payload){
   'Never claim an engine continuation is guaranteed. Keep possible replies conditional and do not repeat strategic ideas in multiple sentences. If nothing important lies ahead, just teach the present move.',
   'Output JSON containing only one message string. No headings, markdown, extra fields or numbered lists.'
  ].join(' ');
+ const expansionInstructions=[
+  'You are a thoughtful chess teacher expanding a prior explanation for an early-intermediate learner.',
+  'The learner has ALREADY read alreadyTaught. Build on it with NEW insight; do not repeat, paraphrase or rewrite it. Return ONLY the extra information to append below the original explanation.',
+  'Use beforeFen, afterFen and the played move to verify all claims. Do not invent threats, tactical continuations or benefits for a weak move. A prepared opening move is not necessarily a Stockfish best move.',
+  'Choose one or two genuinely helpful deeper ideas for THIS position: a strategic tradeoff, grounded likely continuation, concrete threat, future plan or sound alternative. Avoid generic principles and retelling the move.',
+  'Be friendly and clear, usually two to four sentences, approximately 50–100 words if useful; use less if enough has already been taught. Keep square coordinates to a minimum.',
+  'Use engine lines conditionally rather than treating them as guaranteed. If evidence is weak, do not invent a concrete line.',
+  'Output JSON containing only one additional message string. No headings, markdown, extra fields or numbered lists.'
+ ].join(' ');
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),25000);
  try{
   const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',signal:controller.signal,headers:{
    'Authorization':'Bearer '+process.env.OPENAI_API_KEY,'Content-Type':'application/json'
-  },body:JSON.stringify({model,store:false,instructions,input:JSON.stringify(context),max_output_tokens:300,
+  },body:JSON.stringify({model,store:false,instructions:expanding?expansionInstructions:instructions,input:JSON.stringify(context),max_output_tokens:expanding?420:300,
    text:{format:{type:'json_schema',name:'chess_move_explanation',strict:true,
     schema:{type:'object',additionalProperties:false,properties:{message:{type:'string'}},required:['message']}}}
   })});
@@ -131,7 +144,7 @@ async function explainMove(payload){
   const data=await response.json(),raw=(data.output||[]).flatMap(x=>x.content||[])
    .filter(x=>x.type==='output_text').map(x=>x.text).join('');
   const result=JSON.parse(raw);
-  if(typeof result.message!=='string'||result.message.trim().length<15||result.message.length>900)throw Error('Invalid coach message');
+  if(typeof result.message!=='string'||result.message.trim().length<15||result.message.length>(expanding?1400:900))throw Error('Invalid coach message');
   return {message:result.message.trim(),engineGrounded:!!engine};
  }finally{clearTimeout(timer);}
 }
