@@ -84,3 +84,42 @@ test('36 teaching candidates prefer verified attacks',()=>{
  const p=priorities(before,[0,0,'',''],after,strategic,facts);
  assert.equal(p.candidates[0].type,'direct-attack');
 });
+
+// Bishop lines must be verified on the actual position, not guessed from pawn moves.
+test('37 e7-e6 opens the f8 bishop diagonal',()=>{
+ const before=pos({f8:'b',c8:'b',e7:'p',d5:'p',e2:'P',d4:'P',g7:'p',d7:'.'});
+ const after=pos({f8:'b',c8:'b',e6:'p',d5:'p',e2:'P',d4:'P',g7:'p',d7:'.',e7:'.'});
+ const result=changes(before,after).bishopRoutes.changes;
+ assert.ok(result.some(x=>x.bishopSquare==='f8'&&x.newlyClearSquares.includes('e7')));
+ assert.ok(!result.some(x=>x.bishopSquare==='c8'&&x.newlyClearSquares.length));
+});
+test('38 e7-e6 does not open c8 bishop',()=>{
+ const a=pos({c8:'b',f8:'b',d7:'.',e7:'p',e2:'P'});
+ const b=pos({c8:'b',f8:'b',d7:'.',e6:'p',e2:'P',e7:'.'});
+ const x=changes(a,b).bishopRoutes;
+ assert.ok(x.after.find(y=>y.square==='c8').clearSquares.includes('d7'));
+ assert.ok(!x.after.find(y=>y.square==='c8').clearSquares.includes('e6'));
+ assert.ok(!x.changes.some(y=>y.bishopSquare==='c8'&&y.newlyClearSquares.length));
+});
+test('39 a pawn movement can block a bishop diagonal',()=>{
+ const a=pos({c8:'b',d7:'.',e6:'.',e7:'p'});
+ const b=pos({c8:'b',d7:'.',e6:'p',e7:'.'});
+ const r=changes(a,b).bishopRoutes.changes.find(x=>x.bishopSquare==='c8');
+ assert.ok(r&&r.newlyBlockedSquares.includes('e6'));
+});
+test('40 bishop movement itself does not fake opened route from old square',()=>{
+ const a=pos({c8:'b'}),b=pos({b7:'b',c8:'.'});
+ const r=changes(a,b).bishopRoutes.changes;
+ assert.equal(r.length,0);
+});
+test('41 an unmoved bishop with identical blockers has no route change',()=>{
+ const a=pos({f8:'b',e7:'p',d5:'p'}),b=pos({f8:'b',e7:'p',d5:'p',a3:'P'});
+ const r=changes(a,b).bishopRoutes.changes;
+ assert.equal(r.length,0);
+});
+test('42 bishop route evidence remains an objective set of empty squares',()=>{
+ const a=pos({f8:'b',e7:'p'}),b=pos({f8:'b',e7:'.'});
+ const r=changes(a,b).bishopRoutes.changes.find(x=>x.bishopSquare==='f8');
+ assert.ok(r.newlyClearSquares.includes('e7'));
+ assert.ok(r.newlyClearSquares.includes('d6'));
+});
