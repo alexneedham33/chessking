@@ -89,9 +89,10 @@ async function generateCoaching(evidence,instructions,extra=''){
   method:'POST',
   headers:{Authorization:`Bearer ${process.env.OPENAI_API_KEY}`,'Content-Type':'application/json'},
   body:JSON.stringify({
-   model:'gpt-4.1-mini',
-   temperature:0.2,
-   max_completion_tokens:240,
+   model:'gpt-5.4-mini',
+   reasoning_effort:'low',
+   // Includes hidden reasoning tokens as well as the short visible response.
+   max_completion_tokens:900,
    messages:[
     {role:'system',content:instructions},
     {role:'user',content:JSON.stringify(evidence)},
