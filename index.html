@@ -541,6 +541,21 @@ html.app-fullscreen .compact-toolbar,html:fullscreen .compact-toolbar{padding-le
  .capture-piece-group .capture-piece{width:30px;height:37px}
  .capture-piece-count{font-size:12px}
 }
+/* Keep every light UI surface on the coach card's shared off-white palette. */
+:root{--coach-light-surface:#f5f5f6}
+.trainer-panel .why-content>.why-entry.white-side,
+.trainer-panel .why-content>.why-entry.black-side{background:var(--coach-light-surface)!important}
+.balance-white-side{background:var(--coach-light-surface)}
+.side>.capture-tray{background:var(--coach-light-surface);border-color:#d5d5da;margin-left:18px;margin-right:18px}
+.capture-tray-side+.capture-tray-side{border-left-color:#d1d1d7}
+.capture-tray-label{color:#242c39}
+/* The speaker's piece comes before the move, not as a floating trailing icon. */
+.trainer-panel .why-title{justify-content:flex-start;gap:10px}
+.trainer-panel .why-title>span:first-child{min-width:0}
+.trainer-panel .coach-side-badge{flex:0 0 32px;width:32px;height:32px}
+.trainer-panel .coach-side-piece{width:26px;height:26px}
+@media(max-width:650px){.side>.capture-tray{margin-left:14px;margin-right:14px}}
+html.app-fullscreen .side>.capture-tray,html:fullscreen .side>.capture-tray{margin-left:14px;margin-right:14px}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -1869,7 +1884,7 @@ const title=document.createElement('div');title.className='why-title';
  sideBadge.title=item.color===1?'White move':'Black move';
  const badgePiece=pieceImage(item.color===1?'P':'p');
  if(badgePiece){badgePiece.className='coach-side-piece';sideBadge.append(badgePiece);}
- title.append(moveHeading,sideBadge);
+ title.append(sideBadge,moveHeading);
 const copy=document.createElement('div');copy.className='why-copy';
 const analysisLabel=document.createElement('div');analysisLabel.className='why-analysis-label';
 analysisLabel.textContent=item.engineAnalysis?'Stockfish analysis':'Move explanation';
