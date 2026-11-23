@@ -2225,7 +2225,8 @@ async function requestUnifiedMoveCoaching(ply){
     :noteworthyLoss
     ?'This move appears to worsen the mover\'s position meaningfully. Explain the concrete reason and mention a better alternative only if it teaches something useful. Avoid numerical nitpicking.'
     :'The position improved noticeably for the mover. Explain the concrete opportunity or strategic benefit; do not insist on an engine alternative.',
-   evaluationPolicy:'The normalized balance is NOT a win probability. Do not quote exact percentages or centipawns unless explicitly requested. Do not treat the first Stockfish choice as the only good move. If evidence is missing or approximate, avoid confident judgments.'
+   evaluationPolicy:'The normalized balance is NOT a win probability. Do not quote exact percentages or centipawns unless explicitly requested. Do not treat the first Stockfish choice as the only good move. If evidence is missing or approximate, avoid confident judgments.',
+   languagePolicy:'Write for a beginner in everyday English, like a patient human chess teacher. Never use unexplained technical terms such as luft, prophylactic, fianchetto, zwischenzug, tempo or outpost. Prefer ordinary words (for example, say creates an escape square for the king or prevents a future threat). If a chess term genuinely helps, explain it immediately in simple words. Aim for two or three concise sentences, normally under 75 words; focus on the single most useful takeaway. Do not invent long-term strategic benefits that Stockfish evidence does not support.'
   };
   // Suggested alternatives appear in the coaching assessment only if the
   // loss is meaningful. Keep the underlying Stockfish line as evidence.
@@ -2240,7 +2241,7 @@ async function requestUnifiedMoveCoaching(ply){
    // Put coaching priorities inside scripted as well for older server
    // handlers that do not yet read the new structured coachingGuidance.
    scripted:(note.manual?'Learner-selected legal move. Assess it objectively. ':note.reason+' ')+
-    coachingGuidance.instruction+' '+coachingGuidance.evaluationPolicy+
+    coachingGuidance.instruction+' '+coachingGuidance.evaluationPolicy+' '+coachingGuidance.languagePolicy+
     (noteworthyLoss&&moveAssessment?.suggestedMove?' Instructive alternative: '+moveAssessment.suggestedMove+'.':''),
    coachingGuidance,
    history:logs.slice(Math.max(0,ply-10),ply),recentCoaching,engine,detail:record.detail,moveAssessment,positionAssessment,
