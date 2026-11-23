@@ -436,7 +436,23 @@ html.app-fullscreen .compact-toolbar,html:fullscreen .compact-toolbar{padding-le
  html.app-fullscreen .top .brandblock,html:fullscreen .top .brandblock{margin-left:23px}
  html.app-fullscreen .compact-toolbar,html:fullscreen .compact-toolbar{padding-left:23px}
 }
-/* The board remains dominant; only opening, variation and colour stay on the toolbar. */
+/* One compact board-aligned toolbar: current values are the visible labels. */
+.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.compact-toolbar{width:min(100%,calc(var(--board-fit,720px) + 31px));max-width:820px;display:flex;align-items:center;justify-content:flex-start;flex-wrap:nowrap;gap:8px}
+.compact-toolbar>.toolbar-field{display:flex;flex:0 1 auto;min-width:0}
+.compact-toolbar>.compact-opening{flex:1 1 200px}
+.compact-toolbar>.compact-variation{flex:1 1 130px}
+.compact-toolbar>.compact-opening select,.compact-toolbar>.compact-variation select{min-width:0;width:100%;max-width:none;height:40px;padding:9px 25px 9px 11px;font-size:12px;text-overflow:ellipsis}
+.compact-toolbar>.player-side-control{flex:0 0 auto}
+.compact-toolbar .player-colour-switch{height:40px;padding:3px}
+.compact-toolbar .player-colour-switch button{padding:7px 10px;font-size:12px}
+.compact-toolbar>.global-strength{margin-left:0;flex:0 0 auto}
+.compact-toolbar>.global-strength>summary{height:40px;min-width:0;max-width:205px;display:flex;align-items:center;gap:8px;padding:9px 11px;font-size:12px;white-space:nowrap}
+.compact-toolbar #settingsModeSummary{font-size:12px;color:#edf0f8;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.compact-toolbar>.global-strength[open]>summary{border-color:#9e70d7}
+@media(max-width:800px){.compact-toolbar{flex-wrap:wrap;width:100%;max-width:none}.compact-toolbar>.compact-opening{flex:1 1 185px}.compact-toolbar>.compact-variation{flex:1 1 125px}}
+@media(max-width:480px){.compact-toolbar>.compact-opening,.compact-toolbar>.compact-variation{flex:1 1 calc(50% - 8px)}.compact-toolbar>.player-side-control,.compact-toolbar>.global-strength{flex:0 1 auto}}
+/* The board remains dominant; only opening, variation, colour and mode stay on the toolbar. */
 .global-strength>summary{display:flex;align-items:center;gap:8px}
 .settings-summary-status{color:#b9a6d8;font-size:11px;font-weight:600}
 .global-strength-panel{display:flex;flex-direction:column;gap:16px;width:min(330px,90vw);padding:17px}
@@ -456,12 +472,12 @@ html.app-fullscreen .compact-toolbar,html:fullscreen .compact-toolbar{padding-le
     <div class="actions"><button class="btn" id="fullscreen">⛶ Expand view</button></div>
   </header>
 <nav class="compact-toolbar" aria-label="Opening and opponent controls">
- <label class="toolbar-field"><span>Opening strategy</span><select id="openingSelect"><option value="queenAccepted">Queen's Gambit Accepted</option><option value="queen">Queen's Gambit Declined</option><option value="italian">Italian Game</option><option value="sicilian">Sicilian Defence</option><option value="caro">Caro–Kann Defence</option></select></label>
- <label class="toolbar-field"><span>Variation</span><select id="variationSelect" aria-label="Opening variation"><option value="queenAccepted">Main line</option></select></label>
+ <label class="toolbar-field compact-opening"><span class="sr-only">Opening strategy</span><select id="openingSelect" aria-label="Opening strategy"><option value="queenAccepted">Queen's Gambit Accepted</option><option value="queen">Queen's Gambit Declined</option><option value="italian">Italian Game</option><option value="sicilian">Sicilian Defence</option><option value="caro">Caro–Kann Defence</option></select></label>
+ <label class="toolbar-field compact-variation"><span class="sr-only">Variation</span><select id="variationSelect" aria-label="Opening variation"><option value="queenAccepted">Main line</option></select></label>
  
- <div class="toolbar-field player-side-control"><span>Play as</span><div class="player-colour-switch" role="group" aria-label="Choose playing colour"><button type="button" id="playWhite" aria-pressed="true">White</button><button type="button" id="playBlack" aria-pressed="false">Black</button></div></div>
+ <div class="toolbar-field player-side-control"><span class="sr-only">Play as</span><div class="player-colour-switch" role="group" aria-label="Choose playing colour"><button type="button" id="playWhite" aria-pressed="true">White</button><button type="button" id="playBlack" aria-pressed="false">Black</button></div></div>
  <label id="challengeToggleWrap" class="challenge-toggle" style="display:none"><input type="checkbox" id="challengeToggle"> Opening challenge</label>
-<details class="global-strength" id="globalStrength"><summary title="Practice settings">⚙ Settings <span class="settings-summary-status" id="settingsModeSummary">Guided → Stockfish</span></summary><div class="global-strength-panel"><div class="learn-opponent-head"><label for="learnOpponent"><strong>Practice mode</strong></label><select id="learnOpponent" aria-label="Practice mode"><option value="guided">Guided → Stockfish</option><option value="stockfish">Stockfish from start</option></select></div><div class="settings-strength-field"><label for="globalElo"><strong>Stockfish difficulty · <span id="globalEloValue">1700</span></strong></label><input id="globalElo" type="range" min="750" max="2800" step="50" value="1700"><div class="global-strength-scale"><span>750 · Easier</span><span>2800 · Harder</span></div><p>Opponent strength is approximate. After the prepared opening, Stockfish takes over; position analysis remains full strength.</p></div></div></details><button class="btn primary" id="challengeQuickStart" style="display:none">Start challenge</button><details class="opponent-dropdown" id="opponentDropdown"><summary id="opponentSummary">Opponent · Guided opening</summary><div class="opponent-dropdown-panel"><section id="learnOpponentSettings" class="learn-opponent-settings">
+<details class="global-strength" id="globalStrength"><summary title="Choose practice mode and Stockfish difficulty"><span id="settingsModeSummary">Guided → Stockfish</span><span aria-hidden="true">⌄</span></summary><div class="global-strength-panel"><div class="learn-opponent-head"><label for="learnOpponent"><strong>Practice mode</strong></label><select id="learnOpponent" aria-label="Practice mode"><option value="guided">Guided → Stockfish</option><option value="stockfish">Stockfish from start</option></select></div><div class="settings-strength-field"><label for="globalElo"><strong>Stockfish difficulty · <span id="globalEloValue">1700</span></strong></label><input id="globalElo" type="range" min="750" max="2800" step="50" value="1700"><div class="global-strength-scale"><span>750 · Easier</span><span>2800 · Harder</span></div><p>Opponent strength is approximate. After the prepared opening, Stockfish takes over; position analysis remains full strength.</p></div></div></details><button class="btn primary" id="challengeQuickStart" style="display:none">Start challenge</button><details class="opponent-dropdown" id="opponentDropdown"><summary id="opponentSummary">Opponent · Guided opening</summary><div class="opponent-dropdown-panel"><section id="learnOpponentSettings" class="learn-opponent-settings">
 <div id="learnOpponentDescription" class="learn-opponent-description">Follow the prepared line or practise against Stockfish.</div>
 
 <label id="learnEloSetting" class="opponent-slider" style="display:none"><span class="opponent-slider-heading">Opponent strength <strong id="learnEloValue">1700 Elo (approx.)</strong></span><input type="range" id="learnElo" min="750" max="2800" step="50" value="1700"><span class="opponent-slider-range"><span>750 · Easier</span><span>2800 · Harder</span></span></label>
