@@ -1355,7 +1355,7 @@ function renderChallenge(){
  $('learnEloValue').textContent=opponentElo()+' Elo (approx.)';
  $('challengeEloValue').textContent=opponentElo()+' Elo (approx.)';
  $('learnElo').value=opponentElo();$('challengeElo').value=opponentElo();
- $('learnOpponentDescription').textContent=learnOpponent==='guided'?('Study the selected variation move by move. After the guided length, play freely or use Next for an illustrative continuation.'):'Follow the selected opening for the guided phase, then make your own moves against Stockfish at your chosen Elo.';
+ $('learnOpponentDescription').textContent=learnOpponent==='guided'?('Study the selected variation move by move. After the guided length, play freely or use Next for a Stockfish-calculated continuation.'):'Follow the selected opening for the guided phase, then make your own moves against Stockfish at your chosen Elo.';
  $('challengeSettings').style.display=trainingMode==='challenge'?'block':'none';
  document.querySelectorAll('[data-experience]').forEach(b=>b.classList.toggle('active',b.dataset.experience===(isPlay?'practice':'guided')));
  if(trainingMode!=='challenge')return;
@@ -1750,13 +1750,16 @@ $('variationSelect').onchange=()=>{selected=$('variationSelect').value;reset();}
  }
  const token=++replySelectionToken;
  pendingReply={engine:true};
- feedback=opponentTurn?'Stockfish ('+opponentElo()+' Elo) is selecting a reply…':'Finding a continuation from this position…';
+ feedback=learnOpponent==='guided'?'Stockfish is calculating a continuation…':opponentTurn?'Stockfish ('+opponentElo()+' Elo) is selecting a reply…':'Finding a continuation from this position…';
  render();
  try{
   // Opponent uses the chosen approximate Elo. If the guided line breaks,
   // the learner's Next move uses full-strength analysis, not a random move.
-  const result=opponentTurn?await fetchChallengeMove(position):await fetchEngine(position,12);
-  if(token!==replySelectionToken||current()!==position||learnOpponent!=='guidedEngine')return;
+  // The predefined lesson has ended: use a real engine move, never
+  // the heuristic freeReply() that favours unsafe captures.
+  const result=learnOpponent==='guided'?await fetchEngine(position,14):
+   opponentTurn?await fetchChallengeMove(position):await fetchEngine(position,12);
+  if(token!==replySelectionToken||current()!==position||!['guided','guidedEngine'].includes(learnOpponent))return;
   const move=result.best?legal(position).find(m=>key(m)===result.best):null;
   pendingReply=null;
   if(move){
@@ -1776,11 +1779,13 @@ $('variationSelect').onchange=()=>{selected=$('variationSelect').value;reset();}
 $('next').onclick=()=>{
  if(pendingReply||animatingMove||gameStatus(h).done)return;
  const opponentTurn=current().t!==openings[selected].side;
- if(trainingMode==='learn'&&learnOpponent==='guidedEngine'&&(h.length-1>=guidedOpeningLimit()||opponentTurn)){
+ if(trainingMode==='learn'&&(
+  (learnOpponent==='guidedEngine'&&(h.length-1>=guidedOpeningLimit()||opponentTurn))||
+  (learnOpponent==='guided'&&h.length-1>=guidedOpeningLimit())
+ )){
   clearOutsideLinePreview();advanceLearnStockfishMove();return;
  }
- const isFreeContinuation=trainingMode==='learn'&&h.length-1>=guidedOpeningLimit();
- const m=isFreeContinuation?freeReply(current()):previewReply||suggested()||(current().i<0&&current().t===openings[selected].side?freeReply(current()):null);
+ const m=previewReply||suggested()||(current().i<0&&current().t===openings[selected].side?freeReply(current()):null);
  if(m){clearOutsideLinePreview();if(mode==='play'&&opponentTurn)startMoveAnimation(m,true);else play(m);}
 };$('opponent').onclick=()=>{const m=suggested();if(m)play(m)};$('restart').onclick=reset;$('back').onclick=()=>{if(scenario){scenarioIndex=Math.max(0,scenarioIndex-1);render();return;}if(pendingReply||animatingMove){clearReplyState();render();return;}if(h.length<2){clearOutsideLinePreview();render();return;}clearOutsideLinePreview();invalidateReview();const n=(trainingMode==='challenge'||learnOpponent==='adaptive')&&mode==='play'&&h.length>2&&h.at(-1).t===openings[selected].side?2:1;h=h.slice(0,-n);logs=logs.slice(0,-n);notes=notes.slice(0,-n);const restored=routeHistory.length>=n?routeHistory[routeHistory.length-n]:null;routeHistory=routeHistory.slice(0,-n);activeBranch=restored?.branch||null;deviationInfo=restored?.info||null;selectedSquare=-1;showHint=false;feedback='';lastSquares=[];render()};$('cancelPromo').onclick=()=>{promotion=null;render()};// Keep the material card level with the bottom of the 64-square board,
 // not the board shell (which also contains the Undo/Restart/Next buttons).
