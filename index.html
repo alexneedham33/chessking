@@ -424,6 +424,16 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 .stockfish-handoff{display:flex;align-items:center;gap:8px;margin-top:-5px;margin-bottom:9px;color:#c8b6e6;font-size:12px;font-weight:650;line-height:1.4}
 .stockfish-handoff[hidden]{display:none!important}
 .stockfish-handoff-dot{width:7px;height:7px;border-radius:50%;background:#b081f1;flex:none}
+/* The board remains dominant; only opening, variation and colour stay on the toolbar. */
+.global-strength>summary{display:flex;align-items:center;gap:8px}
+.settings-summary-status{color:#b9a6d8;font-size:11px;font-weight:600}
+.global-strength-panel{display:flex;flex-direction:column;gap:16px;width:min(330px,90vw);padding:17px}
+.global-strength-panel>.learn-opponent-head{display:flex;flex-direction:column;align-items:stretch;gap:8px}
+.global-strength-panel>.learn-opponent-head label{font-size:12px;font-weight:750;color:#d2dbea}
+.global-strength-panel>.learn-opponent-head select{width:100%;background:#273346;color:#f6f7fc;border:1px solid #536984;border-radius:9px;padding:11px;font-size:13px}
+.settings-strength-field{border-top:1px solid #344059;padding-top:14px}
+.settings-strength-field label{display:block;margin-bottom:11px;font-size:12px}
+@media(max-width:650px){.global-strength{margin-left:0}.settings-summary-status{display:none}}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -439,9 +449,7 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
  
  <div class="toolbar-field player-side-control"><span>Play as</span><div class="player-colour-switch" role="group" aria-label="Choose playing colour"><button type="button" id="playWhite" aria-pressed="true">White</button><button type="button" id="playBlack" aria-pressed="false">Black</button></div></div>
  <label id="challengeToggleWrap" class="challenge-toggle" style="display:none"><input type="checkbox" id="challengeToggle"> Opening challenge</label>
- <div class="learn-opponent-head"><label for="learnOpponent"><strong>Practice mode</strong></label><select id="learnOpponent" aria-label="Practice mode"><option value="guided">Guided → Stockfish</option><option value="stockfish">Stockfish from start</option></select></div>
- <div class="guided-length-setting"><label for="guidedOpeningLength"><strong>Guided moves</strong></label><select id="guidedOpeningLength" aria-label="Guided opening length"><option value="6">3 moves per side · Short</option><option value="10" selected>5 moves per side · Recommended</option><option value="16">8 moves per side · Deep</option></select><span class="guided-length-note">Only available lengths for this variation are shown. Changing this restarts the opening.</span></div>
- <details class="global-strength" id="globalStrength"><summary title="Set Stockfish opponent difficulty">Stockfish · <strong id="globalEloValue">1700</strong> <span aria-hidden="true">⌄</span></summary><div class="global-strength-panel"><label for="globalElo"><strong>Opponent difficulty</strong></label><input id="globalElo" type="range" min="750" max="2800" step="50" value="1700"><div class="global-strength-scale"><span>750 · Easier</span><span>2800 · Harder</span></div><p>Approximate difficulty, not an official rating. Applies in Play and to Stockfish replies after the prepared opening in Learn. Stockfish responds to the actual position; full-strength analysis stays unchanged.</p></div></details><button class="btn primary" id="challengeQuickStart" style="display:none">Start challenge</button><details class="opponent-dropdown" id="opponentDropdown"><summary id="opponentSummary">Opponent · Guided opening</summary><div class="opponent-dropdown-panel"><section id="learnOpponentSettings" class="learn-opponent-settings">
+<details class="global-strength" id="globalStrength"><summary title="Practice settings">⚙ Settings <span class="settings-summary-status" id="settingsModeSummary">Guided → Stockfish</span></summary><div class="global-strength-panel"><div class="learn-opponent-head"><label for="learnOpponent"><strong>Practice mode</strong></label><select id="learnOpponent" aria-label="Practice mode"><option value="guided">Guided → Stockfish</option><option value="stockfish">Stockfish from start</option></select></div><div class="settings-strength-field"><label for="globalElo"><strong>Stockfish difficulty · <span id="globalEloValue">1700</span></strong></label><input id="globalElo" type="range" min="750" max="2800" step="50" value="1700"><div class="global-strength-scale"><span>750 · Easier</span><span>2800 · Harder</span></div><p>Opponent strength is approximate. After the prepared opening, Stockfish takes over; position analysis remains full strength.</p></div></div></details><button class="btn primary" id="challengeQuickStart" style="display:none">Start challenge</button><details class="opponent-dropdown" id="opponentDropdown"><summary id="opponentSummary">Opponent · Guided opening</summary><div class="opponent-dropdown-panel"><section id="learnOpponentSettings" class="learn-opponent-settings">
 <div id="learnOpponentDescription" class="learn-opponent-description">Follow the prepared line or practise against Stockfish.</div>
 
 <label id="learnEloSetting" class="opponent-slider" style="display:none"><span class="opponent-slider-heading">Opponent strength <strong id="learnEloValue">1700 Elo (approx.)</strong></span><input type="range" id="learnElo" min="750" max="2800" step="50" value="1700"><span class="opponent-slider-range"><span>750 · Easier</span><span>2800 · Harder</span></span></label>
@@ -787,32 +795,9 @@ function opponentSearchDepth(rating){
 // (ten half-moves), provided the learner follows that variation.
 // After that—or immediately after a deviation—Stockfish decides replies.
 const SCRIPTED_OPENING_PLIES=10;
-const GUIDED_LENGTH_KEY='openingLab.guidedOpeningPlies';
-const guidedLengthChoices=[6,10,16];
-function readGuidedLength(){
- try{const value=Number(localStorage.getItem(GUIDED_LENGTH_KEY));return guidedLengthChoices.includes(value)?value:10;}catch{return 10;}
-}
-let chosenGuidedLength=readGuidedLength();
-function guidedOpeningLimit(){
- const total=routeLine().length;
- return guidedLengthChoices.filter(x=>x<=total&&x<=chosenGuidedLength).at(-1)||
-        guidedLengthChoices.filter(x=>x<=total).at(0)||total;
-}
-function renderGuidedLengthOptions(){
- const select=$('guidedOpeningLength'),total=routeLine().length;
- const valid=guidedLengthChoices.filter(n=>n<=total);
- const signature=valid.join(',');
- if(select.dataset.lengthOptions!==signature){
-  select.replaceChildren();
-  for(const n of valid){
-   const opt=document.createElement('option');opt.value=String(n);
-   opt.textContent=(n/2)+' per side · '+({6:'Short',10:'Recommended',16:'Deep'}[n]);
-   select.append(opt);
-  }
-  select.dataset.lengthOptions=signature;
- }
- select.value=String(guidedOpeningLimit());
-}
+// Follow each selected variation through its complete prepared line before
+// transitioning to Stockfish. Branches have their own natural ending.
+function guidedOpeningLimit(){return routeLine().length;}
 function isLockedOpeningPhase(){
  return trainingMode==='learn'&&!scenario&&learnOpponent==='guided'&&
         h.length-1<guidedOpeningLimit();
@@ -1391,7 +1376,6 @@ function renderChallenge(){
  const guidedLearn=trainingMode==='learn'&&learnOpponent==='guided';
  $('learnOpponentSettings').style.display=trainingMode==='learn'?'block':'none';
  $('learnOpponent').value=learnOpponent;
- renderGuidedLengthOptions();
  $('learnOpponent').closest('.learn-opponent-head').style.display=trainingMode==='learn'?'flex':'none';
  $('challengeToggleWrap').style.display=isPlay?'flex':'none';
  $('challengeToggle').checked=trainingMode==='challenge';
@@ -1400,7 +1384,7 @@ function renderChallenge(){
  $('challengeQuickStart').style.display='none';
  $('challengeQuickStart').textContent=challengeStarted?'Restart challenge':'Start challenge';
  $('opponentSummary').textContent=learnOpponent==='guided'?'Practice mode · Guided → Stockfish':'Practice mode · Stockfish from start';
- $('guidedOpeningLength').closest('.guided-length-setting').style.display=learnOpponent==='guided'?'':'none';
+ $('settingsModeSummary').textContent=learnOpponent==='guided'?'Guided → Stockfish':'Stockfish from start';
  $('globalElo').value=opponentElo();$('globalEloValue').textContent=String(opponentElo());
  $('learnEloSetting').style.display='none';
  $('learnEvalNote').style.display='none';
@@ -1686,8 +1670,8 @@ renderMoveReview();
 $('whyPanel').style.display=recent.length?'':'none';$('chatWelcome').style.display=recent.length?'none':'';
 $('chatWelcome').textContent=chatPerspective==='engine'?'No engine-played moves yet.':
   playerSide()===-1?
-    (learnOpponent==='guided'?'Practise defending against '+op.name+' as Black. White follows the prepared opening first; respond with Black’s guided moves, then continue against Stockfish.':'Practise defending against '+op.name+' as Black. Stockfish plays White from the opening; respond to its moves and learn the defensive ideas.'):
-    (learnOpponent==='guided'?'Explore '+op.name+'. '+op.desc+' Follow the prepared moves; then Stockfish takes over at your selected difficulty.':'Practise '+op.name+' against Stockfish at your selected difficulty. Make your own moves and use the coach to understand the position.');
+    (learnOpponent==='guided'?'Defend against '+op.name+' as Black. Follow the prepared line, then face Stockfish.':'Defend against '+op.name+' as Black, responding to Stockfish from the start.'):
+    (learnOpponent==='guided'?'Explore '+op.name+'. Follow the prepared variation, then continue against Stockfish.':'Practise '+op.name+' against Stockfish from the start.');
 $('whyContent').replaceChildren();recent.forEach(item=>{const entry=document.createElement('div');
 entry.className='why-entry '+(item.proposed?'proposed-bubble ':'')+(chatPerspective==='engine'?'engine-monologue ':'')+(item.color===1?'white-side':'black-side')+(item.color===speakingColor?' is-active':' is-muted');
 const title=document.createElement('div');title.className='why-title';title.textContent=(item.color===1?'White':'Black')+' · '+item.text;
@@ -1756,13 +1740,6 @@ function updateOpponentDifficulty(value){
 }
 $('globalElo').oninput=()=>updateOpponentDifficulty($('globalElo').value);
 $('learnElo').oninput=()=>updateOpponentDifficulty($('learnElo').value);
-$('guidedOpeningLength').onchange=()=>{
- const next=Number($('guidedOpeningLength').value);
- if(!guidedLengthChoices.includes(next)||next>routeLine().length)return;
- chosenGuidedLength=next;
- try{localStorage.setItem(GUIDED_LENGTH_KEY,String(next));}catch{}
- reset();
-};
 $('aiCoachRetry').onclick=()=>{
  if(strategicAiBusy||!strategicAiEnabled)return;
  const ply=h.length-1;
@@ -1878,7 +1855,7 @@ function fitBoardToViewport(){
   const stage=document.querySelector('.board-stage');
   if(!stage)return;
   const top=stage.getBoundingClientRect().top;
-  const limit=Math.max(260,Math.min(990,window.innerHeight-top-72));
+  const limit=Math.max(260,Math.min(990,window.innerHeight-top-60));
   document.documentElement.style.setProperty('--board-fit',limit+'px');
 }
 window.addEventListener('resize',()=>{fitBoardToViewport();requestAnimationFrame(render);});
