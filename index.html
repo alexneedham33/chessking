@@ -333,10 +333,10 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 .opening-preview-actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid #98744b;padding-top:12px;font-size:15px;font-weight:700}
 .opening-preview-dismiss{background:#74552b;border:1px solid #d2a365;border-radius:9px;padding:8px 11px;font-size:14px;font-weight:750;color:#fff}
 .opening-preview-dismiss:hover{background:#896738}
-/* Match move highlights for both colours: purple = learner, amber = Stockfish.
+/* Use one consistent purple cue for both learner and Stockfish moves.
    Guided Next gets a short anticipatory pulse; manual moves remain immediate. */
-.square.thinking::after{border-color:rgba(245,164,62,.9);animation:pulseGlow .85s ease-in-out infinite}
-.square.thinking.player-move::after{border-color:rgba(177,114,255,.95)}
+.square.thinking::after{border-color:rgba(177,114,255,.9);animation:pulseGlow .85s ease-in-out infinite}
+.square.thinking.player-move::after{border-color:rgba(177,114,255,.9)}
 .square.offline-preview-from{box-shadow:inset 0 0 0 4px rgba(228,157,57,.72)!important}
 .square.offline-preview-from:after{content:"";position:absolute;inset:16%;border:3px dashed rgba(255,225,167,.88);border-radius:50%;pointer-events:none}
 .square.offline-preview-to{box-shadow:inset 0 0 0 5px #e9a54d!important;position:relative;z-index:1}
@@ -910,13 +910,14 @@ html.app-fullscreen .side>.opening-progress-frame,html:fullscreen .side>.opening
 .top .logo-wordmark{white-space:nowrap}
 .top .logo::after{
  content:"";position:absolute;left:39px;bottom:0;
- width:68px;height:3px;border-radius:999px;
- background:linear-gradient(90deg,#9953ef,#c28cff 76%,rgba(194,140,255,0));
+ width:100px;height:3px;border-radius:999px;
+ background:linear-gradient(90deg,#aa5cf2 0 50%,#495269 50% 100%);
+ box-shadow:0 0 8px rgba(170,92,242,.1);
 }
 @media(max-width:700px){
  .top .logo{font-size:25px;gap:7px;padding-bottom:6px}
  .top .logo-mark{font-size:27px}
- .top .logo::after{left:34px;width:58px}
+ .top .logo::after{left:34px;width:86px}
 }
 /* Icon-only optional expanded-view comparison. Move only expanded workspace lower,
    and let fitBoardToViewport reserve its entire action row on short screens. */
