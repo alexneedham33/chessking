@@ -365,13 +365,6 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 .square.coach-square-highlight .piece-img{position:relative;z-index:2}
 @keyframes coach-pending-spin{to{transform:rotate(360deg)}}
 .trainer-panel .why-entry.coach-ai-message{min-height:220px;box-sizing:border-box}
-.coach-lookout{margin-top:13px;border-top:1px solid currentColor;padding-top:12px;opacity:.9}
-.coach-lookout-heading{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:800;margin-bottom:5px}
-.coach-lookout-heading::before{content:'✦';font-size:15px;color:#9564d5}
-.coach-lookout-body{font-size:15px;line-height:1.55}
-.why-entry.black-side .coach-lookout{border-top-color:#444c60}
-.why-entry.white-side .coach-lookout{border-top-color:#d5d5dc}
-@media(max-width:650px){.coach-lookout-body{font-size:14px}}
 @media(prefers-reduced-motion:reduce){.unified-coach-spinner{animation:none}}
  .unified-coach-source{font-size:11px;opacity:.68;margin-top:9px}
 .coach-header-right{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:9px}
@@ -1502,7 +1495,7 @@ async function requestUnifiedMoveCoaching(ply){
  const move=legal(before).find(m=>key(m)===note.uci);
  if(!move)return;
  const nonce=strategicAiNonce,openingAtRequest=selected;
- const record={pending:true,message:'',lookout:null,engineGrounded:false,detail:coachDetail};
+ const record={pending:true,message:'',engineGrounded:false,detail:coachDetail};
  coachMoveMessages.set(ply,record);
  aiRequestedPly.add(ply);
  strategicAiBusy=true;strategicAiStatus='analysing';
@@ -1526,7 +1519,7 @@ async function requestUnifiedMoveCoaching(ply){
   const result=await response.json();
   if(nonce!==strategicAiNonce||h[ply]!==after||coachMoveMessages.get(ply)!==record||selected!==openingAtRequest)return;
   if(typeof result.message!=='string'||result.message.trim().length<15||result.message.length>900)throw Error('Invalid AI explanation');
-  record.pending=false;record.message=result.message.trim();record.lookout=typeof result.lookout==='string'&&result.lookout.trim().length>=15?result.lookout.trim():null;record.engineGrounded=!!result.engineGrounded;
+  record.pending=false;record.message=result.message.trim();record.engineGrounded=!!result.engineGrounded;
   strategicAiFailed=false;strategicAiError='';strategicAiStatus=result.engineGrounded?'engine':'position';
  }catch(error){
   if(nonce===strategicAiNonce&&coachMoveMessages.get(ply)===record){
@@ -1654,13 +1647,6 @@ if(item.proposed){const summary=document.createElement('div');summary.className=
   const explanation=document.createElement('p');
   addCoachSquareReferences(explanation,ai?.message||item.reason);
   copy.append(explanation);
- }
- if(ai?.message&&ai.lookout){
-  const aside=document.createElement('div');aside.className='coach-lookout';
-  const heading=document.createElement('div');heading.className='coach-lookout-heading';heading.textContent='Worth considering';
-  const body=document.createElement('div');body.className='coach-lookout-body';
-  addCoachSquareReferences(body,ai.lookout);
-  aside.append(heading,body);copy.append(aside);
  }
  if(ai?.message){
   const source=document.createElement('div');source.className='unified-coach-source';
