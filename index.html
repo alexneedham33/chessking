@@ -2171,6 +2171,64 @@ function coachBoardFacts(position){
   whiteInCheck:checked(position,1),blackInCheck:checked(position,-1)};
 }
 
+// Chess mechanics are computed from the actual board, not inferred by the model.
+// "Attacks" include occupied friendly squares (defence), but do not imply
+// a capture is legal when the attacking piece is pinned.
+function coachPieceAttackSquares(position,from){
+ const piece=position.b[from];
+ if(piece==='.')return [];
+ const type=piece.toLowerCase(),colour=side(piece),targets=[];
+ if(type==='p'){
+  for(const offset of [-1,1]){
+   const target=from-16*colour+offset;
+   if(on(target))targets.push(target);
+  }
+ }else{
+  for(const delta of dirs[type]||[]){
+   for(let target=from+delta;on(target);target+=delta){
+    targets.push(target);
+    if(position.b[target]!=='.'||type==='n'||type==='k')break;
+   }
+  }
+ }
+ return targets;
+}
+function coachMoveTactics(before,move){
+ const after=apply(before,move),mover=before.t,to=move[1],from=move[0];
+ const movedPiece=after.b[to],movedType=movedPiece.toLowerCase();
+ const attackedSquares=coachPieceAttackSquares(after,to);
+ const defended=[],attackedEnemy=[];
+ for(const square of attackedSquares){
+  const piece=after.b[square];
+  if(piece==='.'||piece.toLowerCase()==='k')continue;
+  const target={piece:coachPieceNames[piece.toLowerCase()],square:sq(square)};
+  (side(piece)===mover?defended:attackedEnemy).push(target);
+ }
+ // Legal captures are determined separately from geometric attacked squares.
+ // There is no guarantee the move is good; Stockfish provides that assessment.
+ const opponentReplies=legal(after);
+ const captureReplies=opponentReplies.filter(reply=>
+   reply[3]==='ep'||after.b[reply[1]]!=='.'
+ ).map(reply=>{
+  const victim=reply[3]==='ep'?after.b[reply[1]+16*after.t]:after.b[reply[1]];
+  return {move:coachPlainMove(after,reply),capturedPiece:coachPieceNames[victim.toLowerCase()],capturedSquare:reply[3]==='ep'?sq(reply[1]+16*after.t):sq(reply[1]),capturesMovedPiece:reply[1]===to};
+ });
+ const checkingReplies=opponentReplies.filter(reply=>checked(apply(after,reply))).slice(0,5).map(reply=>coachPlainMove(after,reply));
+ const legalCapturesOfMovedPiece=captureReplies.filter(reply=>reply.capturesMovedPiece).slice(0,4);
+ return {
+  movedPiece:{colour:mover===1?'White':'Black',type:coachPieceNames[movedType],from:sq(from),to:sq(to)},
+  movedPieceAttacks:attackedSquares.map(sq),
+  enemyPiecesAttackedByMovedPiece:attackedEnemy,
+  friendlyPiecesDefendedByMovedPiece:defended,
+  movedPieceUnderAttack:attacked(after,to,-mover),
+  legalImmediateCapturesOfMovedPiece:legalCapturesOfMovedPiece,
+  opponentLegalCheckingReplies:checkingReplies,
+  inCheckAfterMove:checked(after),
+  givesCheck:checked(after,-mover),
+  note:'Attacked squares are geometric, not a claim that every capture is legal or tactically sound. Friendly pieces defended is exact for the moved piece. Legal replies are exact, but not ranked for quality.'
+ };
+}
+
 // Opening context is evidence, not a rule that the learner must follow.
 function coachOpeningContext(ply){
  const played=notes.slice(0,ply).map(item=>item?.uci).filter(Boolean);
@@ -2350,7 +2408,7 @@ async function requestUnifiedMoveCoaching(ply){
     ?'Explain the meaningful downside and a useful alternative if relevant.'
     :'Explain why this improvement matters.',
    evaluationPolicy:'The normalized balance is NOT a win probability. Do not quote exact percentages or centipawns unless explicitly requested. Do not treat the first Stockfish choice as the only good move. If evidence is missing or approximate, avoid confident judgments.',
-   languagePolicy:'Explain moves in plain English, e.g. "move the queen to d2" rather than "7.Qd2", and "move the rook to g1" rather than "Rg1". Do not use algebraic move notation, move-number prefixes, or unexplained abbreviations in the coaching message. Give one specific lesson from the current position; avoid repeating broad opening principles. Distinguish opponent and learner moves. Do not assert a tactical threat or reason for an alternative unless the supplied legal variation and board facts support it. If uncertain, say so. Use 2-5 natural sentences depending on complexity.'
+   languagePolicy:'Explain moves in plain English, e.g. "move the queen to d2" rather than "7.Qd2", and "move the rook to g1" rather than "Rg1". Do not use algebraic move notation, move-number prefixes, or unexplained abbreviations in the coaching message. Give one specific lesson from the current position; avoid repeating broad opening principles. Distinguish opponent and learner moves. Use tacticalFacts for exactly what the moved piece attacks or defends and which immediate legal replies can capture it or give check; geometric attacks are not automatically legal or strong. Do not claim a piece protects pawns not listed as defended. Do not assert a tactical threat or reason for an alternative unless the supplied legal variation and board facts support it. If uncertain, say so. Normal moves: 2-3 useful sentences; significant mistakes: up to 4, without filler.'
   };
   // Suggested alternatives appear in the coaching assessment only if the
   // loss is meaningful. Keep the underlying Stockfish line as evidence.
@@ -2370,6 +2428,7 @@ async function requestUnifiedMoveCoaching(ply){
    coachingGuidance,
    history:logs.slice(Math.max(0,ply-10),ply),recentCoaching,engine,detail:record.detail,moveAssessment,positionAssessment,
    boardFacts:{before:coachBoardFacts(before),after:coachBoardFacts(after)},
+   tacticalFacts:coachMoveTactics(before,move),
    openingContext:coachOpeningContext(ply),
    coachingLevel:coachExplanationLevel(),
    // Move descriptions are generated from legal moves, not guessed by the AI.
