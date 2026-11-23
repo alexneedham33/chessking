@@ -8,7 +8,7 @@ There are two complementary suites.
 node --test tests/coach-regression.mjs
 ```
 
-36 tests verify geometry, absolute pins, central-file status, doubled/isolated pawns and bishop-pair changes. GitHub Actions runs this automatically when relevant files change.
+50 tests verify geometry, absolute pins, central-file status, doubled/isolated pawns, bishop-pair changes, verified bishop routes and Lambda response checks. GitHub Actions runs this automatically when relevant files change.
 
 ## 2. AI explanation regression — replayable positions
 
@@ -65,6 +65,6 @@ Automated checks flag only a limited subset of possible issues (e.g., inaccurate
 
 ### CI
 
-The GitHub Actions workflow **Chess coach regression** runs the 36 mechanical tests and the offline AI-fixture replay on pushes and PRs affecting the test code. It makes no paid API requests. Generated reports are ignored by Git.
+The GitHub Actions workflow **Chess coach regression** runs the 50 mechanical and validator tests and the offline AI-fixture replay on pushes and PRs affecting the test code. It makes no paid API requests. Generated reports are ignored by Git.
 
 The goal is reproducible evidence, not a misleading overall “AI accuracy score.” Once full position+engine payloads exist, we can expand the fixed set to cover every case and measure true prompt/model changes.
