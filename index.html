@@ -2184,7 +2184,7 @@ function coachPieceAttackSquares(position,from){
    if(on(target))targets.push(target);
   }
  }else{
-  for(const delta of dirs[type]||[]){
+  for(const delta of dirs[type]||dirs.k){
    for(let target=from+delta;on(target);target+=delta){
     targets.push(target);
     if(position.b[target]!=='.'||type==='n'||type==='k')break;
