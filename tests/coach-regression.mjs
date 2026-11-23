@@ -131,7 +131,7 @@ const guardEnd=lambdaSource.indexOf('async function generateCoaching(',guardStar
 assert.ok(guardStart>=0&&guardEnd>guardStart,'Lambda guard implementation present');
 const guardContext={};vm.createContext(guardContext);
 vm.runInContext(lambdaSource.slice(guardStart,guardEnd)+
- '\nthis.guard={checkExplanation,coachingBudget,unsupportedStructuralClaims};',guardContext);
+ '\nthis.guard={checkExplanation,coachingBudget,unsupportedStructuralClaims,unsupportedExchangeClaims};',guardContext);
 const bishopPositionBefore=pos({c8:'b',f8:'b',d7:'.',e7:'p',d5:'p',e2:'P',d4:'P'});
 const bishopPositionAfter=pos({c8:'b',f8:'b',d7:'.',e6:'p',e7:'.',d5:'p',e2:'P',d4:'P'});
 const guardInput={strategicFacts:changes(bishopPositionBefore,bishopPositionAfter),tacticalFacts:{}};
@@ -159,4 +159,37 @@ test('49 regression: not open e-file is allowed',()=>{
 });
 test('50 regression: bishop on c8 described as blocked is allowed when newly blocked',()=>{
  assert.equal(guard('The move blocks the bishop on c8.').length,0);
+});
+
+const exchangeGuard=(message,evidence)=>Array.from(guardContext.guard.unsupportedExchangeClaims(
+ message,{tacticalFacts:{exchangeEvidence:evidence}}));
+const equalExchange={captured:{piece:'bishop',value:3},captureOptions:[],
+ completedExchange:{sameSquareRecapture:true,equalValuePieces:true,
+  previousCapture:{piece:'knight',value:3},currentCapture:{piece:'bishop',value:3}}};
+test('51 flags false free-piece win after bishop-for-knight recapture',()=>{
+ assert.ok(exchangeGuard("You've won a piece but accepted doubled pawns.",equalExchange).length>0);
+});
+test('52 allows accurate recapture wording after equal exchange',()=>{
+ assert.equal(exchangeGuard("You win back the bishop after losing your knight.",equalExchange).length,0);
+});
+test('53 allows neutral material language for exchange',()=>{
+ assert.equal(exchangeGuard("You capture the bishop and complete the exchange.",equalExchange).length,0);
+});
+test('54 recapturable attack is not a free piece win',()=>{
+ const evidence={captured:{piece:'knight',value:3},captureOptions:[
+  {uci:'b2c3',hasLegalRecapture:true,recaptures:[{uci:'a5c3'}]}]};
+ assert.ok(exchangeGuard('Black wins the knight for free.',evidence).length>0);
+});
+test('55 allows neutral capture statement when bishop can be recaptured',()=>{
+ const evidence={captured:{piece:'knight',value:3},captureOptions:[
+  {uci:'b2c3',hasLegalRecapture:true}]};
+ assert.equal(exchangeGuard('The bishop captures the knight with check, and White can recapture.',evidence).length,0);
+});
+test('56 guards false material gain from a possible pawn capture',()=>{
+ const evidence={captured:null,captureOptions:[{uci:'f6e4',hasLegalRecapture:true}]};
+ assert.ok(exchangeGuard('Black wins a pawn by capturing on e4.',evidence).length>0);
+});
+test('57 does not flag a conditional capture with verified recapture',()=>{
+ const evidence={captured:null,captureOptions:[{uci:'f6e4',hasLegalRecapture:true}]};
+ assert.equal(exchangeGuard('Black can capture the e4 pawn, but White can recapture the knight.',evidence).length,0);
 });
