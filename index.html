@@ -2231,17 +2231,47 @@ function coachMoveTactics(before,move){
 
 // Verify an engine-suggested move against the board BEFORE explaining it.
 // A rank-1 suggestion is not proof of a tactical purpose or a forced gain.
-function coachAlternativeEvidence(before,bestMove,playedMove,loss){
+function coachAlternativeEvidence(before,bestMove,playedMove,loss,priorEngine){
  if(!bestMove||key(bestMove)===key(playedMove)||!Number.isFinite(loss)||loss<70)return null;
+ // A different Stockfish first choice is not enough. Only explain an
+ // alternative when the principal variation actually starts with that legal move.
+ const pv=priorEngine?.variations?.find(line=>line.rank===1&&line.moves?.[0]?.uci===key(bestMove));
+ if(!pv)return null;
+ let board=before;
+ const continuation=[];
+ for(const candidate of pv.moves.slice(0,4)){
+  const move=legal(board).find(m=>key(m)===candidate.uci);
+  if(!move)break;
+  const next=apply(board,move);
+  const captured=move[3]==='ep'?board.b[move[1]+16*board.t]:board.b[move[1]];
+  continuation.push({
+   ply:continuation.length+1,
+   move:coachPlainMove(board,move),
+   uci:key(move),
+   side:board.t===1?'White':'Black',
+   capture:captured!=='.'?{piece:coachPieceNames[captured.toLowerCase()],square:sq(move[1])}:null,
+   givesCheck:checked(next),
+   // The next recorded move is the ENGINE's anticipated reply, not a forced reply.
+   resultingFen:fenOf(next)
+  });
+  board=next;
+ }
+ if(!continuation.length||continuation[0].uci!==key(bestMove))return null;
  const alternativeAfter=apply(before,bestMove);
- const tactics=coachMoveTactics(before,bestMove);
  return {
   move:coachPlainMove(before,bestMove),
   uci:key(bestMove),
   resultingFen:fenOf(alternativeAfter),
-  tacticalFacts:tactics,
+  tacticalFacts:coachMoveTactics(before,bestMove),
   boardFacts:coachBoardFacts(alternativeAfter),
-  explanationRule:'Only describe an attack or defence if the corresponding target appears in tacticalFacts. These are geometric observations, not proof the alternative is strategically better. Do not invent a threat, forced continuation, or capture.'
+  stockfishContinuation:{
+   depth:priorEngine.depth,
+   lineRank:1,
+   approximateEvaluation:pv.evaluation,
+   moves:continuation,
+   interpretation:'These moves were checked for legality on successive board states and came from the pre-move Stockfish principal variation. They are possible best-play replies, not forced play. Only claim a recapture if it appears as an explicit capture in this line. Never infer that a queen recapture is safe merely because it is legal.'
+  },
+  explanationRule:'Explain the benefit of the alternative using its verified board facts AND Stockfish continuation together. For claims about replies, recaptures, material gains or safety, cite only moves explicitly recorded in stockfishContinuation, never invented follow-ups. If no clear consequence is shown, omit the specific line and give only a modest comparison.'
  };
 }
 
@@ -2429,14 +2459,14 @@ async function requestUnifiedMoveCoaching(ply){
   // Offer an alternative only after a substantial, depth-limited loss.
   // Validate its LEGAL move and resulting attacks/defences separately.
   const bestMoveForCoaching=prior?.best?legal(before).find(candidate=>key(candidate)===prior.best):null;
-  const alternativeEvidence=coachAlternativeEvidence(before,bestMoveForCoaching,move,loss);
+  const alternativeEvidence=coachAlternativeEvidence(before,bestMoveForCoaching,move,loss,priorEngine);
   if(moveAssessment&&!alternativeEvidence){
    moveAssessment.suggestedMove=null;
    moveAssessment.suggestedMovePlainEnglish=null;
   }
   coachingGuidance.explainAlternatives=!!alternativeEvidence;
   coachingGuidance.alternativePolicy=alternativeEvidence
-   ?'A better alternative is available with verified after-move board facts. Mention it ONLY when explaining a material mistake and do not assert a tactical reason not in alternativeEvidence.'
+   ?'A better alternative is supported by legal board evidence and a Stockfish principal variation. Describe a specific reply or recapture ONLY if explicitly present in alternativeEvidence.stockfishContinuation. Do not assume a line is forced or a recapture safe. If the line provides no clear advantage to explain, simply mention the alternative without manufacturing a tactical reason.'
    :'Do not recommend another move, name Stockfish alternatives, or criticize a reasonable move merely because it is not engine rank one.';
   const recentCoaching=[...coachMoveMessages.entries()]
    .filter(([at,item])=>at<ply&&!item.pending&&item.message).slice(-3).map(([,item])=>item.message);
