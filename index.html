@@ -556,6 +556,26 @@ html.app-fullscreen .compact-toolbar,html:fullscreen .compact-toolbar{padding-le
 .trainer-panel .coach-side-piece{width:26px;height:26px}
 @media(max-width:650px){.side>.capture-tray{margin-left:14px;margin-right:14px}}
 html.app-fullscreen .side>.capture-tray,html:fullscreen .side>.capture-tray{margin-left:14px;margin-right:14px}
+/* Captured material gets the same subtle outer panel as the right-column
+   coaching and positional balance panels, with a pale inset card inside. */
+.side>.capture-tray-frame{
+ margin-top:auto;flex:0 0 auto;min-width:0;
+ padding:14px 17px;
+ background:#0a0d15;border:1px solid #171c29;border-radius:22px;
+ box-shadow:0 18px 56px rgba(0,0,0,.28);
+}
+.side>.capture-tray-frame>.capture-tray{
+ width:100%;margin:0!important;
+ background:var(--coach-light-surface,#f5f5f6);
+ border:1px solid #d5d5da;border-radius:16px;overflow:hidden;
+ box-shadow:none;
+}
+@media(max-width:650px){.side>.capture-tray-frame{padding:12px 13px}}
+html.app-fullscreen .side>.capture-tray-frame,
+html:fullscreen .side>.capture-tray-frame{padding:14px}
+/* The white-side evaluation bar uses Chess King's purple accent instead of
+   sharing the coaching card's white surface colour. */
+.balance-white-side{background:#9d4edd}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -668,12 +688,14 @@ html.app-fullscreen .side>.capture-tray,html:fullscreen .side>.capture-tray{marg
         </div>
         <div style="display:none" aria-hidden="true"><span id="plyCount"></span><div id="history"></div></div>
       </section>
-      <div class="capture-tray" aria-label="Captured pieces">
- <div class="capture-tray-columns">
-  <div class="capture-tray-side"><span class="capture-tray-label">White</span><div class="capture-tray-pieces" id="blackCapturedPieces"></div></div>
-  <div class="capture-tray-side"><span class="capture-tray-label">Black</span><div class="capture-tray-pieces" id="whiteCapturedPieces"></div></div>
- </div>
-</div>
+      <div class="capture-tray-frame">
+       <div class="capture-tray" aria-label="Captured pieces">
+        <div class="capture-tray-columns">
+         <div class="capture-tray-side"><span class="capture-tray-label">White</span><div class="capture-tray-pieces" id="blackCapturedPieces"></div></div>
+         <div class="capture-tray-side"><span class="capture-tray-label">Black</span><div class="capture-tray-pieces" id="whiteCapturedPieces"></div></div>
+        </div>
+       </div>
+      </div>
     </aside>
   </main>
 </div>
