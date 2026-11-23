@@ -4,6 +4,8 @@ on:
     paths:
       - index.html
       - tests/coach-regression.mjs
+      - tests/coach-ai-regression.mjs
+      - tests/coach-review-cases.json
       - .github/workflows/coach-regression.yml
   pull_request:
     paths:
@@ -21,3 +23,4 @@ jobs:
         with:
           node-version: '22'
       - run: node --test tests/coach-regression.mjs
+      - run: node tests/coach-ai-regression.mjs
