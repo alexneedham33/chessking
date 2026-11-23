@@ -454,6 +454,14 @@ html.app-fullscreen .compact-toolbar,html:fullscreen .compact-toolbar{padding-le
 .settings-strength-field label{display:block;margin-bottom:11px;font-size:12px}
 @media(max-width:650px){.global-strength{margin-left:0}.settings-summary-status{display:none}}
 
+
+/* Main setup order: playing colour, practice mode, then optional guided opening. */
+.compact-toolbar>.compact-mode{flex:0 1 140px;min-width:115px}
+.compact-toolbar>.compact-mode .learn-opponent-head{width:100%;min-width:0}
+.compact-toolbar>.compact-mode .custom-select{width:100%}
+.compact-toolbar>.compact-opening{flex:1 1 185px}
+.compact-toolbar>.compact-variation{flex:1 1 125px}
+@media(max-width:800px){.compact-toolbar>.compact-mode{flex:0 1 140px}}
 /* Theme-matched dropdown menus, independent of operating-system select menus. */
 .custom-select{position:relative;min-width:0;width:100%}
 .custom-select>select{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important;clip-path:inset(50%)!important}
@@ -868,12 +876,13 @@ html.app-fullscreen .side>.opening-progress-frame,html:fullscreen .side>.opening
     <div class="actions"><button class="btn" id="fullscreen">⛶ Expand view</button></div>
   </header>
 <nav class="compact-toolbar" aria-label="Opening and opponent controls">
- <div class="toolbar-field compact-opening"><div class="custom-select" data-select-id="openingSelect"><select id="openingSelect" tabindex="-1" aria-hidden="true"><option value="queenAccepted">Queen's Gambit Accepted</option><option value="queen">Queen's Gambit Declined</option><option value="italian">Italian Game</option><option value="sicilian">Sicilian Defence</option><option value="caro">Caro–Kann Defence</option></select><button type="button" class="custom-select-trigger" id="openingSelectTrigger" aria-label="Opening strategy" aria-haspopup="listbox" aria-expanded="false"><span class="custom-select-value">Queen's Gambit Accepted</span><span class="custom-select-chevron" aria-hidden="true">⌄</span></button><div class="custom-select-menu" role="listbox" aria-label="Opening strategy" hidden></div></div></div>
+ <div class="toolbar-field player-side-control"><span class="sr-only">Play as</span><div class="player-colour-switch" role="group" aria-label="Choose playing colour"><button type="button" id="playWhite" aria-pressed="true">White</button><button type="button" id="playBlack" aria-pressed="false">Black</button></div></div>
+ <div class="toolbar-field compact-mode"><div class="learn-opponent-head"><label id="practiceModeLabel" class="sr-only">Mode</label><div class="custom-select" data-select-id="learnOpponent"><select id="learnOpponent" tabindex="-1" aria-hidden="true"><option value="guided">Guided</option><option value="stockfish">Stockfish</option></select><button type="button" class="custom-select-trigger" id="learnOpponentTrigger" aria-labelledby="practiceModeLabel" aria-haspopup="listbox" aria-expanded="false"><span class="custom-select-value">Guided</span><span class="custom-select-chevron" aria-hidden="true">⌄</span></button><div class="custom-select-menu" role="listbox" aria-label="Practice mode" hidden></div></div></div></div> <div class="toolbar-field compact-opening"><div class="custom-select" data-select-id="openingSelect"><select id="openingSelect" tabindex="-1" aria-hidden="true"><option value="queenAccepted">Queen's Gambit Accepted</option><option value="queen">Queen's Gambit Declined</option><option value="italian">Italian Game</option><option value="sicilian">Sicilian Defence</option><option value="caro">Caro–Kann Defence</option></select><button type="button" class="custom-select-trigger" id="openingSelectTrigger" aria-label="Opening strategy" aria-haspopup="listbox" aria-expanded="false"><span class="custom-select-value">Queen's Gambit Accepted</span><span class="custom-select-chevron" aria-hidden="true">⌄</span></button><div class="custom-select-menu" role="listbox" aria-label="Opening strategy" hidden></div></div></div>
  <div class="toolbar-field compact-variation"><div class="custom-select" data-select-id="variationSelect"><select id="variationSelect" tabindex="-1" aria-hidden="true"><option value="queenAccepted">Main line</option></select><button type="button" class="custom-select-trigger" id="variationSelectTrigger" aria-label="Opening variation" aria-haspopup="listbox" aria-expanded="false"><span class="custom-select-value">Main line</span><span class="custom-select-chevron" aria-hidden="true">⌄</span></button><div class="custom-select-menu" role="listbox" aria-label="Opening variation" hidden></div></div></div>
  
- <div class="toolbar-field player-side-control"><span class="sr-only">Play as</span><div class="player-colour-switch" role="group" aria-label="Choose playing colour"><button type="button" id="playWhite" aria-pressed="true">White</button><button type="button" id="playBlack" aria-pressed="false">Black</button></div></div>
+
  <label id="challengeToggleWrap" class="challenge-toggle" style="display:none"><input type="checkbox" id="challengeToggle"> Opening challenge</label>
-<details class="global-strength" id="globalStrength"><summary title="Choose practice mode and Stockfish difficulty"><span id="settingsModeSummary">Guided → Stockfish</span><span aria-hidden="true">⌄</span></summary><div class="global-strength-panel"><div class="learn-opponent-head"><label id="practiceModeLabel"><strong>Practice mode</strong></label><div class="custom-select" data-select-id="learnOpponent"><select id="learnOpponent" tabindex="-1" aria-hidden="true"><option value="guided">Guided → Stockfish</option><option value="stockfish">Stockfish from start</option></select><button type="button" class="custom-select-trigger" id="learnOpponentTrigger" aria-labelledby="practiceModeLabel" aria-haspopup="listbox" aria-expanded="false"><span class="custom-select-value">Guided → Stockfish</span><span class="custom-select-chevron" aria-hidden="true">⌄</span></button><div class="custom-select-menu" role="listbox" aria-label="Practice mode" hidden></div></div></div><div class="settings-strength-field"><label for="globalElo"><strong>Stockfish difficulty · <span id="globalEloValue">1700</span></strong></label><input id="globalElo" type="range" min="750" max="2800" step="50" value="1700"><div class="global-strength-scale"><span>750 · Easier</span><span>2800 · Harder</span></div><p>Opponent strength is approximate. After the prepared opening, Stockfish takes over; position analysis remains full strength.</p></div></div></details><button class="btn primary" id="challengeQuickStart" style="display:none">Start challenge</button><details class="opponent-dropdown" id="opponentDropdown"><summary id="opponentSummary">Opponent · Guided opening</summary><div class="opponent-dropdown-panel"><section id="learnOpponentSettings" class="learn-opponent-settings">
+<details class="global-strength" id="globalStrength"><summary title="Choose practice mode and Stockfish difficulty"><span id="settingsModeSummary">Difficulty · 1700</span><span aria-hidden="true">⌄</span></summary><div class="global-strength-panel"><div class="settings-strength-field"><label for="globalElo"><strong>Stockfish difficulty · <span id="globalEloValue">1700</span></strong></label><input id="globalElo" type="range" min="750" max="2800" step="50" value="1700"><div class="global-strength-scale"><span>750 · Easier</span><span>2800 · Harder</span></div><p>Opponent strength is approximate. After the prepared opening, Stockfish takes over; position analysis remains full strength.</p></div></div></details><button class="btn primary" id="challengeQuickStart" style="display:none">Start challenge</button><details class="opponent-dropdown" id="opponentDropdown"><summary id="opponentSummary">Opponent · Guided opening</summary><div class="opponent-dropdown-panel"><section id="learnOpponentSettings" class="learn-opponent-settings">
 <div id="learnOpponentDescription" class="learn-opponent-description">Follow the prepared line or practise against Stockfish.</div>
 
 <label id="learnEloSetting" class="opponent-slider" style="display:none"><span class="opponent-slider-heading">Opponent strength <strong id="learnEloValue">1700 Elo (approx.)</strong></span><input type="range" id="learnElo" min="750" max="2800" step="50" value="1700"><span class="opponent-slider-range"><span>750 · Easier</span><span>2800 · Harder</span></span></label>
@@ -1557,11 +1566,11 @@ async function checkBalanceScale(){
  }catch(err){if(currentSerial===reviewSerial)out.textContent='Calibration check unavailable: '+(err?.message||'Stockfish error');}
 }
 const OPPONENT_MODE_KEY='openingLab.opponentMode';
-function loadOpponentMode(){try{return localStorage.getItem(OPPONENT_MODE_KEY)==='stockfish'?'stockfish':'guided';}catch{return 'guided';}}
+function loadOpponentMode(){try{return localStorage.getItem(OPPONENT_MODE_KEY)==='guided'?'guided':'stockfish';}catch{return 'stockfish';}}
 const PLAYER_SIDE_KEY='openingLab.playerSide';
 function readPlayerSide(){try{const raw=localStorage.getItem(PLAYER_SIDE_KEY);return raw==='1'?1:raw==='-1'?-1:null;}catch{return null;}}
 let chosenPlayerSide=readPlayerSide();
-function playerSide(){return chosenPlayerSide===null?openings[selected].side:chosenPlayerSide;}
+function playerSide(){return chosenPlayerSide===null?1:chosenPlayerSide;}
 function boardFlipped(){return playerSide()===-1;}
 let ghostMoveReference=null;
 let chatMode='learn',chatPerspective='coach',previewReplyEngine=false,previewAnalysis=null,trainingMode='learn',learnOpponent=loadOpponentMode(),challengeStarted=false,challengeFinished=false,challengeScore=null;let selected='queenAccepted',mode='play',h=[original()],selectedSquare=-1,showHint=false,feedback='',promotion=null,logs=[],notes=[],lastSquares=[],pendingReply=null,previewReply=null,replyTimer=null,animatingMove=null,animationTimer=null;const $=id=>document.getElementById(id);
@@ -1808,6 +1817,8 @@ function renderChallenge(){
  $('learnOpponentSettings').style.display=trainingMode==='learn'?'block':'none';
  $('learnOpponent').value=learnOpponent;
  $('learnOpponent').closest('.learn-opponent-head').style.display=trainingMode==='learn'?'flex':'none';
+ document.querySelector('.compact-opening').style.display=guidedLearn?'flex':'none';
+ document.querySelector('.compact-variation').style.display=guidedLearn?'flex':'none';
  $('challengeToggleWrap').style.display=isPlay?'flex':'none';
  $('challengeToggle').checked=trainingMode==='challenge';
  $('playChallengePanel').style.display=trainingMode==='challenge'?'block':'none';
@@ -1815,7 +1826,7 @@ function renderChallenge(){
  $('challengeQuickStart').style.display='none';
  $('challengeQuickStart').textContent=challengeStarted?'Restart challenge':'Start challenge';
  $('opponentSummary').textContent=learnOpponent==='guided'?'Practice mode · Guided → Stockfish':'Practice mode · Stockfish from start';
- $('settingsModeSummary').textContent=learnOpponent==='guided'?'Guided → Stockfish':'Stockfish from start';
+ $('settingsModeSummary').textContent='Difficulty · '+opponentElo();
  $('globalElo').value=opponentElo();$('globalEloValue').textContent=String(opponentElo());
  $('learnEloSetting').style.display='none';
  $('learnEvalNote').style.display='none';
