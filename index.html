@@ -2158,7 +2158,7 @@ function coachBoardFacts(position){
  }
  const watched=['c4','c5','d4','d5','e4','e5','f6','g4'];
  const squares=Object.fromEntries(watched.map(name=>{
-  const i=index(name),piece=position.b[i];
+  const i=(8-Number(name[1]))*16+'abcdefgh'.indexOf(name[0]),piece=position.b[i];
   return [name,{
    occupant:piece==='.'?'empty':(side(piece)===1?'White ':'Black ')+coachPieceNames[piece.toLowerCase()],
    attackedByWhite:attacked(position,i,1),
