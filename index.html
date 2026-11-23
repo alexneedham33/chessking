@@ -481,6 +481,30 @@ html.app-fullscreen .compact-toolbar,html:fullscreen .compact-toolbar{padding-le
 .compact-toolbar>.compact-opening>.custom-select,.compact-toolbar>.compact-variation>.custom-select{width:100%}
 .global-strength-panel .custom-select-trigger{height:42px;font-size:13px}
 .global-strength-panel .custom-select-menu{width:100%;max-width:100%}
+
+/* Captured pieces follow the dark workspace while lighter inner tiles preserve
+   contrast for both black and white Cburnett SVG chess pieces. */
+.side>.capture-tray{background:#101522;border:1px solid #2d3749;border-radius:16px;box-shadow:0 12px 28px #0004;padding:13px}
+.capture-tray-header{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 2px 11px}
+.capture-tray-header strong{color:#e7edf8;font-size:13px;font-weight:750}
+.capture-tray-header span{color:#8e9cb3;font-size:11px}
+.capture-tray-columns{gap:9px}
+.capture-tray-side{background:#30394b;border:1px solid #465267;border-radius:11px;padding:11px 12px 10px;min-width:0}
+.capture-tray-side+.capture-tray-side{border-left:1px solid #465267}
+.capture-tray-label{font-size:12px;color:#e0e8f5;margin-bottom:6px;font-weight:750}
+.capture-tray-pieces{min-height:29px;gap:5px}
+.capture-piece-group .capture-piece{width:31px;height:36px;filter:drop-shadow(0 1px 2px #000a)}
+.capture-piece-count{color:#ecf2fa;font-size:12px}
+.capture-tray-pieces .capture-empty{color:#c0cbda;font-size:12px}
+@media(max-width:650px){.side>.capture-tray{padding:10px}.capture-tray-header{margin-bottom:9px}.capture-tray-side{padding:9px}.capture-tray-label{font-size:11px}.capture-piece-group .capture-piece{width:28px;height:33px}}
+/* Board actions stay below the board, with consistent sizing. */
+.board-controls .btn{min-height:42px;display:flex;align-items:center;justify-content:center;font-size:13px}
+/* Slight typography and height refinement on the four top controls. */
+.compact-toolbar .custom-select-trigger,.compact-toolbar #settingsModeSummary{font-size:13px}
+.compact-toolbar .custom-select-trigger,.compact-toolbar>.global-strength>summary,.compact-toolbar .player-colour-switch{height:42px}
+.compact-toolbar .player-colour-switch button{font-size:13px}
+/* Remove the unused minimum height at the start; completed coaching still grows. */
+.trainer-panel #chatTabPane{min-height:0!important}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -594,10 +618,10 @@ html.app-fullscreen .compact-toolbar,html:fullscreen .compact-toolbar{padding-le
         <div style="display:none" aria-hidden="true"><span id="plyCount"></span><div id="history"></div></div>
       </section>
       <div class="capture-tray" aria-label="Captured pieces">
- 
+ <div class="capture-tray-header"><strong>Captured pieces</strong><span>Material taken</span></div>
  <div class="capture-tray-columns">
-  <div class="capture-tray-side"><span class="capture-tray-label">White</span><div class="capture-tray-pieces" id="blackCapturedPieces"></div></div>
-  <div class="capture-tray-side"><span class="capture-tray-label">Black</span><div class="capture-tray-pieces" id="whiteCapturedPieces"></div></div>
+  <div class="capture-tray-side"><span class="capture-tray-label">White captured</span><div class="capture-tray-pieces" id="blackCapturedPieces"></div></div>
+  <div class="capture-tray-side"><span class="capture-tray-label">Black captured</span><div class="capture-tray-pieces" id="whiteCapturedPieces"></div></div>
  </div>
 </div>
     </aside>
