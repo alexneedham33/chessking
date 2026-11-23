@@ -1,0 +1,23 @@
+name: Chess coach regression
+on:
+  push:
+    paths:
+      - index.html
+      - tests/coach-regression.mjs
+      - .github/workflows/coach-regression.yml
+  pull_request:
+    paths:
+      - index.html
+      - tests/coach-regression.mjs
+      - .github/workflows/coach-regression.yml
+jobs:
+  deterministic-chess-checks:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test tests/coach-regression.mjs
