@@ -1782,7 +1782,6 @@ function play(m,manual=false){
   const found=legal(current()).find(x=>key(x)===key(m));
   if(!found){feedback='Illegal move';render();return;}
   if(isLockedOpeningPhase()){
-   if(!guidedVariationChosen){feedback='Choose a strategy and variation to begin guided practice.';render();return;}
    const expected=suggested();
    if(!expected||key(found)!==key(expected)){rejectOutsideOpeningLine(found);return;}
   }
@@ -2209,7 +2208,7 @@ if(ghost){
   ghost.replaceChildren();
  }
 }
-$('hint').style.display=scenario?'none':mode==='play'?'':'none';$('next').style.display=scenario?'none':'';$('next').disabled=!isLockedOpeningPhase()||!guidedVariationChosen||!suggested()||ended||!!pendingReply||!!animatingMove;$('hint').disabled=ended||!yourTurn||(isLockedOpeningPhase()&&!hint)||!!pendingReply||!!animatingMove;$('back').disabled=!!pendingReply||!!animatingMove||(!scenario&&h.length===1);$('opponent').style.display='none';
+$('hint').style.display=scenario?'none':mode==='play'?'':'none';$('next').style.display=scenario?'none':'';$('next').disabled=!isLockedOpeningPhase()||!suggested()||ended||!!pendingReply||!!animatingMove;$('hint').disabled=ended||!yourTurn||(isLockedOpeningPhase()&&!hint)||!!pendingReply||!!animatingMove;$('back').disabled=!!pendingReply||!!animatingMove||(!scenario&&h.length===1);$('opponent').style.display='none';
 if(pendingReply||animatingMove?.isOpponent){$('promptLabel').textContent='OPPONENT';$('prompt').textContent='Typical reply incoming';$('explanation').textContent='Watch how the opponent develops their position.';} else if(ended){$('promptLabel').textContent='GAME OVER';$('prompt').textContent=status.text;$('explanation').textContent='Restart to try again.';}else if(s.i===routeLine().length){$('promptLabel').textContent='COMPLETE';$('prompt').textContent='Opening complete!';$('explanation').textContent='You have finished the prepared line. Keep playing or restart.';}else if(s.i<0){$('promptLabel').textContent='FREE PLAY';$('prompt').textContent='Explore the position';$('explanation').textContent='You have departed from the guided opening. Any legal move is still available.';}else{$('promptLabel').textContent=mode==='play'?(yourTurn?'YOUR TURN':'OPPONENT TO MOVE'):'NEXT IN THE LINE';$('prompt').textContent=mode==='play'&&yourTurn&&!showHint?'Find the next move':hint?moveLabel(s,hint):'Opening complete';$('explanation').textContent=mode==='play'&&yourTurn&&!showHint?'Make your move, or reveal a hint.':step?.[1]||'';}
 if(scenario){$('promptLabel').textContent='SCENARIO';$('prompt').textContent=scenario.title;$('explanation').textContent=scenarioIndex===0?scenario.summary:scenario.moves[scenarioIndex-1][1];}// One chronological conversation page. A new page begins when the messages reach the board's bottom.
 // Display the current half-move only. The full game and explanations
@@ -2389,7 +2388,7 @@ $('variationSelect').onchange=()=>{const value=$('variationSelect').value;if(!va
 }
 $('next').onclick=()=>{
  // Next is only for the guided opening; Stockfish free play is manual.
- if(!isLockedOpeningPhase()||!guidedVariationChosen||pendingReply||animatingMove||gameStatus(h).done)return;
+ if(!isLockedOpeningPhase()||pendingReply||animatingMove||gameStatus(h).done)return;
  const m=suggested();
  if(m){
   clearOutsideLinePreview();
