@@ -686,6 +686,43 @@ html.app-fullscreen .app,html:fullscreen .app{padding-top:22px;padding-bottom:28
  .opening-progress-inner{padding:18px 20px}
 }
 html.app-fullscreen .side>.opening-progress-frame,html:fullscreen .side>.opening-progress-frame{padding:14px}
+/* Stabilise coach dimensions: new messages replace the content, not the panel size. */
+.side>.trainer-panel{
+ height:clamp(350px,42dvh,465px);
+ max-height:none;
+ overflow:hidden;
+ display:flex;
+ flex-direction:column;
+ flex:0 0 auto;
+}
+.trainer-panel #chatTabPane{
+ display:flex;
+ flex:1 1 auto;
+ flex-direction:column;
+ min-height:0!important;
+ overflow:hidden;
+}
+.trainer-panel #chatZone{
+ display:block;
+ height:auto!important;
+ max-height:none!important;
+ min-height:0!important;
+ flex:1 1 auto;
+ overflow-y:auto!important;
+ overflow-x:hidden!important;
+}
+.trainer-panel #chatZone .why-content{padding-bottom:3px}
+/* Anchor the progress card directly above Captured Pieces with one steady gap,
+   even when the coaching message changes length. */
+.side>.opening-progress-frame{margin-top:auto}
+.side>.capture-tray-frame{margin-top:0}
+.side>.opening-progress-frame[style*="display: none"]+.capture-tray-frame{margin-top:auto}
+@media(max-width:1020px){
+ .side>.trainer-panel{height:clamp(340px,45dvh,465px)}
+}
+@media(max-width:650px){
+ .side>.trainer-panel{height:clamp(310px,48dvh,420px)}
+}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -1479,27 +1516,14 @@ function addCoachSquareReferences(container,explanation){
 function sizeCoachConversation(scrollToLatest=false){
  const zone=$('chatZone'),messages=$('whyContent');
  if(!zone||!messages)return;
- // Keep the full history scrollable, but fit the complete latest move bubble:
- // both the move explanation and its asynchronous strategic idea.
- // Never scroll to the bottom of that bubble and hide the explanation.
  const generation=++coachScrollGeneration;
  requestAnimationFrame(()=>{
-   if(generation!==coachScrollGeneration)return;
-   const entries=Array.from(messages.children);
-   if(!entries.length){
-     zone.style.setProperty('height','auto','important');
-     zone.scrollTop=0;
-     return;
-   }
-   const visible=entries.slice(-1);
-   const gap=parseFloat(getComputedStyle(messages).rowGap)||0;
-   const wanted=visible.reduce((sum,entry)=>sum+entry.getBoundingClientRect().height,0)+gap*Math.max(0,visible.length-1);
-   const cap=Math.max(260,Math.min(window.innerHeight*0.82,960));
-   zone.style.setProperty('height',Math.ceil(Math.min(wanted+4,cap))+'px','important');
-   // Always align to the beginning of the newest move, even when an AI
-   // response arrives later. The insight must not steal focus from the move.
-   const latest=entries[entries.length-1];
-   if(latest)zone.scrollTop=Math.max(0,latest.getBoundingClientRect().top-zone.getBoundingClientRect().top+zone.scrollTop);
+  if(generation!==coachScrollGeneration)return;
+  const latest=messages.lastElementChild;
+  if(!latest){zone.scrollTop=0;return;}
+  // Move content scrolls within a stable coach viewport. Do not resize it.
+  // On asynchronous AI updates, keep the start of the latest message visible.
+  zone.scrollTop=Math.max(0,latest.getBoundingClientRect().top-zone.getBoundingClientRect().top+zone.scrollTop);
  });
 }
 function revealLatestCoachMove(){
