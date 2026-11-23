@@ -424,6 +424,18 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 .stockfish-handoff{display:flex;align-items:center;gap:8px;margin-top:-5px;margin-bottom:9px;color:#c8b6e6;font-size:12px;font-weight:650;line-height:1.4}
 .stockfish-handoff[hidden]{display:none!important}
 .stockfish-handoff-dot{width:7px;height:7px;border-radius:50%;background:#b081f1;flex:none}
+/* Align the heading and top controls with the actual chessboard edge,
+   not the outer rounded board-shell edge. The board itself does not move. */
+.top .brandblock{margin-left:31px}
+.compact-toolbar{padding-left:31px}
+html.app-fullscreen .top .brandblock,html:fullscreen .top .brandblock{margin-left:33px}
+html.app-fullscreen .compact-toolbar,html:fullscreen .compact-toolbar{padding-left:33px}
+@media(max-width:700px){
+ .top .brandblock{margin-left:23px}
+ .compact-toolbar{padding-left:23px}
+ html.app-fullscreen .top .brandblock,html:fullscreen .top .brandblock{margin-left:23px}
+ html.app-fullscreen .compact-toolbar,html:fullscreen .compact-toolbar{padding-left:23px}
+}
 /* The board remains dominant; only opening, variation and colour stay on the toolbar. */
 .global-strength>summary{display:flex;align-items:center;gap:8px}
 .settings-summary-status{color:#b9a6d8;font-size:11px;font-weight:600}
