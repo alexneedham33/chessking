@@ -2222,7 +2222,18 @@ async function requestUnifiedMoveCoaching(ply){
   const majorLoss=Number.isFinite(loss)&&loss>=120;
   const majorGain=Number.isFinite(swing)&&swing>=80;
   const coachingFocus=majorLoss?'turning-point':noteworthyLoss?'meaningful-mistake':majorGain?'meaningful-improvement':'strategic';
+  // The moving colour determines the speaker perspective. Scripted opening
+  // comments may contain "you" or "your", so never feed them unedited when
+  // describing an opponent's move.
+  const playerColour=playerSide()===1?'White':'Black';
+  const moverColour=before.t===1?'White':'Black';
+  const opponentMove=before.t!==playerSide();
+  const perspectivePolicy=opponentMove
+   ?'IMPORTANT: The move just played belongs to Stockfish, the opponent ('+moverColour+'). Address the learner as '+playerColour+'. Explain what '+moverColour+' did and what it means for the learner. NEVER say "you played", "your move", "you have reached", "your king" or give instructions as if the learner controlled '+moverColour+'. If discussing a lesson for the learner, refer to the learner\'s own '+playerColour+' pieces.'
+   :'The learner played this '+moverColour+' move. Speak to the learner directly as "you" when appropriate; describe the opponent in third person.';
   const coachingGuidance={
+   perspective:opponentMove?'opponent':'learner',
+   playerColour,moverColour,perspectivePolicy,
    focus:coachingFocus,
    significantChange:coachingFocus!=='strategic',
    explainAlternatives:!!noteworthyLoss,
@@ -2243,12 +2254,13 @@ async function requestUnifiedMoveCoaching(ply){
    .filter(([at,item])=>at<ply&&!item.pending&&item.message).slice(-3).map(([,item])=>item.message);
   const response=await fetch('/api/coach/move',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
    beforeFen:fenOf(before),afterFen:fenOf(after),
-   opening:openings[openingAtRequest].name,player:playerSide()===1?'White':'Black',
-   played:playedMoveEvidence(before,move),
+   opening:openings[openingAtRequest].name,player:playerColour,
+   mover:moverColour,isOpponentMove:opponentMove,played:playedMoveEvidence(before,move),
    // Off-line scripted guidance is a heuristic, not evidence that a self-chosen move is useful.
    // Put coaching priorities inside scripted as well for older server
    // handlers that do not yet read the new structured coachingGuidance.
-   scripted:(note.manual?'Learner-selected legal move. Assess it objectively. ':note.reason+' ')+
+   scripted:perspectivePolicy+' '+
+    (opponentMove?'Opponent move: '+moveLabel(before,move)+'. Explain the opponent\'s idea from the learner\'s perspective. ':note.manual?'Learner-selected legal move. Assess it objectively. ':note.reason+' ')+
     coachingGuidance.instruction+' '+coachingGuidance.evaluationPolicy+' '+coachingGuidance.languagePolicy+
     (noteworthyLoss&&moveAssessment?.suggestedMove?' Instructive alternative: '+moveAssessment.suggestedMove+'.':''),
    coachingGuidance,
