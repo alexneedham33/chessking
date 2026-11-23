@@ -379,6 +379,16 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 .coach-ai-status{font-size:10px;color:#b8c7dc;white-space:nowrap}
 .coach-ai-status[hidden]{display:none!important}
 .coach-ai-status.error{color:#f0ad94}
+.global-strength{position:relative;flex:none;font-size:12px;color:#eaf0fa}
+.global-strength>summary{list-style:none;cursor:pointer;background:#181f2e;border:1px solid #37435b;border-radius:10px;padding:10px 12px;font-weight:650;white-space:nowrap}
+.global-strength>summary::-webkit-details-marker{display:none}
+.global-strength>summary:focus-visible{outline:2px solid #b58af8;outline-offset:2px}
+.global-strength-panel{position:absolute;z-index:35;right:0;top:calc(100% + 8px);width:min(310px,88vw);background:#181f2e;border:1px solid #45516b;box-shadow:0 15px 40px #0009;border-radius:13px;padding:16px;line-height:1.4}
+.global-strength-panel label{display:block;margin-bottom:10px}
+.global-strength-panel input{display:block;width:100%;accent-color:#9d5bf0}
+.global-strength-scale{display:flex;justify-content:space-between;color:#bdc7d7;font-size:11px;margin-top:5px}
+.global-strength-panel p{color:#b7c1d1;font-size:11px;line-height:1.5;margin:13px 0 0}
+@media(max-width:650px){.global-strength>summary{padding:9px 10px}}
 .coach-ai-retry{border:1px solid #795d77;background:#302138;color:#f5cbb9;border-radius:6px;font-size:11px;font-weight:750;padding:5px 8px}
 .coach-ai-retry:hover{background:#49304a}
 .coach-ai-retry[hidden]{display:none!important}
@@ -397,7 +407,7 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
  <label class="toolbar-field"><span>Variation</span><select id="variationSelect" aria-label="Opening variation"><option value="queenAccepted">Main line</option></select></label>
  <div class="training-switch" role="group" aria-label="Learning mode"><button class="training-option active" data-experience="guided">Learn</button><button class="training-option" data-experience="practice">Play</button></div>
  <label id="challengeToggleWrap" class="challenge-toggle" style="display:none"><input type="checkbox" id="challengeToggle"> Opening challenge</label>
- <button class="btn primary" id="challengeQuickStart" style="display:none">Start challenge</button><details class="opponent-dropdown" id="opponentDropdown"><summary id="opponentSummary">Opponent · Guided opening</summary><div class="opponent-dropdown-panel"><section id="learnOpponentSettings" class="learn-opponent-settings"><div class="learn-opponent-head"><label for="learnOpponent"><strong>Choose opponent</strong></label><select id="learnOpponent"><option value="guided">Predefined moves</option><option value="guidedEngine">Stockfish opponent</option></select></div>
+ <details class="global-strength" id="globalStrength"><summary title="Set Stockfish opponent difficulty">Stockfish · <strong id="globalEloValue">1700</strong> <span aria-hidden="true">⌄</span></summary><div class="global-strength-panel"><label for="globalElo"><strong>Opponent difficulty</strong></label><input id="globalElo" type="range" min="750" max="2800" step="50" value="1700"><div class="global-strength-scale"><span>750 · Easier</span><span>2800 · Harder</span></div><p>Approximate difficulty, not an official rating. Applies in Play and to Stockfish replies after the prepared opening in Learn. Stockfish responds to the actual position; full-strength analysis stays unchanged.</p></div></details><button class="btn primary" id="challengeQuickStart" style="display:none">Start challenge</button><details class="opponent-dropdown" id="opponentDropdown"><summary id="opponentSummary">Opponent · Guided opening</summary><div class="opponent-dropdown-panel"><section id="learnOpponentSettings" class="learn-opponent-settings"><div class="learn-opponent-head"><label for="learnOpponent"><strong>Choose opponent</strong></label><select id="learnOpponent"><option value="guided">Predefined moves</option><option value="guidedEngine">Stockfish opponent</option></select></div>
 <div id="learnOpponentDescription" class="learn-opponent-description">Follow the prepared line or practise against Stockfish.</div>
 <div class="guided-length-setting"><label for="guidedOpeningLength"><strong>Guided opening length</strong></label><select id="guidedOpeningLength" aria-label="Guided opening length"><option value="6">3 moves per side · Short</option><option value="10" selected>5 moves per side · Recommended</option><option value="16">8 moves per side · Deep</option></select><span class="guided-length-note">Only available lengths for this variation are shown. Changing this restarts the opening.</span></div>
 <label id="learnEloSetting" class="opponent-slider" style="display:none"><span class="opponent-slider-heading">Opponent strength <strong id="learnEloValue">1700 Elo (approx.)</strong></span><input type="range" id="learnElo" min="750" max="2800" step="50" value="1700"><span class="opponent-slider-range"><span>750 · Easier</span><span>2800 · Harder</span></span></label>
@@ -740,7 +750,7 @@ function fetchEngine(s,depth=16){
 // Ratings below the native floor are approximate difficulty levels, not
 // calibrated human Elo ratings.
 function opponentSearchDepth(rating){
- return rating>=1320?10:Math.max(6,Math.min(9,Math.round(6+3*(rating-750)/(1320-750))));
+ return rating>=1320?10:Math.max(8,Math.min(10,Math.round(8+2*(rating-750)/(1320-750))));
 }
 // The selected prepared variation supplies the first five full moves
 // (ten half-moves), provided the learner follows that variation.
@@ -1349,9 +1359,10 @@ function renderChallenge(){
  $('opponentDropdown').style.display=trainingMode==='learn'?'':'none';
  $('challengeQuickStart').style.display='none';
  $('challengeQuickStart').textContent=challengeStarted?'Restart challenge':'Start challenge';
- $('opponentSummary').textContent=learnOpponent==='guided'?'Opponent · Predefined':'Opponent · Stockfish · '+opponentElo()+' Elo';
- $('learnEloSetting').style.display=trainingMode==='learn'&&learnOpponent!=='guided'?'block':'none';
- $('learnEvalNote').style.display=trainingMode==='learn'&&learnOpponent!=='guided'?'block':'none';
+ $('opponentSummary').textContent=learnOpponent==='guided'?'Opponent · Predefined → Stockfish':'Opponent · Stockfish';
+ $('globalElo').value=opponentElo();$('globalEloValue').textContent=String(opponentElo());
+ $('learnEloSetting').style.display='none';
+ $('learnEvalNote').style.display='none';
  $('learnEloValue').textContent=opponentElo()+' Elo (approx.)';
  $('challengeEloValue').textContent=opponentElo()+' Elo (approx.)';
  $('learnElo').value=opponentElo();$('challengeElo').value=opponentElo();
@@ -1681,7 +1692,13 @@ $('feedback').textContent=feedback;$('feedback').style.display=feedback?'':'none
 for(const name of Object.keys(openings)){let s=original();for(const [uci]of openings[name].line){selected=name;const m=legal(s).find(m=>key(m)===uci);if(!m)throw Error('Invalid opening '+name+' '+uci);s=apply(s,m);}}selected='queenAccepted';
 for(const k of Object.keys(scenarios)){selected=k;setScenario();}selected='queenAccepted';$('learnOpponent').onchange=()=>{learnOpponent=$('learnOpponent').value;mode='play';reset();};
 $('reviewMyMove').onclick=compareWithBestMove;
-$('learnElo').oninput=()=>{saveOpponentElo($('learnElo').value);renderChallenge();};
+function updateOpponentDifficulty(value){
+ saveOpponentElo(value);
+ // Applies to the next engine decision, not a move already being calculated.
+ renderChallenge();
+}
+$('globalElo').oninput=()=>updateOpponentDifficulty($('globalElo').value);
+$('learnElo').oninput=()=>updateOpponentDifficulty($('learnElo').value);
 $('guidedOpeningLength').onchange=()=>{
  const next=Number($('guidedOpeningLength').value);
  if(!guidedLengthChoices.includes(next)||next>routeLine().length)return;
@@ -1724,7 +1741,7 @@ document.querySelectorAll('[data-experience]').forEach(b=>b.onclick=()=>{
  trainingMode='learn';learnOpponent=play?'adaptive':'guided';
  mode='play';$('opponentDropdown').open=false;reset();
 });
-$('challengeElo').oninput=()=>{saveOpponentElo($('challengeElo').value);renderChallenge();};
+$('challengeElo').oninput=()=>updateOpponentDifficulty($('challengeElo').value);
 $('challengeTarget').onchange=()=>{if(challengeStarted)reset();else renderChallenge();};
 $('challengeGoal').onchange=()=>renderChallenge();
 $('challengeRestart').onclick=startChallenge;$('reviewAnalyse').onclick=analysePlayedGame;$('reviewCheckScale').onclick=checkBalanceScale;
@@ -1750,15 +1767,14 @@ $('variationSelect').onchange=()=>{selected=$('variationSelect').value;reset();}
  }
  const token=++replySelectionToken;
  pendingReply={engine:true};
- feedback=learnOpponent==='guided'?'Stockfish is calculating a continuation…':opponentTurn?'Stockfish ('+opponentElo()+' Elo) is selecting a reply…':'Finding a continuation from this position…';
+ feedback=opponentTurn?'Stockfish (approx. '+opponentElo()+' Elo) is selecting a reply…':'Stockfish is finding a continuation…';
  render();
  try{
   // Opponent uses the chosen approximate Elo. If the guided line breaks,
   // the learner's Next move uses full-strength analysis, not a random move.
   // The predefined lesson has ended: use a real engine move, never
   // the heuristic freeReply() that favours unsafe captures.
-  const result=learnOpponent==='guided'?await fetchEngine(position,14):
-   opponentTurn?await fetchChallengeMove(position):await fetchEngine(position,12);
+  const result=opponentTurn?await fetchChallengeMove(position):await fetchEngine(position,14);
   if(token!==replySelectionToken||current()!==position||!['guided','guidedEngine'].includes(learnOpponent))return;
   const move=result.best?legal(position).find(m=>key(m)===result.best):null;
   pendingReply=null;
