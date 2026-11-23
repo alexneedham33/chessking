@@ -2231,6 +2231,52 @@ function coachMoveTactics(before,move){
 
 // Position-based strategic facts. Report what actually changed, not a generic
 // judgement that doubled pawns, a pin, or the bishop pair is always good/bad.
+function coachCentralFiles(position){
+ const result={};
+ for(const file of ['d','e']){
+  const x='abcdefgh'.indexOf(file),white=[],black=[];
+  for(let rank=1;rank<=8;rank++){
+   const i=(8-rank)*16+x,p=position.b[i];
+   if(p==='P')white.push(sq(i));
+   if(p==='p')black.push(sq(i));
+  }
+  const directlyBlocked=white.some(w=>black.some(b=>Number(b[1])===Number(w[1])+1));
+  result[file]={
+   whitePawns:white,blackPawns:black,
+   state:!white.length&&!black.length?'open':
+    directlyBlocked?'blocked':
+    white.length&&black.length?'both-sides-occupied':'half-open',
+   directlyBlocked,
+   note:'A file is fully open only if it has no pawns of either colour; a half-open file has pawns from one side only. Opposing pawns on adjacent ranks directly block one another. Do not infer that the whole centre is open from one pawn capture.'
+  };
+ }
+ return result;
+}
+function coachTeachingPriorities(before,move,after,strategic,tactics){
+ const points=[];
+ const add=(priority,type,evidence)=>points.push({priority,type,evidence});
+ if(tactics.givesCheck)add(100,'check','The move gives check; discuss the legal response first.');
+ if(move[3]==='ep'||before.b[move[1]]!=='.')add(88,'capture','This move captured a piece; explain exchange consequences without asserting material is won unless recapture evidence supports it.');
+ if(tactics.enemyPiecesAttackedByMovedPiece?.length)
+  add(78,'direct-attack',tactics.enemyPiecesAttackedByMovedPiece);
+ if(tactics.legalImmediateCapturesOfMovedPiece?.length)
+  add(76,'moved-piece-capturable',tactics.legalImmediateCapturesOfMovedPiece);
+ for(const change of strategic.changes){
+  const rating=change.type.startsWith('pin-')?82:
+   change.type.startsWith('doubled-')?72:
+   change.type.startsWith('isolated-')?66:58;
+  add(rating,change.type,change);
+ }
+ for(const file of ['d','e']){
+  if(strategic.before.centralFiles[file].state!==strategic.after.centralFiles[file].state)
+   add(62,'central-file-changed',{file,before:strategic.before.centralFiles[file].state,after:strategic.after.centralFiles[file].state});
+ }
+ points.sort((a,b)=>b.priority-a.priority);
+ return {
+  candidates:points.slice(0,5),
+  instruction:'Choose ONE primary lesson supported by board facts and Stockfish. A capture or check is not automatically material gain. Priorities are relevance hints, not engine judgements; do not force every candidate into the response. A pre-existing feature must not be described as newly created.'
+ };
+}
 function coachStrategicSnapshot(position){
  const pawns={},bishops={},pins=[];
  for(const [name,col] of [['White',1],['Black',-1]]){
@@ -2268,7 +2314,7 @@ function coachStrategicSnapshot(position){
    }
   }
  }
- return {pawns,bishops,pins};
+ return {pawns,bishops,pins,centralFiles:coachCentralFiles(position)};
 }
 function coachStrategicChanges(before,after){
  const old=coachStrategicSnapshot(before),now=coachStrategicSnapshot(after);
@@ -2536,6 +2582,9 @@ async function requestUnifiedMoveCoaching(ply){
   coachingGuidance.alternativePolicy=alternativeEvidence
    ?'A better alternative is supported by legal board evidence and a Stockfish principal variation. Describe a specific reply or recapture ONLY if explicitly present in alternativeEvidence.stockfishContinuation. Do not assume a line is forced or a recapture safe. If the line provides no clear advantage to explain, simply mention the alternative without manufacturing a tactical reason.'
    :'Do not recommend another move, name Stockfish alternatives, or criticize a reasonable move merely because it is not engine rank one.';
+  const strategicFacts=coachStrategicChanges(before,after);
+  const tacticalFacts=coachMoveTactics(before,move);
+  const teachingPriorities=coachTeachingPriorities(before,move,after,strategicFacts,tacticalFacts);
   const recentCoaching=[...coachMoveMessages.entries()]
    .filter(([at,item])=>at<ply&&!item.pending&&item.message).slice(-3).map(([,item])=>item.message);
   const response=await fetch('/api/coach/move',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
@@ -2551,8 +2600,9 @@ async function requestUnifiedMoveCoaching(ply){
    coachingGuidance,
    history:logs.slice(Math.max(0,ply-10),ply),recentCoaching,engine,detail:record.detail,moveAssessment,positionAssessment,
    boardFacts:{before:coachBoardFacts(before),after:coachBoardFacts(after)},
-   tacticalFacts:coachMoveTactics(before,move),
-   strategicFacts:coachStrategicChanges(before,after),
+   tacticalFacts,
+   strategicFacts,
+   teachingPriorities,
    alternativeEvidence,
    openingContext:coachOpeningContext(ply),
    coachingLevel:coachExplanationLevel(),
