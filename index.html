@@ -421,6 +421,9 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 @media(max-width:1020px){
  .main{grid-template-columns:minmax(0,1fr)}
 }
+.stockfish-handoff{display:flex;align-items:center;gap:8px;margin-top:-5px;margin-bottom:9px;color:#c8b6e6;font-size:12px;font-weight:650;line-height:1.4}
+.stockfish-handoff[hidden]{display:none!important}
+.stockfish-handoff-dot{width:7px;height:7px;border-radius:50%;background:#b081f1;flex:none}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -497,7 +500,7 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
  <p id="openingPreviewReason"></p>
  <div class="opening-preview-actions"><span id="openingPreviewExpected"></span><button type="button" id="openingPreviewDismiss" class="opening-preview-dismiss">Return to position</button></div>
 </div>
-          <div id="openingProgress"><div class="row" style="margin-top:12px"><span class="muted">Opening progress</span><span class="badge" id="progressLabel">0 / 11</span></div><div class="progress"><div class="bar" id="progressBar"></div></div></div>
+          <div id="openingProgress"><div class="row" style="margin-top:12px"><span class="muted" id="openingProgressTitle">Opening progress</span><span class="badge" id="progressLabel">0 / 11</span></div><div class="progress"><div class="bar" id="progressBar"></div></div><div id="stockfishHandoff" class="stockfish-handoff" role="status" aria-live="polite" hidden><span class="stockfish-handoff-dot" aria-hidden="true"></span><span>Guided line complete · Stockfish now chooses the moves</span></div></div>
           <div class="learn-actions"><button class="btn primary" id="opponent" style="display:none;width:100%">Play opponent's move →</button></div>
           <div style="display:none" aria-hidden="true"><span id="phaseBadge"></span><p id="description"></p><span id="promptLabel"></span><span id="prompt"></span><span id="explanation"></span><span id="hintText"></span><span id="feedback"></span></div>
         </div>
@@ -1626,7 +1629,12 @@ function refreshUnifiedMoveCoaching(){
 }
 function render(){syncOpeningChoices();requestAnimationFrame(alignCapturedTrayWithBoard);const s=scenario?scenarioPositions[scenarioIndex]:current(),moves=legal(s),status=gameStatus(h),op=openings[selected],step=op.line[s.i],hint=trainingMode!=='learn'?null:learnOpponent==='guided'&&h.length-1<guidedOpeningLimit()&&s.t===playerSide()?suggested():learnOpponent==='stockfish'&&s.t===playerSide()?legal(s).find(m=>key(m)===(evalCache.get('14:'+fenOf(s))||evalCache.get('16:'+fenOf(s)))?.best):null,yourTurn=s.t===playerSide(),ended=status.done;$('openingSelect').value=openingParent(selected);$('variationSelect').value=selected;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x.dataset.mode===mode));$('openingName').textContent=op.name;$('description').textContent=op.desc;$('tip').textContent=op.tip;const lessonLimit=guidedOpeningLimit();
 const lessonDone=Math.min(lessonLimit,Math.max(0,h.length-1));
-$('progressLabel').textContent=lessonDone+' / '+lessonLimit;const progressPct=100*lessonDone/lessonLimit;$('progressBar').style.width=progressPct+'%';$('openingProgress').style.display=trainingMode==='learn'&&learnOpponent==='guided'?'':'none';
+$('progressLabel').textContent=lessonDone+' / '+lessonLimit;const progressPct=100*lessonDone/lessonLimit;$('progressBar').style.width=progressPct+'%';
+const showingGuidedProgress=trainingMode==='learn'&&learnOpponent==='guided';
+$('openingProgress').style.display=showingGuidedProgress?'':'none';
+const atHandoff=showingGuidedProgress&&!scenario&&h.length-1>=lessonLimit&&h.length-1<=lessonLimit+2;
+$('openingProgressTitle').textContent=showingGuidedProgress&&h.length-1>=lessonLimit?'Guided opening complete':'Opening progress';
+$('stockfishHandoff').hidden=!atHandoff;
 $('openingLineWarning').style.display=outsideLinePreview?'block':'none';
 if(outsideLinePreview){
  $('openingPreviewHeading').textContent=outsideLinePreview.heading;
