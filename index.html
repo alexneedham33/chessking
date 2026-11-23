@@ -2095,7 +2095,7 @@ if(false&&previewReply&&!scenario&&chatPerspective==='coach'){
  recent.push({text:moveLabel(current(),previewReply)+' · proposed',color:current().t,opening:selected,index:-1,
  reason:engineExplanation(current(),previewReply),proposed:true,__i:notes.length});
 }
-if(animatingMove&&chatPerspective==='coach'){const s0=current(),m0=animatingMove.move,idx=s0.i;
+if(animatingMove&&chatPerspective==='coach'){recent=[];const s0=current(),m0=animatingMove.move,idx=s0.i;
 const recognized=identifyBranch(idx,key(m0));const inLine=idx>=0&&(key(m0)===routeLine()[idx]?.[0]||!!recognized);
 recent.push({text:moveLabel(s0,m0),color:s0.t,opening:selected,index:inLine&&!activeBranch&&!recognized?idx:-1,reason:recognized?recognized.plan:inLine?(activeBranch&&idx>=activeBranch.at?routeLine()[idx]?.[1]:rationales[selected][idx]):explainDeviation(s0,m0),__i:notes.length});}
 const speakingColor=animatingMove?current().t:(notes.length?notes[notes.length-1].color:0);
