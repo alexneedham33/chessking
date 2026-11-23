@@ -931,6 +931,14 @@ html.app-fullscreen .app,html:fullscreen .app{padding-top:60px;padding-bottom:8p
 @media(max-height:750px){
  html.app-fullscreen .app,html:fullscreen .app{padding-top:36px}
 }
+/* Very large desktop screens have extra vertical breathing room.
+   Move the entire normal workspace down together without changing laptop
+   layouts or the separately tuned expanded-view spacing. */
+@media (min-width:1600px) and (min-height:850px){
+ html:not(.app-fullscreen):not(:fullscreen) .app{
+  padding-top:clamp(56px,7vh,88px);
+ }
+}
 </style></head><body>
 <div class="app">
   <header class="top">
