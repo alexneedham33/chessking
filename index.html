@@ -462,6 +462,12 @@ html.app-fullscreen .compact-toolbar,html:fullscreen .compact-toolbar{padding-le
 .compact-toolbar>.compact-opening{flex:1 1 185px}
 .compact-toolbar>.compact-variation{flex:1 1 125px}
 @media(max-width:800px){.compact-toolbar>.compact-mode{flex:0 1 140px}}
+/* Desktop spacing experiment: centre the workspace without shrinking the 720px board.
+   Keep its toolbar/heading offsets and the right-edge Expand View alignment. */
+@media (min-width:1250px){
+  .app{max-width:1500px;padding-left:26px;padding-right:26px}
+  .main{grid-template-columns:minmax(0,770px) minmax(0,1fr);gap:22px}
+}
 /* Theme-matched dropdown menus, independent of operating-system select menus. */
 .custom-select{position:relative;min-width:0;width:100%}
 .custom-select>select{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important;clip-path:inset(50%)!important}
