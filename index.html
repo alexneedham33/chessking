@@ -650,6 +650,7 @@ html:fullscreen .side>.capture-tray-frame{padding:14px}
 .trainer-panel .coach-more-actions{margin-top:14px;padding-top:11px;border-top:1px solid #ccc7c0}
 .trainer-panel .coach-more-btn{border:0;background:transparent;color:#6e3cba;font-size:13px;font-weight:750;padding:5px 0;cursor:pointer}
 .trainer-panel .coach-more-btn:hover{text-decoration:underline;color:#552398}
+.trainer-panel .coach-more-btn:disabled{opacity:.45;cursor:wait;text-decoration:none}
 .trainer-panel .coach-more-btn:focus-visible{outline:2px solid #8750df;outline-offset:3px;border-radius:4px}
 .trainer-panel .coach-extra-detail{font-size:inherit;line-height:inherit;margin-top:10px;color:#33343a}
 </style></head><body>
@@ -2110,6 +2111,9 @@ if(item.proposed){const summary=document.createElement('div');summary.className=
   const actions=document.createElement('div');actions.className='coach-more-actions';
   const more=document.createElement('button');more.type='button';more.className='coach-more-btn';
   more.textContent=valid?.open?'Show less':'✧ Explain more';
+  // Wait for the original AI explanation so the expansion builds on the
+  // final text rather than an interim scripted placeholder.
+  more.disabled=!!(ai?.pending||queuedAi);
   more.setAttribute('aria-expanded',String(!!valid?.open));
   more.onclick=()=>toggleExtraCoaching(ply);
   actions.append(more);copy.append(actions);
