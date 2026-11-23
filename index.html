@@ -2407,9 +2407,21 @@ function alignCapturedTrayWithBoard(){
 }
 function fitBoardToViewport(){
   const stage=document.querySelector('.board-stage');
-  if(!stage)return;
-  const top=stage.getBoundingClientRect().top;
-  const limit=Math.max(260,Math.min(990,window.innerHeight-top-35));
+  const controls=stage?.querySelector('.board-controls');
+  const shell=stage?.closest('.board-shell');
+  const app=stage?.closest('.app');
+  if(!stage||!controls||!shell||!app)return;
+  // Reserve the actual controls and bottom padding BEFORE sizing the board.
+  // This applies to normal, browser-fullscreen and fallback expanded views.
+  const pixels=value=>Number.parseFloat(value)||0;
+  const controlStyle=getComputedStyle(controls);
+  const shellStyle=getComputedStyle(shell);
+  const appStyle=getComputedStyle(app);
+  const reserved=controls.getBoundingClientRect().height+
+    pixels(controlStyle.marginTop)+pixels(controlStyle.marginBottom)+
+    pixels(shellStyle.paddingBottom)+pixels(appStyle.paddingBottom)+16;
+  const available=window.innerHeight-stage.getBoundingClientRect().top-reserved;
+  const limit=Math.max(120,Math.min(990,Math.floor(available)));
   document.documentElement.style.setProperty('--board-fit',limit+'px');
 }
 window.addEventListener('resize',()=>{fitBoardToViewport();requestAnimationFrame(render);});
