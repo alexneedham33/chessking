@@ -1,0 +1,551 @@
+{
+  "version": 1,
+  "description": "Frozen, qualitative AI coach regression rubric. Scores intentionally blank until identical chess positions are evaluated. Distinguish mechanical node tests from model-output tests.",
+  "scoring": {
+    "scale": "0–5 each dimension, 5 best",
+    "dimensions": [
+      "accuracy",
+      "tactical",
+      "teaching",
+      "clarity"
+    ],
+    "hardFailure": "Any fabricated capture, impossible move, or false direct defence must be recorded regardless of total score."
+  },
+  "cases": [
+    {
+      "id": "01-opening-d4",
+      "category": "opening",
+      "referenceSequence": "main-line",
+      "moves": [
+        "d2d4"
+      ],
+      "expectedLesson": "Explain central control without claiming the game is already won",
+      "redFlag": "invented threats",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "02-black-d5",
+      "category": "opening",
+      "referenceSequence": "main-line",
+      "moves": [
+        "d2d4",
+        "d7d5"
+      ],
+      "expectedLesson": "Describe Black's contest of the centre",
+      "redFlag": "forced material claims",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "03-knight-f3",
+      "category": "development",
+      "referenceSequence": "main-line",
+      "moves": [
+        "d2d4",
+        "d7d5",
+        "g1f3"
+      ],
+      "expectedLesson": "Knight guards pawn d4, controls e5 and prepares castling",
+      "redFlag": "rooks are connected",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "04-black-knight-f6",
+      "category": "development",
+      "referenceSequence": "main-line",
+      "moves": [
+        "d2d4",
+        "d7d5",
+        "g1f3",
+        "g8f6"
+      ],
+      "expectedLesson": "Knight develops and affects centre; no invented capture",
+      "redFlag": "illegal tactical continuation",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "05-knight-c3",
+      "category": "geometry",
+      "referenceSequence": "main-line",
+      "moves": [
+        "d2d4",
+        "d7d5",
+        "g1f3",
+        "g8f6",
+        "b1c3"
+      ],
+      "expectedLesson": "Knight controls d5/e4; does not directly guard pawn d4",
+      "redFlag": "knight c3 defends pawn d4",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "06-black-e6",
+      "category": "structure",
+      "referenceSequence": "main-line",
+      "moves": [
+        "d2d4",
+        "d7d5",
+        "g1f3",
+        "g8f6",
+        "b1c3",
+        "e7e6"
+      ],
+      "expectedLesson": "Pawn prepares bishop development and supports d5",
+      "redFlag": "bishop pair newly gained",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "07-white-e4",
+      "category": "central-tension",
+      "referenceSequence": "main-line",
+      "moves": [
+        "d2d4",
+        "d7d5",
+        "g1f3",
+        "g8f6",
+        "b1c3",
+        "e7e6",
+        "e2e4"
+      ],
+      "expectedLesson": "Pawn e4 attacks black pawn d5; Black d-pawn can capture e4",
+      "redFlag": "pawn e4 protects pawn d4",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "08-black-bishop-b4",
+      "category": "absolute-pin",
+      "referenceSequence": "main-line",
+      "moves": [
+        "d2d4",
+        "d7d5",
+        "g1f3",
+        "g8f6",
+        "b1c3",
+        "e7e6",
+        "e2e4",
+        "f8b4"
+      ],
+      "expectedLesson": "Bishop pins knight c3 to king e1",
+      "redFlag": "pin equals won knight",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "09-white-a3",
+      "category": "direct-attack",
+      "referenceSequence": "main-line",
+      "moves": [
+        "d2d4",
+        "d7d5",
+        "g1f3",
+        "g8f6",
+        "b1c3",
+        "e7e6",
+        "e2e4",
+        "f8b4",
+        "a2a3"
+      ],
+      "expectedLesson": "Pawn a3 attacks bishop b4; mention possibility of exchange and recapture",
+      "redFlag": "bishop takes a3 wins pawn for free",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "10-black-bishop-a5",
+      "category": "pin-persistence",
+      "referenceSequence": "main-line",
+      "moves": [
+        "d2d4",
+        "d7d5",
+        "g1f3",
+        "g8f6",
+        "b1c3",
+        "e7e6",
+        "e2e4",
+        "f8b4",
+        "a2a3",
+        "b4a5"
+      ],
+      "expectedLesson": "Retreat preserves pin and does not win a piece immediately",
+      "redFlag": "pin newly created if already present",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "11-white-bishop-d3",
+      "category": "strategic-priority",
+      "referenceSequence": "main-line",
+      "moves": [
+        "d2d4",
+        "d7d5",
+        "g1f3",
+        "g8f6",
+        "b1c3",
+        "e7e6",
+        "e2e4",
+        "f8b4",
+        "a2a3",
+        "b4a5",
+        "f1d3"
+      ],
+      "expectedLesson": "Normal bishop development while old knight pin persists",
+      "redFlag": "bishop d3 creates the pin",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "12-black-bishop-takes-c3",
+      "category": "exchange",
+      "referenceSequence": "main-line",
+      "moves": [
+        "d2d4",
+        "d7d5",
+        "g1f3",
+        "g8f6",
+        "b1c3",
+        "e7e6",
+        "e2e4",
+        "f8b4",
+        "a2a3",
+        "b4a5",
+        "f1d3",
+        "a5c3"
+      ],
+      "expectedLesson": "Bishop captures knight with check; b-pawn can recapture",
+      "redFlag": "Black wins knight without giving bishop",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "13-white-b-pawn-takes-c3",
+      "category": "pawn-structure",
+      "referenceSequence": "main-line",
+      "moves": [
+        "d2d4",
+        "d7d5",
+        "g1f3",
+        "g8f6",
+        "b1c3",
+        "e7e6",
+        "e2e4",
+        "f8b4",
+        "a2a3",
+        "b4a5",
+        "f1d3",
+        "a5c3",
+        "b2c3"
+      ],
+      "expectedLesson": "New doubled c-pawns and isolated a-pawn; c3 pawn supports d4; White retains bishop pair",
+      "redFlag": "centre automatically wide open",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "14-white-e-pawn-takes-d5",
+      "category": "temporary-double",
+      "referenceSequence": "historical central exchange; reconstruct explicitly",
+      "moves": [],
+      "expectedLesson": "Separate sequence: White e4 captures d5 when black pawn occupies d5; doubled d-pawns are temporary",
+      "redFlag": "doubled pawn permanently weak",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "15-black-e-pawn-takes-d5",
+      "category": "blocked-centre",
+      "referenceSequence": "historical central exchange; reconstruct explicitly",
+      "moves": [],
+      "expectedLesson": "Separate continuation: Black e6 captures d5; opposing pawns d4/d5 block the file",
+      "redFlag": "d-file is open",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "16-knight-g5-threat",
+      "category": "tactical-attack",
+      "referenceSequence": "separate tactical scenario",
+      "moves": [],
+      "expectedLesson": "From another valid line, knight g5 attacks f7 and h7; verify actual reply",
+      "redFlag": "queen can capture through occupied squares",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "17-bishop-f3-exchange",
+      "category": "defended-pieces",
+      "referenceSequence": "separate tactical scenario",
+      "moves": [],
+      "expectedLesson": "A bishop's specific defended squares must match the board",
+      "redFlag": "bishop supports unrelated pawns",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "18-quiet-good-move",
+      "category": "non-optimal",
+      "referenceSequence": "main-line",
+      "moves": [
+        "d2d4",
+        "d7d5",
+        "g1f3"
+      ],
+      "expectedLesson": "A reasonable developing move can differ from Stockfish first choice without being bad",
+      "redFlag": "invented stronger alternative",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "19-queen-safety",
+      "category": "continuation",
+      "referenceSequence": "main-line",
+      "moves": [
+        "d2d4",
+        "d7d5",
+        "g1f3",
+        "g8f6",
+        "b1c3",
+        "e7e6",
+        "e2e4"
+      ],
+      "expectedLesson": "Only discuss queen recaptures shown in legal Stockfish principal variation",
+      "redFlag": "queen recapture safe just because legal",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "20-evaluation-perspective",
+      "category": "evaluation",
+      "referenceSequence": "main-line",
+      "moves": [
+        "d2d4",
+        "d7d5",
+        "g1f3",
+        "g8f6",
+        "b1c3",
+        "e7e6",
+        "e2e4",
+        "f8b4",
+        "a2a3",
+        "b4a5",
+        "f1d3",
+        "a5c3",
+        "b2c3"
+      ],
+      "expectedLesson": "Discuss impact of move, not just absolute side favoured",
+      "redFlag": "already losing means last move was a blunder",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "21-no-forced-recapture",
+      "category": "tactical-language",
+      "referenceSequence": "main-line",
+      "moves": [
+        "d2d4",
+        "d7d5",
+        "g1f3",
+        "g8f6",
+        "b1c3",
+        "e7e6",
+        "e2e4",
+        "f8b4",
+        "a2a3",
+        "b4a5",
+        "f1d3",
+        "a5c3"
+      ],
+      "expectedLesson": "A legal recapture is an option unless objectively forced by position",
+      "redFlag": "must recapture when other legal moves exist",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "22-bishop-pair-persistence",
+      "category": "existing-features",
+      "referenceSequence": "main-line",
+      "moves": [
+        "d2d4",
+        "d7d5",
+        "g1f3",
+        "g8f6",
+        "b1c3",
+        "e7e6",
+        "e2e4",
+        "f8b4",
+        "a2a3",
+        "b4a5",
+        "f1d3",
+        "a5c3",
+        "b2c3"
+      ],
+      "expectedLesson": "White already had bishop pair; Black losing bishop is new",
+      "redFlag": "White just gained bishops",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "23-isolated-a-pawn",
+      "category": "isolation",
+      "referenceSequence": "main-line",
+      "moves": [
+        "d2d4",
+        "d7d5",
+        "g1f3",
+        "g8f6",
+        "b1c3",
+        "e7e6",
+        "e2e4",
+        "f8b4",
+        "a2a3",
+        "b4a5",
+        "f1d3",
+        "a5c3",
+        "b2c3"
+      ],
+      "expectedLesson": "White a3 has no b-file pawn; identify isolation without deterministic verdict",
+      "redFlag": "isolated automatically loses pawn",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "24-word-budget",
+      "category": "clarity",
+      "referenceSequence": "main-line",
+      "moves": [
+        "d2d4",
+        "d7d5",
+        "g1f3"
+      ],
+      "expectedLesson": "Routine explanation relevant and concise; significant tactics may be longer",
+      "redFlag": "repeated generic development filler",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    }
+  ]
+}
