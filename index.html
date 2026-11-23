@@ -755,64 +755,61 @@ html.app-fullscreen .side>.opening-progress-frame,html:fullscreen .side>.opening
  .opening-top-slot>.opening-progress-frame{padding:8px 10px}
  .opening-top-slot>.opening-progress-frame>.opening-progress-inner{padding:9px 11px}
 }
-/* A single coaching lesson should never be clipped or internally scrolled.
-   Reserve generous stable space for routine explanations, then grow naturally
-   for longer ones. The pale card fills the remaining space. */
+/* Natural-sized single-message coaching: only very long responses scroll.
+   The warm card and its dark parent grow with their content; no blank filler. */
 .side>.trainer-panel{
  height:auto!important;
- min-height:clamp(510px,62dvh,620px);
+ min-height:0!important;
  max-height:none!important;
  overflow:visible!important;
- display:flex;
- flex-direction:column;
+ display:block;
  flex:0 0 auto;
 }
 .trainer-panel #chatTabPane{
- display:flex;
- flex:1 0 auto;
- flex-direction:column;
- min-height:auto!important;
+ display:block;
+ height:auto;
+ min-height:0!important;
  overflow:visible!important;
 }
 .trainer-panel #chatZone{
- display:flex!important;
- flex:1 0 auto;
- flex-direction:column;
+ display:block!important;
+ flex:none;
  height:auto!important;
- min-height:auto!important;
- max-height:none!important;
- overflow:visible!important;
+ min-height:0!important;
+ max-height:min(67dvh,650px)!important;
+ overflow-y:auto!important;
+ overflow-x:hidden!important;
+ scrollbar-width:thin;
+ scrollbar-color:#56647b #151a27;
  margin-bottom:0;
 }
-.trainer-panel #whyPanel{
- flex:1 0 auto;
+.trainer-panel #whyPanel,
+.trainer-panel #whyPanel:not([style*="display: none"]){
+ display:block;
+ flex:none;
+ height:auto;
  min-height:0;
 }
-.trainer-panel #whyPanel:not([style*="display: none"]){
- display:flex;
- flex-direction:column;
-}
 .trainer-panel #whyContent{
- display:flex!important;
- flex:1 0 auto;
- flex-direction:column;
- gap:0!important;
+ display:block!important;
+ flex:none;
+ height:auto;
  overflow:visible!important;
  padding-bottom:0!important;
 }
 .trainer-panel #whyContent>.why-entry{
- flex:1 0 auto;
- min-height:min-content;
+ display:block;
+ flex:none;
+ height:auto;
+ min-height:0;
  margin:0!important;
 }
 .trainer-panel #chatWelcome:not([style*="display: none"]){
- flex:1 0 auto;
-}
-@media(max-width:1020px){
- .side>.trainer-panel{min-height:clamp(450px,58dvh,570px)}
+ display:block;
+ flex:none;
 }
 @media(max-width:650px){
- .side>.trainer-panel{min-height:420px}
+ .trainer-panel #chatZone{max-height:min(70dvh,600px)!important}
 }
 </style></head><body>
 <div class="app">
