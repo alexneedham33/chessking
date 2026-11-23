@@ -12,6 +12,30 @@ Interactive chess opening trainer with guided moves, Quick/Learn explanations, a
 
 You **must use a local HTTP server**; opening `index.html` via `file://` prevents the Web Worker from loading reliably.
 
+## AI Coach and personal API keys
+
+The chessboard and Stockfish do **not** need an OpenAI API key. AI coaching calls
+`POST /api/coach/move`, which must be handled by a **separate backend server**.
+The basic `python3 -m http.server 8000` command serves static files only and
+does not implement that endpoint.
+
+Each developer can use their **own** OpenAI account and billing:
+
+1. Create an OpenAI API key in their own OpenAI account.
+2. Copy `.env.example` to `.env` on their computer.
+3. Replace the placeholder in `.env` with their personal key.
+4. Configure and launch the **AI backend** to load that environment variable.
+   The backend should never send the key to browser JavaScript.
+
+**Important:** This repository currently documents the static front end; it
+does not contain a confirmed implementation or launcher for
+`/api/coach/move`. Simply creating `.env` does not enable AI coaching;
+you also need the same backend you're using for your existing local setup,
+or a separately hosted compatible backend.
+
+`.env` and `.env.*` are ignored by Git; only the placeholder
+`.env.example` is committed. Never commit API keys to GitHub.
+
 ## Stockfish assets
 
 Opening Lab expects both files in the repository root, beside `index.html`:
