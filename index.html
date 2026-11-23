@@ -891,14 +891,14 @@ html.app-fullscreen .side>.opening-progress-frame,html:fullscreen .side>.opening
     padding-left:20px;padding-right:20px
   }
   html.app-fullscreen .main,html:fullscreen .main{
-    grid-template-columns:minmax(0,800px) minmax(0,1fr);
+    grid-template-columns:minmax(0,845px) minmax(0,1fr);
     gap:18px;justify-content:start
   }
 }
 /* Icon-only optional expanded-view comparison. Move only expanded workspace lower,
    and let fitBoardToViewport reserve its entire action row on short screens. */
 .top .icon-expand{width:40px;height:40px;display:grid;place-items:center;padding:0;font-size:20px;line-height:1}
-html.app-fullscreen .app,html:fullscreen .app{padding-top:60px}
+html.app-fullscreen .app,html:fullscreen .app{padding-top:60px;padding-bottom:8px}
 @media(max-height:750px){
  html.app-fullscreen .app,html:fullscreen .app{padding-top:36px}
 }
@@ -2445,9 +2445,11 @@ function fitBoardToViewport(){
   const controlStyle=getComputedStyle(controls);
   const shellStyle=getComputedStyle(shell);
   const appStyle=getComputedStyle(app);
+  const expanded=!!document.fullscreenElement||document.documentElement.classList.contains('app-fullscreen');
+  const safetyGap=expanded?10:16;
   const reserved=controls.getBoundingClientRect().height+
     pixels(controlStyle.marginTop)+pixels(controlStyle.marginBottom)+
-    pixels(shellStyle.paddingBottom)+pixels(appStyle.paddingBottom)+16;
+    pixels(shellStyle.paddingBottom)+pixels(appStyle.paddingBottom)+safetyGap;
   const available=window.innerHeight-stage.getBoundingClientRect().top-reserved;
   const limit=Math.max(120,Math.min(990,Math.floor(available)));
   document.documentElement.style.setProperty('--board-fit',limit+'px');
