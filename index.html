@@ -901,7 +901,6 @@ html.app-fullscreen .side>.opening-progress-frame,html:fullscreen .side>.opening
     <div class="brandblock">
       <div class="logo">♕ Opening Lab</div>
     </div>
-    <div class="actions"><button class="btn" id="fullscreen">⛶ Expand view</button></div>
   </header>
 <nav class="compact-toolbar" aria-label="Opening and opponent controls">
  <div class="toolbar-field player-side-control"><span class="sr-only">Play as</span><div class="player-colour-switch" role="group" aria-label="Choose playing colour"><button type="button" id="playWhite" aria-pressed="true">White</button><button type="button" id="playBlack" aria-pressed="false">Black</button></div></div>
@@ -2446,21 +2445,8 @@ function fitBoardToViewport(){
   document.documentElement.style.setProperty('--board-fit',limit+'px');
 }
 window.addEventListener('resize',()=>{fitBoardToViewport();requestAnimationFrame(render);});
-let fallbackFullscreen=false;
-function setFullButton(){const active=!!document.fullscreenElement||fallbackFullscreen;$('fullscreen').textContent=active?'⛶ Exit expanded view':'⛶ Expand view';$('fullscreen').setAttribute('aria-pressed',String(active));}
-function fallbackFull(on){fallbackFullscreen=on;document.documentElement.classList.toggle('app-fullscreen',on);setFullButton();requestAnimationFrame(fitBoardToViewport);}
-$('fullscreen').onclick=async()=>{
- if(document.fullscreenElement){try{await document.exitFullscreen();}catch(e){fallbackFull(false);}setFullButton();return;}
- if(fallbackFullscreen){fallbackFull(false);return;}
- // Some embedded previews disallow the browser fullscreen API. Gracefully use the whole preview instead.
- try{if(!document.documentElement.requestFullscreen)throw Error('Fullscreen API unavailable');await document.documentElement.requestFullscreen();}
- catch(e){fallbackFull(true);}
- setFullButton();
-};
 document.querySelectorAll('[data-detail-tab]').forEach(btn=>btn.onclick=()=>{const tab=btn.dataset.detailTab;document.querySelectorAll('[data-detail-tab]').forEach(b=>b.classList.toggle('active',b===btn));$('chatTabPane').classList.toggle('active',tab==='chat');$('strategyTabPane').classList.toggle('active',tab==='strategy');$('simulatorTabPane').classList.toggle('active',tab==='simulator');$('reviewTabPane').classList.toggle('active',tab==='review');});
 document.querySelectorAll('[data-chat-mode]').forEach(button=>button.addEventListener('click',()=>{chatMode=button.dataset.chatMode;document.querySelectorAll('[data-chat-mode]').forEach(b=>{const active=b===button;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});render();}));
 document.querySelectorAll('[data-perspective]').forEach(button=>button.addEventListener('click',()=>{chatPerspective=button.dataset.perspective;chatPageStart=0;document.querySelectorAll('[data-perspective]').forEach(b=>b.classList.toggle('active',b===button));render();}));
-document.addEventListener('fullscreenchange',()=>{setFullButton();requestAnimationFrame(fitBoardToViewport);});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&fallbackFullscreen)fallbackFull(false)});
 initCustomDropdowns();render();requestAnimationFrame(fitBoardToViewport);
 </script></body></html>
