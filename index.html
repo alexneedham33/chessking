@@ -1393,7 +1393,7 @@ function startMoveAnimation(m,isOpponent,autoReplyAfterManual=false,manual=false
     animatingMove=null;
     if(trainingMode==='challenge'&&!scenario&&(current().t===1&&current().full>Number($('challengeTarget').value)||gameStatus(h).done)){finalizeChallenge();render();return;}
     if(!isOpponent&&mode==='play'&&!gameStatus(h).done&&current().t!==playerSide()&&(
-      trainingMode==='challenge'||learnOpponent==='stockfish'||
+      trainingMode==='challenge'||
       (trainingMode==='learn'&&learnOpponent==='guided'&&(h.length-1>=guidedOpeningLimit()||playerSide()===-1)))){
       await prepareOpponentReply();return;
     }
@@ -1995,7 +1995,8 @@ $('next').onclick=()=>{
  }
  const m=previewReply||suggested();
  if(m){clearOutsideLinePreview();if(mode==='play'&&opponentTurn)startMoveAnimation(m,true);else play(m);}
-};$('opponent').onclick=()=>{const m=suggested();if(m)play(m)};$('restart').onclick=reset;$('back').onclick=()=>{if(scenario){scenarioIndex=Math.max(0,scenarioIndex-1);render();return;}if(pendingReply||animatingMove){clearReplyState();render();return;}if(h.length<2){clearOutsideLinePreview();render();return;}clearOutsideLinePreview();invalidateReview();const n=(trainingMode==='challenge'||learnOpponent==='stockfish')&&mode==='play'&&h.length>2&&h.at(-1).t===playerSide()?2:1;h=h.slice(0,-n);logs=logs.slice(0,-n);notes=notes.slice(0,-n);const restored=routeHistory.length>=n?routeHistory[routeHistory.length-n]:null;routeHistory=routeHistory.slice(0,-n);activeBranch=restored?.branch||null;deviationInfo=restored?.info||null;selectedSquare=-1;showHint=false;feedback='';lastSquares=[];render()};$('cancelPromo').onclick=()=>{promotion=null;render()};// Keep the material card level with the bottom of the 64-square board,
+};$('opponent').onclick=()=>{const m=suggested();if(m)play(m)};$('restart').onclick=reset;$('back').onclick=()=>{if(scenario){scenarioIndex=Math.max(0,scenarioIndex-1);render();return;}if(pendingReply||animatingMove){clearReplyState();render();return;}if(h.length<2){clearOutsideLinePreview();render();return;}clearOutsideLinePreview();invalidateReview();// Next advances one half-move in Stockfish mode; Undo should likewise step back one move.
+const n=trainingMode==='challenge'&&mode==='play'&&h.length>2&&h.at(-1).t===playerSide()?2:1;h=h.slice(0,-n);logs=logs.slice(0,-n);notes=notes.slice(0,-n);const restored=routeHistory.length>=n?routeHistory[routeHistory.length-n]:null;routeHistory=routeHistory.slice(0,-n);activeBranch=restored?.branch||null;deviationInfo=restored?.info||null;selectedSquare=-1;showHint=false;feedback='';lastSquares=[];render()};$('cancelPromo').onclick=()=>{promotion=null;render()};// Keep the material card level with the bottom of the 64-square board,
 // not the board shell (which also contains the Undo/Restart/Next buttons).
 function alignCapturedTrayWithBoard(){
  const board=$('board'),shell=document.querySelector('.board-shell'),side=document.querySelector('.side');
