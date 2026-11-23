@@ -907,17 +907,17 @@ html.app-fullscreen .side>.opening-progress-frame,html:fullscreen .side>.opening
  font-size:29px;font-weight:830;line-height:1.12;letter-spacing:-.65px;
 }
 .top .logo-mark{font-size:31px;line-height:1;color:#c49afb;flex:none}
-.top .logo-wordmark{white-space:nowrap}
-.top .logo::after{
- content:"";position:absolute;left:39px;bottom:0;
- width:100px;height:3px;border-radius:999px;
+.top .logo-wordmark{white-space:nowrap;position:relative;display:inline-block}
+.top .logo-wordmark::after{
+ content:"";position:absolute;left:0;right:0;bottom:-7px;
+ height:3px;border-radius:999px;
  background:linear-gradient(90deg,#aa5cf2 0 50%,#495269 50% 100%);
  box-shadow:0 0 8px rgba(170,92,242,.1);
 }
 @media(max-width:700px){
  .top .logo{font-size:25px;gap:7px;padding-bottom:6px}
  .top .logo-mark{font-size:27px}
- .top .logo::after{left:34px;width:86px}
+ .top .logo-wordmark::after{bottom:-6px}
 }
 /* Icon-only optional expanded-view comparison. Move only expanded workspace lower,
    and let fitBoardToViewport reserve its entire action row on short screens. */
