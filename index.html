@@ -1528,7 +1528,9 @@ async function requestUnifiedMoveCoaching(ply){
   const response=await fetch('/api/coach/move',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
    beforeFen:fenOf(before),afterFen:fenOf(after),
    opening:openings[openingAtRequest].name,player:openings[openingAtRequest].side===1?'White':'Black',
-   played:playedMoveEvidence(before,move),scripted:note.reason,
+   played:playedMoveEvidence(before,move),
+   // Off-line scripted guidance is a heuristic, not evidence that a self-chosen move is useful.
+   scripted:note.manual?'Learner-selected legal move. Assess its merits objectively; no positive purpose is presumed.':note.reason,
    history:logs.slice(Math.max(0,ply-10),ply),recentCoaching,engine,detail:record.detail,moveAssessment,
    priorEngine:prior?{evaluation:prior.evaluation,depth:prior.depth}:null
   })});
