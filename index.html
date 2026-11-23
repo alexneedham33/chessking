@@ -1118,6 +1118,11 @@ async function checkBalanceScale(){
 }
 const OPPONENT_MODE_KEY='openingLab.opponentMode';
 function loadOpponentMode(){try{return localStorage.getItem(OPPONENT_MODE_KEY)==='stockfish'?'stockfish':'guided';}catch{return 'guided';}}
+const PLAYER_SIDE_KEY='openingLab.playerSide';
+function readPlayerSide(){try{const raw=localStorage.getItem(PLAYER_SIDE_KEY);return raw==='1'?1:raw==='-1'?-1:null;}catch{return null;}}
+let chosenPlayerSide=readPlayerSide();
+function playerSide(){return chosenPlayerSide===null?openings[selected].side:chosenPlayerSide;}
+function boardFlipped(){return playerSide()===-1;}
 let chatMode='learn',chatPerspective='coach',previewReplyEngine=false,previewAnalysis=null,trainingMode='learn',learnOpponent=loadOpponentMode(),challengeStarted=false,challengeFinished=false,challengeScore=null;let selected='queenAccepted',mode='play',h=[original()],selectedSquare=-1,showHint=false,feedback='',promotion=null,logs=[],notes=[],lastSquares=[],pendingReply=null,previewReply=null,replyTimer=null,animatingMove=null,animationTimer=null;const $=id=>document.getElementById(id);
 function clearReplyState(){if(replyTimer){clearTimeout(replyTimer);replyTimer=null}if(animationTimer){clearTimeout(animationTimer);animationTimer=null}pendingReply=null;previewReply=null;previewReplyEngine=false;previewAnalysis=null;animatingMove=null;const ghost=$('moveGhost');if(ghost){ghost.className='move-ghost';ghost.style.display='none';ghost.style.transitionDuration='';ghost.textContent='';}}
 let variationPanelOpen=false,gameReviewOpen=false,coachAnswerText='';
@@ -1254,7 +1259,7 @@ function engineExplanation(s,m){
  return 'I’m moving the '+n+' from '+from+' to '+to+' to improve the position or address a potential threat.';
 }
 function record(m,engineSelected=false,analysis=null,manual=false,isOpponent=false){coachPinnedSquare=null;coachHoveredSquare=null;if(trainingMode!=='learn')coachScrollPending=true;coachAnswerText='';invalidateReview();const s=current();routeHistory.push({branch:activeBranch,info:deviationInfo});guideMove(s,m);const text=moveLabel(s,m),lineIndex=s.i,correct=lineIndex>=0&&key(m)===routeLine()[lineIndex]?.[0];h.push(apply(s,m));logs.push(text);lastSquares=[m[0],m[1]];feedback=deviationInfo?.kind==='variation'&&lineIndex===activeBranch?.at?'Variation recognised: '+deviationInfo.name:correct?'✓ In line with the opening.':deviationInfo?.name||'Adapted continuation';notes.push({uci:key(m),manual:!!manual,isOpponent:!!isOpponent,inPreparedLine:!!correct,engineSelected,engineAnalysis:engineSelected?analysis:null,engineComment:engineSelected?engineExplanation(s,m):'',text,color:s.t,opening:selected,index:correct&&!activeBranch?lineIndex:-1,reason:activeBranch&&lineIndex>=activeBranch.at?routeLine()[lineIndex]?.[1]:correct?rationales[selected][lineIndex]:explainDeviation(s,m)});return correct;}
-function squarePct(i){const row=i>>4,col=i&7;return {x:(col+0.5)*12.5+'%',y:(row+0.5)*12.5+'%'};}
+function squarePct(i){const row=i>>4,col=i&7;return {x:((boardFlipped()?7-col:col)+0.5)*12.5+'%',y:((boardFlipped()?7-row:row)+0.5)*12.5+'%'};}
 function shouldUseEngineReply(s){return !!deviationInfo&&(deviationInfo.kind==='warning'||deviationInfo.kind==='detour'||s.i<0);}
 async function prepareOpponentReply(){
  const s=current();
@@ -1317,7 +1322,7 @@ function startMoveAnimation(m,isOpponent,autoReplyAfterManual=false,manual=false
     record(m,engineSelected,engineAnalysis,manual,isOpponent);
     animatingMove=null;
     if(trainingMode==='challenge'&&!scenario&&(current().t===1&&current().full>Number($('challengeTarget').value)||gameStatus(h).done)){finalizeChallenge();render();return;}
-    if(!isOpponent&&mode==='play'&&!gameStatus(h).done&&current().t!==openings[selected].side&&(
+    if(!isOpponent&&mode==='play'&&!gameStatus(h).done&&current().t!==playerSide()&&(
       trainingMode==='challenge'||learnOpponent==='stockfish'||
       (trainingMode==='learn'&&learnOpponent==='guided'&&h.length-1>=guidedOpeningLimit()))){
       await prepareOpponentReply();return;
@@ -1337,7 +1342,7 @@ function play(m,manual=false){
   clearOutsideLinePreview();
   startMoveAnimation(found,false,manual,manual);
 }
-function clickSquare(i){if(outsideLinePreview){clearOutsideLinePreview();render();return;}if(trainingMode==='challenge'&&!challengeStarted)return;if(challengeFinished||scenario||pendingReply||animatingMove)return;if(gameStatus(h).done||promotion||mode==='play'&&current().t!==openings[selected].side)return;const s=current(),moves=legal(s);if(side(s.b[i])===s.t){selectedSquare=selectedSquare===i?-1:i;feedback='';render();return;}const choices=moves.filter(m=>m[0]===selectedSquare&&m[1]===i);if(choices.length>1){promotion=choices;render();return;}if(choices.length===1)play(choices[0],true);else{feedback='Choose one of the highlighted legal destinations.';render();}}
+function clickSquare(i){if(outsideLinePreview){clearOutsideLinePreview();render();return;}if(trainingMode==='challenge'&&!challengeStarted)return;if(challengeFinished||scenario||pendingReply||animatingMove)return;if(gameStatus(h).done||promotion||mode==='play'&&current().t!==playerSide())return;const s=current(),moves=legal(s);if(side(s.b[i])===s.t){selectedSquare=selectedSquare===i?-1:i;feedback='';render();return;}const choices=moves.filter(m=>m[0]===selectedSquare&&m[1]===i);if(choices.length>1){promotion=choices;render();return;}if(choices.length===1)play(choices[0],true);else{feedback='Choose one of the highlighted legal destinations.';render();}}
 function challengeObjectives(){
  const side=openings[selected].side,pos=current(),old=original(),mine=side===1?x=>x.toUpperCase():x=>x.toLowerCase();
  const moves=logs.filter((_,i)=>h[i]?.t===side).join(' ');
@@ -1367,6 +1372,7 @@ async function finalizeChallenge(){
 }
 function renderChallenge(){
  const isPlay=trainingMode==='challenge';
+ $('playAs').value=String(playerSide());
  const guidedLearn=trainingMode==='learn'&&learnOpponent==='guided';
  $('learnOpponentSettings').style.display=trainingMode==='learn'?'block':'none';
  $('learnOpponent').value=learnOpponent;
@@ -1606,7 +1612,7 @@ function refreshUnifiedMoveCoaching(){
  if(ply<AI_COACH_MIN_PLY||ply%AI_COACH_INTERVAL!==0||aiRequestedPly.has(ply)||!notes[ply-1]?.uci)return;
  requestUnifiedMoveCoaching(ply);
 }
-function render(){syncOpeningChoices();requestAnimationFrame(alignCapturedTrayWithBoard);const s=scenario?scenarioPositions[scenarioIndex]:current(),moves=legal(s),status=gameStatus(h),op=openings[selected],step=op.line[s.i],hint=trainingMode!=='learn'?null:learnOpponent==='guided'&&h.length-1<guidedOpeningLimit()?suggested():learnOpponent==='stockfish'&&s.t===op.side?legal(s).find(m=>key(m)===(evalCache.get('14:'+fenOf(s))||evalCache.get('16:'+fenOf(s)))?.best):null,yourTurn=s.t===op.side,ended=status.done;$('openingSelect').value=openingParent(selected);$('variationSelect').value=selected;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x.dataset.mode===mode));$('turn').textContent=scenario?'Illustrative variation · '+(scenarioIndex===0?'Start':('Step '+scenarioIndex)):pendingReply?'Opponent is thinking…':animatingMove?(animatingMove.isOpponent?'Opponent is moving…':'Your move…'):status.text;$('player').textContent=scenario?'Use Next move to explore':pendingReply?'Opponent reply in progress':animatingMove?(animatingMove.isOpponent?'Opponent reply in progress':'Moving piece'):(mode==='play'?'Playing '+(op.side===1?'White':'Black'):'Study both sides');$('openingName').textContent=op.name;$('description').textContent=op.desc;$('tip').textContent=op.tip;const lessonLimit=guidedOpeningLimit();
+function render(){syncOpeningChoices();requestAnimationFrame(alignCapturedTrayWithBoard);const s=scenario?scenarioPositions[scenarioIndex]:current(),moves=legal(s),status=gameStatus(h),op=openings[selected],step=op.line[s.i],hint=trainingMode!=='learn'?null:learnOpponent==='guided'&&h.length-1<guidedOpeningLimit()?suggested():learnOpponent==='stockfish'&&s.t===op.side?legal(s).find(m=>key(m)===(evalCache.get('14:'+fenOf(s))||evalCache.get('16:'+fenOf(s)))?.best):null,yourTurn=s.t===op.side,ended=status.done;$('openingSelect').value=openingParent(selected);$('variationSelect').value=selected;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x.dataset.mode===mode));$('openingName').textContent=op.name;$('description').textContent=op.desc;$('tip').textContent=op.tip;const lessonLimit=guidedOpeningLimit();
 const lessonDone=Math.min(lessonLimit,Math.max(0,h.length-1));
 $('progressLabel').textContent=lessonDone+' / '+lessonLimit;const progressPct=100*lessonDone/lessonLimit;$('progressBar').style.width=progressPct+'%';$('openingProgress').style.display=trainingMode==='learn'&&learnOpponent==='guided'?'':'none';
 $('openingLineWarning').style.display=outsideLinePreview?'block':'none';
@@ -1626,7 +1632,7 @@ renderCoachTools();
 refreshUnifiedMoveCoaching();
 if(!scenario)$('simEnginePanel').style.display='none';const st=strategies[selected];$('strategyIntro').textContent=st.intro;const objectives=$('objectiveList');objectives.replaceChildren();let count=scenario?(scenario.dynamic?Math.max(0,current().i):scenarios[selected].setup):Math.max(0,current().i);for(const [name,at,detail] of st.objectives){const row=document.createElement('div');row.className='strategy-item';const mark=document.createElement('span');mark.className='strategy-mark';mark.textContent=count>=at?'✓':'○';const body=document.createElement('div');const heading=document.createElement('div');heading.className='strategy-name';heading.textContent=name;const copy=document.createElement('div');copy.className='strategy-detail';copy.textContent=detail;body.append(heading,copy);row.append(mark,body);objectives.append(row);} $('phaseBadge').textContent=scenario?'Scenario':current().i<0?'Free play':current().i>=op.line.length?'Line complete':'Opening';$('strategyToggle').textContent=strategyOn?'◉ Hide strategy':'◉ Show strategy';$('scenarioIntro').textContent=scenario?.dynamic?scenario.summary:scenarios[selected].summary;const sm=$('comparisonSummary');sm.replaceChildren();sm.style.display=scenario?.comparison?'flex':'none';if(scenario?.comparison){const c=scenario.comparison;for(const [k,v] of [['Your move',c.played+' · '+c.scorePlayed],['Stockfish prefers',c.preferred+' · '+c.scoreBest]]){const row=document.createElement('div');row.className='compare-pair';const label=document.createElement('span');label.textContent=k;const value=document.createElement('strong');value.textContent=v;row.append(label,value);sm.append(row);}const note=document.createElement('div');note.className='compare-result';note.textContent=c.difference;sm.append(note);}$('scenarioStart').style.display=scenario?'none':'';$('scenarioControls').style.display=scenario?'':'none';if(scenario){if(scenario.dynamic&&lastSimShown!==scenarioIndex){lastSimShown=scenarioIndex;updateSimulationScore(scenarioIndex);} $('scenarioStepTitle').textContent=scenario?.comparison?(scenarioIndex===0?'Your original move':scenarioIndex===1?'Back at the decision':'Stockfish recommendation'):scenarioIndex===0?'Starting position':('Step '+scenarioIndex+' of '+scenario.moves.length);$('scenarioStepCopy').textContent=scenario?.comparison?(scenarioIndex===0?'Your original '+scenario.comparison.played+' · press Replay comparison':scenarioIndex===1?'Your move has been rewound. Watch Stockfish’s choice.':scenario.moves[1][1]):scenarioIndex===0?scenario.title:scenario.moves[scenarioIndex-1][1];$('scenarioNext').disabled=!!animatingMove||scenarioIndex>=scenario.moves.length;$('scenarioNext').textContent=scenario?.comparison?(scenarioIndex===0?'Replay comparison →':scenarioIndex===1?'Show best move →':'Comparison complete'):scenarioIndex>=scenario.moves.length?'End of illustration':'Next move →';}
 const previewBoard=!scenario&&outsideLinePreview?apply(s,outsideLinePreview.move):null;
-const board=$('board');board.replaceChildren();for(let j=0;j<64;j++){const i=(j>>3)*16+(j&7),b=document.createElement('button');b.type='button';b.className='square'+(((j>>3)+(j&7))%2?' dark':'');b.setAttribute('aria-label',sq(i)+' '+(s.b[i]==='.'?'empty':s.b[i]));b.dataset.square=sq(i);if(strategyOn&&st.targets.includes(sq(i)))b.classList.add('strategic');if(!scenario&&comparisonView?.bestMove){if(i===comparisonView.bestMove[0])b.classList.add('compare-from');if(i===comparisonView.bestMove[1])b.classList.add('compare-to');}if(animatingMove&&animatingMove.isOpponent&&(i===animatingMove.from||i===animatingMove.to))b.classList.add('thinking');if(previewBoard){
+const board=$('board');board.classList.toggle('flipped',boardFlipped());board.replaceChildren();for(let j=0;j<64;j++){const i=(j>>3)*16+(j&7),b=document.createElement('button');b.type='button';b.className='square'+(((j>>3)+(j&7))%2?' dark':'');b.setAttribute('aria-label',sq(i)+' '+(s.b[i]==='.'?'empty':s.b[i]));b.dataset.square=sq(i);if(strategyOn&&st.targets.includes(sq(i)))b.classList.add('strategic');if(!scenario&&comparisonView?.bestMove){if(i===comparisonView.bestMove[0])b.classList.add('compare-from');if(i===comparisonView.bestMove[1])b.classList.add('compare-to');}if(animatingMove&&animatingMove.isOpponent&&(i===animatingMove.from||i===animatingMove.to))b.classList.add('thinking');if(previewBoard){
  if(i===outsideLinePreview.move[0])b.classList.add('offline-preview-from');
  if(i===outsideLinePreview.move[1])b.classList.add('offline-preview-to');
 }else if(!scenario&&i===selectedSquare)b.classList.add('sel');else if(lastSquares.includes(i))b.classList.add('last');
@@ -1788,7 +1794,7 @@ $('variationSelect').onchange=()=>{selected=$('variationSelect').value;reset();}
  showHint=!showHint;render();
 };async function advanceLearnStockfishMove(){
  if(pendingReply||animatingMove||gameStatus(h).done)return;
- const position=current(),opponentTurn=position.t!==openings[selected].side;
+ const position=current(),opponentTurn=position.t!==playerSide();
  if(opponentTurn&&learnOpponent==='guided'){
   const scripted=scriptedStockfishOpeningReply(position);
   if(scripted){previewReplyEngine=false;previewAnalysis=null;startMoveAnimation(scripted,true);return;}
@@ -1822,7 +1828,7 @@ $('variationSelect').onchange=()=>{selected=$('variationSelect').value;reset();}
 }
 $('next').onclick=()=>{
  if(pendingReply||animatingMove||gameStatus(h).done)return;
- const opponentTurn=current().t!==openings[selected].side;
+ const opponentTurn=current().t!==playerSide();
  if(trainingMode==='learn'&&(learnOpponent==='stockfish'||(learnOpponent==='guided'&&h.length-1>=guidedOpeningLimit()))){
   clearOutsideLinePreview();advanceLearnStockfishMove();return;
  }
