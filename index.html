@@ -386,6 +386,9 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 .coach-ai-status{font-size:10px;color:#b8c7dc;white-space:nowrap}
 .coach-ai-status[hidden]{display:none!important}
 .coach-ai-status.error{color:#f0ad94}
+.coach-ai-retry{border:1px solid #795d77;background:#302138;color:#f5cbb9;border-radius:6px;font-size:11px;font-weight:750;padding:5px 8px}
+.coach-ai-retry:hover{background:#49304a}
+.coach-ai-retry[hidden]{display:none!important}
 @media(max-width:700px){.coach-header-right{gap:5px}.coach-inline-settings{gap:6px}}
 </style></head><body>
 <div class="app">
@@ -446,7 +449,7 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
           <button class="detail-tab" data-detail-tab="simulator">Simulator</button><button class="detail-tab" data-detail-tab="review">Review</button>
         </div>
         <div class="detail-tab-content active" id="chatTabPane">
-          <div class="panel-header"><div class="learn-kicker">📖 <span>Opening coach</span></div><div class="coach-header-right"><span class="learn-meta" id="openingName">Queen's Gambit Accepted</span><div class="coach-inline-settings" id="strategicInsights" hidden><label class="coach-inline-toggle" title="Use the optional AI coach when available"><input type="checkbox" id="strategicAiToggle"> AI</label><label class="coach-detail-label" for="coachDetailSelect">Detail <select id="coachDetailSelect" class="coach-detail-select" title="Explanation length for upcoming AI coaching"><option value="brief">Brief</option><option value="standard">Standard</option><option value="detailed">Detailed</option></select></label><span id="aiCoachStatus" class="coach-ai-status" role="status" aria-live="polite" hidden></span></div></div></div><div class="chat-mode-switch" role="group" aria-label="Chat explanation style" style="display:none"><button class="chat-mode-btn active" data-chat-mode="quick" aria-pressed="true">Quick</button><button class="chat-mode-btn" data-chat-mode="learn" aria-pressed="false">Learn</button></div>
+          <div class="panel-header"><div class="learn-kicker">📖 <span>Opening coach</span></div><div class="coach-header-right"><span class="learn-meta" id="openingName">Queen's Gambit Accepted</span><div class="coach-inline-settings" id="strategicInsights" hidden><label class="coach-inline-toggle" title="Use the optional AI coach when available"><input type="checkbox" id="strategicAiToggle"> AI</label><label class="coach-detail-label" for="coachDetailSelect">Detail <select id="coachDetailSelect" class="coach-detail-select" title="Explanation length for upcoming AI coaching"><option value="brief">Brief</option><option value="standard">Standard</option><option value="detailed">Detailed</option></select></label><span id="aiCoachStatus" class="coach-ai-status" role="status" aria-live="polite" hidden></span><button type="button" class="coach-ai-retry" id="aiCoachRetry" hidden title="Retry the current move's AI explanation">Retry</button></div></div></div><div class="chat-mode-switch" role="group" aria-label="Chat explanation style" style="display:none"><button class="chat-mode-btn active" data-chat-mode="quick" aria-pressed="true">Quick</button><button class="chat-mode-btn" data-chat-mode="learn" aria-pressed="false">Learn</button></div>
           <div class="commentary-switch" role="group" aria-label="Chat perspective" style="display:none"><button class="commentary-btn active" data-perspective="coach">Opening coach</button><button class="commentary-btn" data-perspective="engine">Engine commentary</button></div><p class="engine-disclaimer" id="engineDisclaimer" style="display:none">Interpretations of engine moves, not Stockfish's actual thoughts.</p>
 <div class="move-review-toolbar" id="moveReviewToolbar"><div><strong>Understand your move</strong><span>Full-strength Stockfish checks meaningful differences</span></div><button class="btn" id="reviewMyMove">Review move</button></div>
 <div class="chat-zone" id="chatZone">
@@ -1209,7 +1212,7 @@ function revealLatestCoachMove(){
  sizeCoachConversation(true);
 }
 function invalidateReview(){comparisonView=null;reviewSerial++;reviewData=null;reviewSelection=0;$('reviewResults').style.display='none';$('reviewStatus').textContent='Game changed. Analyse the current moves to refresh the review.';}
-function reset(){coachPinnedSquare=null;coachHoveredSquare=null;strategicAiNonce++;strategicAiBusy=false;strategicAiStatus='';strategicAiFailed=false;aiRequestedPly.clear();coachMoveMessages.clear();coachSeenPositionCount=1;clearOutsideLinePreview();coachScrollPending=false;coachScrollGeneration++;$('chatZone').scrollTop=0;invalidateReview();comparisonView=null;variationPanelOpen=false;gameReviewOpen=false;coachAnswerText='';challengeStarted=false;challengeFinished=false;challengeScore=null;shownEngineFen='';simEvalRequest++;replySelectionToken++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();if(trainingMode==='learn'&&learnOpponent==='adaptive'&&mode==='play'&&current().t!==openings[selected].side)prepareOpponentReply();}
+function reset(){coachPinnedSquare=null;coachHoveredSquare=null;strategicAiNonce++;strategicAiBusy=false;strategicAiStatus='';strategicAiFailed=false;strategicAiError='';aiRequestedPly.clear();coachMoveMessages.clear();coachSeenPositionCount=1;clearOutsideLinePreview();coachScrollPending=false;coachScrollGeneration++;$('chatZone').scrollTop=0;invalidateReview();comparisonView=null;variationPanelOpen=false;gameReviewOpen=false;coachAnswerText='';challengeStarted=false;challengeFinished=false;challengeScore=null;shownEngineFen='';simEvalRequest++;replySelectionToken++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();if(trainingMode==='learn'&&learnOpponent==='adaptive'&&mode==='play'&&current().t!==openings[selected].side)prepareOpponentReply();}
 function startChallenge(){reset();challengeStarted=true;feedback='Challenge started. Play your opening against Stockfish.';render();if(current().t!==openings[selected].side)prepareOpponentReply();}
 function current(){return h.at(-1)}function suggested(){const s=current();return legal(s).find(m=>key(m)===routeLine()[s.i]?.[0])}
 function readablePv(s,pv){
@@ -1276,7 +1279,7 @@ function startMoveAnimation(m,isOpponent,autoReplyAfterManual=false){
   const piece=current().b[m[0]];
   // Prepare Stockfish coaching evidence during the animation rather than
   // making the AI wait until the piece finishes moving.
-  if(guided&&strategicAiEnabled&&!strategicAiFailed&&aiRequestedPly.size<AI_COACH_GAME_LIMIT){
+  if(guided&&strategicAiEnabled&&aiRequestedPly.size<AI_COACH_GAME_LIMIT){
     fetchEngine(apply(current(),m),12).catch(()=>{});
   }
   const engineSelected=!!(isOpponent&&previewReplyEngine),engineAnalysis=engineSelected?previewAnalysis:null;previewReplyEngine=false;previewAnalysis=null;
@@ -1446,7 +1449,7 @@ function renderCapturedPieces(){
 
 
 // Each move has one explanation. AI asynchronously replaces the scripted text.
-let strategicAiEnabled=false,strategicAiBusy=false,strategicAiFailed=false,strategicAiNonce=0,strategicAiStatus='';
+let strategicAiEnabled=false,strategicAiBusy=false,strategicAiFailed=false,strategicAiNonce=0,strategicAiStatus='',strategicAiError='';
 let coachDetail='standard';
 const aiRequestedPly=new Set(),coachMoveMessages=new Map();
 const AI_COACH_MIN_PLY=1,AI_COACH_INTERVAL=1,AI_COACH_GAME_LIMIT=24;
@@ -1493,7 +1496,7 @@ function playedMoveEvidence(position,move){
   check:checked(apply(position,move))};
 }
 async function requestUnifiedMoveCoaching(ply){
- if(!strategicAiEnabled||strategicAiFailed||strategicAiBusy||aiRequestedPly.size>=AI_COACH_GAME_LIMIT)return;
+ if(!strategicAiEnabled||strategicAiBusy||aiRequestedPly.size>=AI_COACH_GAME_LIMIT)return;
  const before=h[ply-1],after=h[ply],note=notes[ply-1];
  if(!before||!after||!note?.uci)return;
  const move=legal(before).find(m=>key(m)===note.uci);
@@ -1519,15 +1522,20 @@ async function requestUnifiedMoveCoaching(ply){
    history:logs.slice(Math.max(0,ply-10),ply),recentCoaching,engine,detail:record.detail,
    priorEngine:prior?{evaluation:prior.evaluation,depth:prior.depth}:null
   })});
-  if(!response.ok)throw Error('AI coaching unavailable');
+  if(!response.ok){const details=await response.json().catch(()=>({}));const error=new Error(details.error||'AI request failed');error.httpStatus=response.status;throw error;}
   const result=await response.json();
   if(nonce!==strategicAiNonce||h[ply]!==after||coachMoveMessages.get(ply)!==record||selected!==openingAtRequest)return;
-  if(typeof result.message!=='string'||result.message.trim().length<30||result.message.length>900)throw Error('Invalid AI explanation');
+  if(typeof result.message!=='string'||result.message.trim().length<15||result.message.length>900)throw Error('Invalid AI explanation');
   record.pending=false;record.message=result.message.trim();record.lookout=typeof result.lookout==='string'&&result.lookout.trim().length>=15?result.lookout.trim():null;record.engineGrounded=!!result.engineGrounded;
-  strategicAiFailed=false;strategicAiStatus=result.engineGrounded?'engine':'position';
- }catch{
+  strategicAiFailed=false;strategicAiError='';strategicAiStatus=result.engineGrounded?'engine':'position';
+ }catch(error){
   if(nonce===strategicAiNonce&&coachMoveMessages.get(ply)===record){
    coachMoveMessages.delete(ply);strategicAiFailed=true;strategicAiStatus='error';
+   strategicAiError=error.httpStatus===429?error.message:
+    error.httpStatus===503?'AI server not configured':
+    error.httpStatus===502?error.message:
+    error.message==='Failed to fetch'?'AI server disconnected':'AI request failed';
+   console.warn('Opening coach request failed:',strategicAiError);
   }
  }finally{
   if(nonce===strategicAiNonce){strategicAiBusy=false;render();}
@@ -1546,9 +1554,10 @@ function refreshUnifiedMoveCoaching(){
  coachSeenPositionCount=h.length;
  status.hidden=!visible||!strategicAiEnabled||!strategicAiStatus;
  status.classList.toggle('error',strategicAiStatus==='error');
- status.textContent=({analysing:'Preparing…',engine:'AI + Stockfish',position:'AI · position',error:'AI unavailable'})[strategicAiStatus]||'';
+ status.textContent=({analysing:'Preparing…',engine:'AI + Stockfish',position:'AI · position',error:strategicAiError||'AI unavailable'})[strategicAiStatus]||'';
+ const retry=$('aiCoachRetry');retry.hidden=!visible||!strategicAiEnabled||strategicAiBusy||strategicAiStatus!=='error'||!aiRequestedPly.has(h.length-1);
  status.title=strategicAiStatus==='error'?'AI coaching unavailable; scripted explanations are shown.':'A complete AI coaching explanation is displayed when ready.';
- if(!visible||!strategicAiEnabled||strategicAiFailed||strategicAiBusy||aiRequestedPly.size>=AI_COACH_GAME_LIMIT)return;
+ if(!visible||!strategicAiEnabled||strategicAiBusy||aiRequestedPly.size>=AI_COACH_GAME_LIMIT)return;
  const ply=h.length-1;
  if(ply<AI_COACH_MIN_PLY||ply%AI_COACH_INTERVAL!==0||aiRequestedPly.has(ply)||!notes[ply-1]?.uci)return;
  requestUnifiedMoveCoaching(ply);
@@ -1673,6 +1682,13 @@ $('guidedOpeningLength').onchange=()=>{
  chosenGuidedLength=next;
  try{localStorage.setItem(GUIDED_LENGTH_KEY,String(next));}catch{}
  reset();
+};
+$('aiCoachRetry').onclick=()=>{
+ if(strategicAiBusy||!strategicAiEnabled)return;
+ const ply=h.length-1;
+ if(!notes[ply-1]?.uci)return;
+ aiRequestedPly.delete(ply);strategicAiFailed=false;strategicAiError='';strategicAiStatus='';
+ requestUnifiedMoveCoaching(ply);render();
 };
 $('coachDetailSelect').onchange=()=>{
  const next=$('coachDetailSelect').value;
