@@ -924,6 +924,9 @@ html.app-fullscreen .side>.opening-progress-frame,html:fullscreen .side>.opening
 /* Match the expand button's top edge to the visible Opening Lab title,
    without shifting the heading, toolbar, or board. */
 .top .icon-expand{width:40px;height:40px;display:grid;place-items:center;padding:0;font-size:20px;line-height:1;transform:translateY(7px)}
+.top .icon-expand:hover:not(:disabled),
+.top .icon-expand[aria-pressed="true"]{color:#c18afa}
+.top .icon-expand:focus-visible{outline:2px solid #c18afa;outline-offset:3px}
 html.app-fullscreen .app,html:fullscreen .app{padding-top:60px;padding-bottom:8px}
 @media(max-height:750px){
  html.app-fullscreen .app,html:fullscreen .app{padding-top:36px}
