@@ -877,12 +877,12 @@ html.app-fullscreen .side>.opening-progress-frame,html:fullscreen .side>.opening
   </header>
 <nav class="compact-toolbar" aria-label="Opening and opponent controls">
  <div class="toolbar-field player-side-control"><span class="sr-only">Play as</span><div class="player-colour-switch" role="group" aria-label="Choose playing colour"><button type="button" id="playWhite" aria-pressed="true">White</button><button type="button" id="playBlack" aria-pressed="false">Black</button></div></div>
- <div class="toolbar-field compact-mode"><div class="learn-opponent-head"><label id="practiceModeLabel" class="sr-only">Mode</label><div class="custom-select" data-select-id="learnOpponent"><select id="learnOpponent" tabindex="-1" aria-hidden="true"><option value="guided">Guided</option><option value="stockfish">Quick Play</option></select><button type="button" class="custom-select-trigger" id="learnOpponentTrigger" aria-labelledby="practiceModeLabel" aria-haspopup="listbox" aria-expanded="false"><span class="custom-select-value">Quick Play</span><span class="custom-select-chevron" aria-hidden="true">⌄</span></button><div class="custom-select-menu" role="listbox" aria-label="Practice mode" hidden></div></div></div></div> <div class="toolbar-field compact-opening"><div class="custom-select" data-select-id="openingSelect"><select id="openingSelect" tabindex="-1" aria-hidden="true"><option value="queenAccepted">Queen's Gambit Accepted</option><option value="queen">Queen's Gambit Declined</option><option value="italian">Italian Game</option><option value="sicilian">Sicilian Defence</option><option value="caro">Caro–Kann Defence</option></select><button type="button" class="custom-select-trigger" id="openingSelectTrigger" aria-label="Opening strategy" aria-haspopup="listbox" aria-expanded="false"><span class="custom-select-value">Queen's Gambit Accepted</span><span class="custom-select-chevron" aria-hidden="true">⌄</span></button><div class="custom-select-menu" role="listbox" aria-label="Opening strategy" hidden></div></div></div>
+ <div class="toolbar-field compact-mode"><div class="learn-opponent-head"><label id="practiceModeLabel" class="sr-only">Mode</label><div class="custom-select" data-select-id="learnOpponent"><select id="learnOpponent" tabindex="-1" aria-hidden="true"><option value="stockfish">Quick Play</option><option value="guided">Guided</option></select><button type="button" class="custom-select-trigger" id="learnOpponentTrigger" aria-labelledby="practiceModeLabel" aria-haspopup="listbox" aria-expanded="false"><span class="custom-select-value">Quick Play</span><span class="custom-select-chevron" aria-hidden="true">⌄</span></button><div class="custom-select-menu" role="listbox" aria-label="Practice mode" hidden></div></div></div></div> <div class="toolbar-field compact-opening"><div class="custom-select" data-select-id="openingSelect"><select id="openingSelect" tabindex="-1" aria-hidden="true"><option value="queenAccepted">Queen's Gambit Accepted</option><option value="queen">Queen's Gambit Declined</option><option value="italian">Italian Game</option><option value="sicilian">Sicilian Defence</option><option value="caro">Caro–Kann Defence</option></select><button type="button" class="custom-select-trigger" id="openingSelectTrigger" aria-label="Opening strategy" aria-haspopup="listbox" aria-expanded="false"><span class="custom-select-value">Queen's Gambit Accepted</span><span class="custom-select-chevron" aria-hidden="true">⌄</span></button><div class="custom-select-menu" role="listbox" aria-label="Opening strategy" hidden></div></div></div>
  <div class="toolbar-field compact-variation"><div class="custom-select" data-select-id="variationSelect"><select id="variationSelect" tabindex="-1" aria-hidden="true"><option value="queenAccepted">Main line</option></select><button type="button" class="custom-select-trigger" id="variationSelectTrigger" aria-label="Opening variation" aria-haspopup="listbox" aria-expanded="false"><span class="custom-select-value">Main line</span><span class="custom-select-chevron" aria-hidden="true">⌄</span></button><div class="custom-select-menu" role="listbox" aria-label="Opening variation" hidden></div></div></div>
  
 
  <label id="challengeToggleWrap" class="challenge-toggle" style="display:none"><input type="checkbox" id="challengeToggle"> Opening challenge</label>
-<details class="global-strength" id="globalStrength"><summary title="Choose practice mode and Stockfish difficulty"><span id="settingsModeSummary">Difficulty · 1700</span><span aria-hidden="true">⌄</span></summary><div class="global-strength-panel"><div class="settings-strength-field"><label for="globalElo"><strong>Stockfish difficulty · <span id="globalEloValue">1700</span></strong></label><input id="globalElo" type="range" min="750" max="2800" step="50" value="1700"><div class="global-strength-scale"><span>750 · Easier</span><span>2800 · Harder</span></div><p>Opponent strength is approximate. After the prepared opening, Stockfish takes over; position analysis remains full strength.</p></div></div></details><button class="btn primary" id="challengeQuickStart" style="display:none">Start challenge</button><details class="opponent-dropdown" id="opponentDropdown"><summary id="opponentSummary">Opponent · Guided opening</summary><div class="opponent-dropdown-panel"><section id="learnOpponentSettings" class="learn-opponent-settings">
+<details class="global-strength" id="globalStrength"><summary title="Choose practice mode and Stockfish difficulty"><span id="settingsModeSummary">Difficulty · 1500</span><span aria-hidden="true">⌄</span></summary><div class="global-strength-panel"><div class="settings-strength-field"><label for="globalElo"><strong>Stockfish difficulty · <span id="globalEloValue">1500</span></strong></label><input id="globalElo" type="range" min="750" max="2800" step="50" value="1500"><div class="global-strength-scale"><span>750 · Easier</span><span>2800 · Harder</span></div><p>Opponent strength is approximate. After the prepared opening, Stockfish takes over; position analysis remains full strength.</p></div></div></details><button class="btn primary" id="challengeQuickStart" style="display:none">Start challenge</button><details class="opponent-dropdown" id="opponentDropdown"><summary id="opponentSummary">Opponent · Guided opening</summary><div class="opponent-dropdown-panel"><section id="learnOpponentSettings" class="learn-opponent-settings">
 <div id="learnOpponentDescription" class="learn-opponent-description">Follow the prepared line or practise against Stockfish.</div>
 
 <label id="learnEloSetting" class="opponent-slider" style="display:none"><span class="opponent-slider-heading">Opponent strength <strong id="learnEloValue">1700 Elo (approx.)</strong></span><input type="range" id="learnElo" min="750" max="2800" step="50" value="1700"><span class="opponent-slider-range"><span>750 · Easier</span><span>2800 · Harder</span></span></label>
@@ -1158,7 +1158,7 @@ const evalCache=new Map();let evalRequest=0,evalTimer=null,shownEngineFen='',eng
 const engineSource='Stockfish · browser engine';
 const OPPONENT_ELO_KEY='openingLab.opponentElo';
 function clampOpponentElo(value){const n=Number(value);return Number.isFinite(n)?Math.max(750,Math.min(2800,Math.round(n/50)*50)):1700;}
-function loadOpponentElo(){try{return clampOpponentElo(localStorage.getItem(OPPONENT_ELO_KEY)??1700);}catch{return 1700;}}
+function loadOpponentElo(){try{return clampOpponentElo(localStorage.getItem(OPPONENT_ELO_KEY)??1500);}catch{return 1500;}}
 let chosenOpponentElo=loadOpponentElo();
 function opponentElo(){return chosenOpponentElo;}
 function saveOpponentElo(value){chosenOpponentElo=clampOpponentElo(value);try{localStorage.setItem(OPPONENT_ELO_KEY,String(chosenOpponentElo));}catch{}}
@@ -1775,6 +1775,7 @@ function play(m,manual=false){
   const found=legal(current()).find(x=>key(x)===key(m));
   if(!found){feedback='Illegal move';render();return;}
   if(isLockedOpeningPhase()){
+   if(!guidedVariationChosen){feedback='Choose a strategy and variation to begin guided practice.';render();return;}
    const expected=suggested();
    if(!expected||key(found)!==key(expected)){rejectOutsideOpeningLine(found);return;}
   }
@@ -1861,26 +1862,30 @@ const variationGroups={
  caro:[['caro','Main line']]
 };
 function openingParent(name){return name==='slav'||name==='albin'?'queen':name;}
+// A guided opening is explicitly selected rather than silently assigned.
+let guidedStrategyChosen=false,guidedVariationChosen=false;
 function syncOpeningChoices(){
  const parent=openingParent(selected);
  const strategy=$('openingSelect'),variation=$('variationSelect');
- if(strategy.options.length!==openingStrategies.length){
+ if(strategy.options.length!==openingStrategies.length+1){
   strategy.replaceChildren();
+  const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Strategy';placeholder.disabled=true;strategy.append(placeholder);
   for(const id of openingStrategies){
    const option=document.createElement('option');option.value=id;option.textContent=openings[id].name;strategy.append(option);
   }
  }
- strategy.value=parent;
+ strategy.value=guidedStrategyChosen?parent:'';
  const options=variationGroups[parent]||variationGroups.queenAccepted;
  const signature=options.map(row=>row[0]).join(',');
  if(variation.dataset.choices!==signature){
   variation.replaceChildren();
+  const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Variation';placeholder.disabled=true;variation.append(placeholder);
   for(const [id,label] of options){
    const option=document.createElement('option');option.value=id;option.textContent=label;variation.append(option);
   }
   variation.dataset.choices=signature;
  }
- variation.value=selected;
+ variation.value=guidedVariationChosen?selected:'';
 }
 
 
@@ -2197,7 +2202,7 @@ if(ghost){
   ghost.replaceChildren();
  }
 }
-$('hint').style.display=scenario?'none':mode==='play'?'':'none';$('next').style.display=scenario?'none':'';$('next').disabled=!isLockedOpeningPhase()||!suggested()||ended||!!pendingReply||!!animatingMove;$('hint').disabled=ended||!yourTurn||(isLockedOpeningPhase()&&!hint)||!!pendingReply||!!animatingMove;$('back').disabled=!!pendingReply||!!animatingMove||(!scenario&&h.length===1);$('opponent').style.display='none';
+$('hint').style.display=scenario?'none':mode==='play'?'':'none';$('next').style.display=scenario?'none':'';$('next').disabled=!isLockedOpeningPhase()||!guidedVariationChosen||!suggested()||ended||!!pendingReply||!!animatingMove;$('hint').disabled=ended||!yourTurn||(isLockedOpeningPhase()&&!hint)||!!pendingReply||!!animatingMove;$('back').disabled=!!pendingReply||!!animatingMove||(!scenario&&h.length===1);$('opponent').style.display='none';
 if(pendingReply||animatingMove?.isOpponent){$('promptLabel').textContent='OPPONENT';$('prompt').textContent='Typical reply incoming';$('explanation').textContent='Watch how the opponent develops their position.';} else if(ended){$('promptLabel').textContent='GAME OVER';$('prompt').textContent=status.text;$('explanation').textContent='Restart to try again.';}else if(s.i===routeLine().length){$('promptLabel').textContent='COMPLETE';$('prompt').textContent='Opening complete!';$('explanation').textContent='You have finished the prepared line. Keep playing or restart.';}else if(s.i<0){$('promptLabel').textContent='FREE PLAY';$('prompt').textContent='Explore the position';$('explanation').textContent='You have departed from the guided opening. Any legal move is still available.';}else{$('promptLabel').textContent=mode==='play'?(yourTurn?'YOUR TURN':'OPPONENT TO MOVE'):'NEXT IN THE LINE';$('prompt').textContent=mode==='play'&&yourTurn&&!showHint?'Find the next move':hint?moveLabel(s,hint):'Opening complete';$('explanation').textContent=mode==='play'&&yourTurn&&!showHint?'Make your move, or reveal a hint.':step?.[1]||'';}
 if(scenario){$('promptLabel').textContent='SCENARIO';$('prompt').textContent=scenario.title;$('explanation').textContent=scenarioIndex===0?scenario.summary:scenario.moves[scenarioIndex-1][1];}// One chronological conversation page. A new page begins when the messages reach the board's bottom.
 // Display the current half-move only. The full game and explanations
@@ -2316,8 +2321,8 @@ $('challengeElo').oninput=()=>updateOpponentDifficulty($('challengeElo').value);
 $('challengeTarget').onchange=()=>{if(challengeStarted)reset();else renderChallenge();};
 $('challengeGoal').onchange=()=>renderChallenge();
 $('challengeRestart').onclick=startChallenge;$('reviewAnalyse').onclick=analysePlayedGame;$('reviewCheckScale').onclick=checkBalanceScale;
-$('openingSelect').onchange=()=>{selected=$('openingSelect').value;reset();};
-$('variationSelect').onchange=()=>{selected=$('variationSelect').value;reset();};document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;reset()});$('strategyToggle').onclick=()=>{strategyOn=!strategyOn;render()};$('scenarioStart').onclick=()=>{clearReplyState();enterScenario()};$('scenarioNext').onclick=()=>{
+$('openingSelect').onchange=()=>{const value=$('openingSelect').value;if(!value)return;selected=value;guidedStrategyChosen=true;guidedVariationChosen=false;reset();};
+$('variationSelect').onchange=()=>{const value=$('variationSelect').value;if(!value)return;selected=value;guidedStrategyChosen=true;guidedVariationChosen=true;reset();};document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;reset()});$('strategyToggle').onclick=()=>{strategyOn=!strategyOn;render()};$('scenarioStart').onclick=()=>{clearReplyState();enterScenario()};$('scenarioNext').onclick=()=>{
  if(!scenario||animatingMove||scenarioIndex>=scenario.moves.length)return;
  if(scenario.comparison){
    const first=scenarioIndex===0,mo=first?scenario.comparison.actualMove:scenario.comparison.bestMove;
@@ -2377,7 +2382,7 @@ $('variationSelect').onchange=()=>{selected=$('variationSelect').value;reset();}
 }
 $('next').onclick=()=>{
  // Next is only for the guided opening; Stockfish free play is manual.
- if(!isLockedOpeningPhase()||pendingReply||animatingMove||gameStatus(h).done)return;
+ if(!isLockedOpeningPhase()||!guidedVariationChosen||pendingReply||animatingMove||gameStatus(h).done)return;
  const m=suggested();
  if(m){
   clearOutsideLinePreview();
