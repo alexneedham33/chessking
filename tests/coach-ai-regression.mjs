@@ -104,6 +104,30 @@ for(const item of review.cases){
   hash:sha(fixture.payload)});
 }
 if(selected&&!fixed.length&&!skipped.length)throw Error('Unknown case: '+selected);
+
+// These fixtures reproduce the historical errors on the real production move
+// generator. Fail CI if a future refactor drops required recapture evidence.
+function assertExchangeFixture(id,check){
+ const fixture=fixed.find(x=>x.id===id);
+ if(!fixture)return; // --case intentionally narrows the replay.
+ const facts=fixture.payload.tacticalFacts.exchangeEvidence;
+ if(!check(facts))throw Error('Exchange regression failed for '+id);
+}
+assertExchangeFixture('09-white-a3',facts=>
+ facts.captureOptions.some(x=>x.uci==='b4a3'&&
+   x.recaptures.some(r=>r.uci==='b2a3')));
+assertExchangeFixture('07-white-e4',facts=>
+ facts.captureOptions.some(x=>x.uci==='f6e4'&&x.recaptures.some(r=>r.uci==='c3e4'))&&
+ facts.captureOptions.some(x=>x.uci==='d5e4'&&x.recaptures.some(r=>r.uci==='c3e4')));
+assertExchangeFixture('12-black-bishop-takes-c3',facts=>
+ facts.captured?.piece==='knight'&&
+ facts.captureOptions.some(x=>x.uci==='b2c3'&&x.capturedPiece==='bishop'));
+assertExchangeFixture('13-white-b-pawn-takes-c3',facts=>
+ facts.captured?.piece==='bishop'&&
+ facts.completedExchange?.sameSquareRecapture===true&&
+ facts.completedExchange?.equalValuePieces===true&&
+ facts.completedExchange?.previousCapture?.piece==='knight');
+
 const results=[];
 const warnings=[];
 let allowed=live?Math.min(max,fixed.length):0;
