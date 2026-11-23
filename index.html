@@ -2256,13 +2256,12 @@ async function requestUnifiedMoveCoaching(ply){
    beforeFen:fenOf(before),afterFen:fenOf(after),
    opening:openings[openingAtRequest].name,player:playerColour,
    mover:moverColour,isOpponentMove:opponentMove,played:playedMoveEvidence(before,move),
-   // Off-line scripted guidance is a heuristic, not evidence that a self-chosen move is useful.
-   // Put coaching priorities inside scripted as well for older server
-   // handlers that do not yet read the new structured coachingGuidance.
-   scripted:perspectivePolicy+' '+
-    (opponentMove?'Opponent move: '+moveLabel(before,move)+'. ':note.manual?'Learner-selected move. ':note.reason+' ')+
-    coachingGuidance.instruction+' '+coachingGuidance.evaluationPolicy+' '+coachingGuidance.languagePolicy+
-    (noteworthyLoss&&moveAssessment?.suggestedMove?' Instructive alternative: '+moveAssessment.suggestedMove+'.':''),
+   // Guidance and player perspective are sent in coachingGuidance below.
+   // Avoid repeating those instructions in scripted: fewer input tokens and
+   // the same position evidence reach the Lambda coach.
+   scripted:opponentMove
+    ?'Opponent move: '+moveLabel(before,move)+'.'
+    :note.manual?'Learner-selected move.':note.reason||'Prepared move.',
    coachingGuidance,
    history:logs.slice(Math.max(0,ply-10),ply),recentCoaching,engine,detail:record.detail,moveAssessment,positionAssessment,
    moveOrigin:note.manual?'player':note.engineSelected?'engine':note.inPreparedLine?'prepared':'automatic',
