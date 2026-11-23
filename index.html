@@ -1224,7 +1224,7 @@ function engineExplanation(s,m){
  if(piece==='k')return 'I’m repositioning my king to '+to+'. Whether this is safe depends on the threats in the position.';
  return 'I’m moving the '+n+' from '+from+' to '+to+' to improve the position or address a potential threat.';
 }
-function record(m,engineSelected=false,analysis=null,manual=false){coachPinnedSquare=null;coachHoveredSquare=null;if(!(trainingMode==='learn'&&learnOpponent!=='adaptive'))coachScrollPending=true;coachAnswerText='';invalidateReview();const s=current();routeHistory.push({branch:activeBranch,info:deviationInfo});guideMove(s,m);const text=moveLabel(s,m),lineIndex=s.i,correct=lineIndex>=0&&key(m)===routeLine()[lineIndex]?.[0];h.push(apply(s,m));logs.push(text);lastSquares=[m[0],m[1]];feedback=deviationInfo?.kind==='variation'&&lineIndex===activeBranch?.at?'Variation recognised: '+deviationInfo.name:correct?'✓ In line with the opening.':deviationInfo?.name||'Adapted continuation';notes.push({uci:key(m),manual:!!manual,engineSelected,engineAnalysis:engineSelected?analysis:null,engineComment:engineSelected?engineExplanation(s,m):'',text,color:s.t,opening:selected,index:correct&&!activeBranch?lineIndex:-1,reason:activeBranch&&lineIndex>=activeBranch.at?routeLine()[lineIndex]?.[1]:correct?rationales[selected][lineIndex]:explainDeviation(s,m)});return correct;}
+function record(m,engineSelected=false,analysis=null,manual=false,isOpponent=false){coachPinnedSquare=null;coachHoveredSquare=null;if(!(trainingMode==='learn'&&learnOpponent!=='adaptive'))coachScrollPending=true;coachAnswerText='';invalidateReview();const s=current();routeHistory.push({branch:activeBranch,info:deviationInfo});guideMove(s,m);const text=moveLabel(s,m),lineIndex=s.i,correct=lineIndex>=0&&key(m)===routeLine()[lineIndex]?.[0];h.push(apply(s,m));logs.push(text);lastSquares=[m[0],m[1]];feedback=deviationInfo?.kind==='variation'&&lineIndex===activeBranch?.at?'Variation recognised: '+deviationInfo.name:correct?'✓ In line with the opening.':deviationInfo?.name||'Adapted continuation';notes.push({uci:key(m),manual:!!manual,isOpponent:!!isOpponent,inPreparedLine:!!correct,engineSelected,engineAnalysis:engineSelected?analysis:null,engineComment:engineSelected?engineExplanation(s,m):'',text,color:s.t,opening:selected,index:correct&&!activeBranch?lineIndex:-1,reason:activeBranch&&lineIndex>=activeBranch.at?routeLine()[lineIndex]?.[1]:correct?rationales[selected][lineIndex]:explainDeviation(s,m)});return correct;}
 function squarePct(i){const row=i>>4,col=i&7;return {x:(col+0.5)*12.5+'%',y:(row+0.5)*12.5+'%'};}
 function shouldUseEngineReply(s){return !!deviationInfo&&(deviationInfo.kind==='warning'||deviationInfo.kind==='detour'||s.i<0);}
 async function prepareOpponentReply(){
@@ -1285,7 +1285,7 @@ function startMoveAnimation(m,isOpponent,autoReplyAfterManual=false,manual=false
   requestAnimationFrame(()=>requestAnimationFrame(()=>{if(animatingMove){const ghost=$('moveGhost');if(ghost)ghost.classList.add('moving');}}));
   animationTimer=setTimeout(async()=>{
     animationTimer=null;
-    record(m,engineSelected,engineAnalysis,manual);
+    record(m,engineSelected,engineAnalysis,manual,isOpponent);
     animatingMove=null;
     if(trainingMode==='challenge'&&!scenario&&(current().t===1&&current().full>Number($('challengeTarget').value)||gameStatus(h).done)){finalizeChallenge();render();return;}
     if(!isOpponent&&mode==='play'&&!gameStatus(h).done&&current().t!==openings[selected].side&&(
@@ -1532,6 +1532,7 @@ async function requestUnifiedMoveCoaching(ply){
    // Off-line scripted guidance is a heuristic, not evidence that a self-chosen move is useful.
    scripted:note.manual?'Learner-selected legal move. Assess its merits objectively; no positive purpose is presumed.':note.reason,
    history:logs.slice(Math.max(0,ply-10),ply),recentCoaching,engine,detail:record.detail,moveAssessment,
+   moveOrigin:note.manual?'player':note.engineSelected?'engine':note.inPreparedLine?'prepared':'automatic',
    priorEngine:prior?{evaluation:prior.evaluation,depth:prior.depth}:null
   })});
   if(!response.ok){const details=await response.json().catch(()=>({}));const error=new Error(details.error||'AI request failed');error.httpStatus=response.status;throw error;}
