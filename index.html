@@ -174,11 +174,6 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 .review-board-square .piece-img{width:96%;height:96%;object-fit:contain;display:block;pointer-events:none;user-select:none}
 
 /* Accessible in-place move review above the scrollable coaching thread. */
-.move-review-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:10px 0 8px;padding:10px 11px;border-radius:10px;background:#111928;border:1px solid #2c3c52}
-.move-review-toolbar>div{display:grid;gap:3px;min-width:0}
-.move-review-toolbar strong{font-size:12px;color:#edf2fc}
-.move-review-toolbar span{font-size:11px;color:#a3b2c6;line-height:1.4}
-.move-review-toolbar .btn{font-size:12px;white-space:nowrap;padding:9px 11px}
 .move-review-result{padding:13px;margin:0 0 12px;background:#151e2d;border:1px solid #385068;border-radius:12px;line-height:1.48;font-size:12px}
 .move-review-heading{color:#b7ebcb;font-size:14px;font-weight:800}
 .move-review-heading.review-warning{color:#f2c58a}
@@ -193,7 +188,6 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 .trainer-panel{max-height:calc(100dvh - 155px);overflow-y:auto;scrollbar-width:thin;scrollbar-color:#45536b #111724}
 .chat-zone{height:auto!important;max-height:min(50dvh,520px);overflow-y:auto;scrollbar-width:thin;scrollbar-color:#45536b #111724}
 @media(max-width:1100px){.trainer-panel{max-height:none;overflow:visible}}
-@media(max-width:600px){.move-review-toolbar{flex-wrap:wrap}.move-review-toolbar .btn{width:100%}}
 
 /* Simplified opening-first interface: one coach, inline review, optional practice strength. */
 .compact-toolbar .training-switch{flex-wrap:wrap}
@@ -241,9 +235,6 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 .coach-prompt{background:#1a2232;color:#bfcede;border:1px solid #334059;border-radius:99px;padding:7px 10px;font-size:11px;font-weight:650}
 .coach-prompt:hover{background:#2a344c;color:#fff}
 .coach-answer{margin:9px 0;padding:12px 13px;background:#151d2c;border:1px solid #34465f;border-radius:11px;font-size:12px;line-height:1.6;color:#d3deec}
-#moveReviewToolbar{padding:9px 11px;margin:8px 0;background:transparent;border-color:#283448}
-#moveReviewToolbar .btn{background:#252c42;border:1px solid #48566f;color:#dbe6f5}
-#moveReviewToolbar>div span{font-size:10px}
 #inlineReviewHost{margin-top:10px}
 @media(max-width:750px){.compact-toolbar .opponent-dropdown{margin-left:0}.play-challenge-panel .challenge-config{flex-direction:column;align-items:stretch}.play-challenge-panel .challenge-config label{max-width:none!important;width:100%}}
 
@@ -941,13 +932,13 @@ html.app-fullscreen .side>.opening-progress-frame,html:fullscreen .side>.opening
         <div class="detail-tab-content active" id="chatTabPane">
           <div class="panel-header"><div class="learn-kicker">📖 <span>Opening coach</span></div></div><div id="strategicInsights" class="coach-internal-status" aria-hidden="true" hidden><span id="aiCoachStatus" role="status" hidden></span><button type="button" id="aiCoachRetry" hidden>Retry</button></div><span id="openingName" hidden></span><div class="chat-mode-switch" role="group" aria-label="Chat explanation style" style="display:none"><button class="chat-mode-btn active" data-chat-mode="quick" aria-pressed="true">Quick</button><button class="chat-mode-btn" data-chat-mode="learn" aria-pressed="false">Learn</button></div>
           <div class="commentary-switch" role="group" aria-label="Chat perspective" style="display:none"><button class="commentary-btn active" data-perspective="coach">Opening coach</button><button class="commentary-btn" data-perspective="engine">Engine commentary</button></div><p class="engine-disclaimer" id="engineDisclaimer" style="display:none">Interpretations of engine moves, not Stockfish's actual thoughts.</p>
-<div class="move-review-toolbar" id="moveReviewToolbar"><div><strong>Understand your move</strong><span>Full-strength Stockfish checks meaningful differences</span></div><button class="btn" id="reviewMyMove">Review move</button></div>
+
 <div class="chat-zone" id="chatZone">
             <div id="whyPanel" class="why-panel" style="display:none"><div id="whyContent" class="why-content"></div></div>
             <div id="chatWelcome" class="chat-welcome">Learn why each opening move is played.</div>
           </div>
 <div id="coachAnswer" class="coach-answer" style="display:none"></div>
-<div class="move-review-result" id="moveReviewResult" style="display:none" aria-live="polite"></div>
+
 <div id="coachVariationPanel" class="coach-variation-panel" style="display:none"></div>
 <div id="inlineScenarioHost"></div>
 <div id="inlineReviewHost"></div><div class="route-notice" id="routeNotice" style="display:none"></div>
@@ -1597,8 +1588,8 @@ function renderCoachTools(){
  varRoot.style.display=variationPanelOpen?'block':'none';
  reviewHost.style.display=gameReviewOpen?'block':'none';
  simHost.style.display=scenario?'block':'none';
- const playMode=trainingMode==='challenge'||learnOpponent==='stockfish';
- $('moveReviewToolbar').style.display=playMode&&h.length>1?'flex':'none';
+
+
 $('coachAnswer').textContent=coachAnswerText;
  $('coachAnswer').style.display=coachAnswerText?'block':'none';
  if(!variationPanelOpen)return;
@@ -2220,7 +2211,6 @@ if(info&&trainingMode!=='learn'){nav.style.display='block';nav.className='route-
  // Move review is available at the top of Chat, rather than buried in this notice.
 }else nav.style.display='none';
 $('engineDisclaimer').style.display=chatPerspective==='engine'?'':'none';
-renderMoveReview();
 $('whyPanel').style.display=recent.length?'':'none';$('chatWelcome').style.display=recent.length?'none':'';
 $('chatWelcome').textContent=chatPerspective==='engine'?'No engine-played moves yet.':
   playerSide()===-1?
@@ -2286,7 +2276,7 @@ function setPlayingColour(colour){
 }
 $('playWhite').onclick=()=>setPlayingColour(1);
 $('playBlack').onclick=()=>setPlayingColour(-1);
-$('reviewMyMove').onclick=compareWithBestMove;
+
 function updateOpponentDifficulty(value){
  saveOpponentElo(value);
  // Applies to the next engine decision, not a move already being calculated.
