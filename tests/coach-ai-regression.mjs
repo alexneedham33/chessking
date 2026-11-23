@@ -60,14 +60,16 @@ function sequenceFor(item){
 }
 function makeInput(item,moves){
  let state=chess.original(),before=null,playedMove=null,after=null,labels=[];
+ let previousBefore=null,previousMove=null;
  for(const uci of moves){
   const move=chess.legal(state).find(m=>chess.key(m)===uci);
   if(!move)throw Error('Illegal fixture '+item.id+': '+uci+' after '+labels.join(' '));
+  previousBefore=before;previousMove=playedMove;
   before=state;playedMove=move;labels.push(chess.moveLabel(before,move));after=chess.apply(before,move);state=after;
  }
  if(!playedMove)throw Error('Empty fixture '+item.id);
  const mover=before.t===1?'White':'Black';
- const tacticalFacts=chess.coachMoveTactics(before,playedMove);
+ const tacticalFacts=chess.coachMoveTactics(before,playedMove,previousBefore,previousMove);
  const strategicFacts=chess.coachStrategicChanges(before,after);
  const teachingPriorities=chess.coachTeachingPriorities(before,playedMove,after,strategicFacts,tacticalFacts);
  const payload={
