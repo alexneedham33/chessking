@@ -895,12 +895,20 @@ html.app-fullscreen .side>.opening-progress-frame,html:fullscreen .side>.opening
     gap:18px;justify-content:start
   }
 }
+/* Icon-only optional expanded-view comparison. Move only expanded workspace lower,
+   and let fitBoardToViewport reserve its entire action row on short screens. */
+.top .icon-expand{width:40px;height:40px;display:grid;place-items:center;padding:0;font-size:20px;line-height:1}
+html.app-fullscreen .app,html:fullscreen .app{padding-top:60px}
+@media(max-height:750px){
+ html.app-fullscreen .app,html:fullscreen .app{padding-top:36px}
+}
 </style></head><body>
 <div class="app">
   <header class="top">
     <div class="brandblock">
       <div class="logo">♕ Opening Lab</div>
     </div>
+    <div class="actions"><button class="btn icon-expand" type="button" id="fullscreen" aria-label="Expand view" title="Expand view" aria-pressed="false">⛶</button></div>
   </header>
 <nav class="compact-toolbar" aria-label="Opening and opponent controls">
  <div class="toolbar-field player-side-control"><span class="sr-only">Play as</span><div class="player-colour-switch" role="group" aria-label="Choose playing colour"><button type="button" id="playWhite" aria-pressed="true">White</button><button type="button" id="playBlack" aria-pressed="false">Black</button></div></div>
@@ -2445,6 +2453,39 @@ function fitBoardToViewport(){
   document.documentElement.style.setProperty('--board-fit',limit+'px');
 }
 window.addEventListener('resize',()=>{fitBoardToViewport();requestAnimationFrame(render);});
+let fallbackFullscreen=false;
+function setFullButton(){
+ const expanded=!!document.fullscreenElement||fallbackFullscreen;
+ const button=$('fullscreen');
+ button.textContent=expanded?'⛶':'⛶';
+ button.title=expanded?'Exit expanded view':'Expand view';
+ button.setAttribute('aria-label',button.title);
+ button.setAttribute('aria-pressed',String(expanded));
+}
+function fallbackFull(on){
+ fallbackFullscreen=on;
+ document.documentElement.classList.toggle('app-fullscreen',on);
+ setFullButton();
+ requestAnimationFrame(()=>{fitBoardToViewport();requestAnimationFrame(render);});
+}
+$('fullscreen').onclick=async()=>{
+ if(document.fullscreenElement){
+  try{await document.exitFullscreen();}catch{fallbackFull(false);}
+  setFullButton();return;
+ }
+ if(fallbackFullscreen){fallbackFull(false);return;}
+ try{
+  if(!document.documentElement.requestFullscreen)throw Error('Fullscreen not available');
+  await document.documentElement.requestFullscreen();
+ }catch{fallbackFull(true);}
+ setFullButton();
+ requestAnimationFrame(fitBoardToViewport);
+};
+document.addEventListener('fullscreenchange',()=>{
+ setFullButton();
+ requestAnimationFrame(()=>{fitBoardToViewport();requestAnimationFrame(render);});
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&fallbackFullscreen)fallbackFull(false);});
 document.querySelectorAll('[data-detail-tab]').forEach(btn=>btn.onclick=()=>{const tab=btn.dataset.detailTab;document.querySelectorAll('[data-detail-tab]').forEach(b=>b.classList.toggle('active',b===btn));$('chatTabPane').classList.toggle('active',tab==='chat');$('strategyTabPane').classList.toggle('active',tab==='strategy');$('simulatorTabPane').classList.toggle('active',tab==='simulator');$('reviewTabPane').classList.toggle('active',tab==='review');});
 document.querySelectorAll('[data-chat-mode]').forEach(button=>button.addEventListener('click',()=>{chatMode=button.dataset.chatMode;document.querySelectorAll('[data-chat-mode]').forEach(b=>{const active=b===button;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});render();}));
 document.querySelectorAll('[data-perspective]').forEach(button=>button.addEventListener('click',()=>{chatPerspective=button.dataset.perspective;chatPageStart=0;document.querySelectorAll('[data-perspective]').forEach(b=>b.classList.toggle('active',b===button));render();}));
