@@ -7,8 +7,10 @@ Interactive chess opening trainer with guided moves, Quick/Learn explanations, a
 1. Clone this repository and open the folder in VS Code.
 2. Go to **Actions → Install Stockfish engine → Run workflow** if the Stockfish assets are not yet present in the repository.
 3. Once the workflow succeeds, pull the updated `main` branch to receive the JavaScript and WebAssembly engine files.
-4. In a VS Code terminal, run `python3 -m http.server 8000` (or open `index.html` with Live Server).
-5. Visit **http://localhost:8000/**.
+4. In a VS Code terminal, run `node local-server.mjs` (Node.js 18 or newer).
+5. Visit **http://127.0.0.1:8000/**. The local server serves the chessboard and forwards `POST /api/coach/move` to the existing AWS API Gateway/Lambda AI coach.
+
+You can still run `python3 -m http.server 8000` for an offline chessboard/Stockfish-only session, but Python's basic HTTP server cannot handle AI-coach POST requests and will return HTTP 501. Stop any existing server on port 8000 with Ctrl+C before switching.
 
 You **must use a local HTTP server**; opening `index.html` via `file://` prevents the Web Worker from loading reliably.
 
@@ -16,8 +18,11 @@ You **must use a local HTTP server**; opening `index.html` via `file://` prevent
 
 The chessboard and Stockfish do **not** need an OpenAI API key. AI coaching calls
 `POST /api/coach/move`, which must be handled by a **separate backend server**.
-The basic `python3 -m http.server 8000` command serves static files only and
-does not implement that endpoint.
+The `local-server.mjs` command implements that endpoint locally by forwarding
+requests to the existing deployed AWS API Gateway/Lambda coach. No OpenAI API key
+is needed on the local machine for this path. The hosted API remains subject
+to its AWS throttling and OpenAI usage limits. The simple Python static server
+does not implement the endpoint.
 
 Each developer can use their **own** OpenAI account and billing:
 
@@ -27,11 +32,11 @@ Each developer can use their **own** OpenAI account and billing:
 4. Configure and launch the **AI backend** to load that environment variable.
    The backend should never send the key to browser JavaScript.
 
-**Important:** This repository currently documents the static front end; it
-does not contain a confirmed implementation or launcher for
-`/api/coach/move`. Simply creating `.env` does not enable AI coaching;
-you also need the same backend you're using for your existing local setup,
-or a separately hosted compatible backend.
+**Important:** `local-server.mjs` is a development-only forwarding proxy,
+not the AI backend itself. It requires the deployed AWS API Gateway/Lambda
+endpoint to be reachable, and that endpoint must be separately secured before
+wider public access. Simply creating `.env` does not enable AI coaching; the
+OpenAI API key belongs in the backend, not in the browser or local proxy.
 
 `.env` and `.env.*` are ignored by Git; only the placeholder
 `.env.example` is committed. Never commit API keys to GitHub.
