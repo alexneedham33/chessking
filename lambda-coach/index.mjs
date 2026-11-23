@@ -122,10 +122,18 @@ function unsupportedExchangeClaims(message,input){
  if(evidence.captured&&evidence.captureOptions?.some(x=>x.hasLegalRecapture)){
   if(explicitlyFree.test(message))
    issues.push('The captured piece can immediately be recaptured. Do not claim it was won for free without a verified engine continuation.');
+  const valueByName={pawn:1,knight:3,bishop:3,rook:5,queen:9};
+  const equalRecapture=evidence.captureOptions.some(x=>x.hasLegalRecapture&&
+   valueByName[x.capturedPiece]===evidence.captured.value);
+  if(equalRecapture&&claimedGain&&!input.alternativeEvidence)
+   issues.push('The capture allows an immediate equal-value recapture. Describe it as a possible exchange rather than saying the attacker won a piece.');
  }
  if(!evidence.captured&&evidence.captureOptions?.some(x=>x.hasLegalRecapture)&&
    /\b(?:wins?|winning|won)\s+(?:a\s+|the\s+)?(?:pawn|piece|material)\b/i.test(message))
   issues.push('An available capture of the moved piece can be recaptured. Do not label it a material win without verified engine evidence.');
+ if(!evidence.captured&&evidence.captureOptions?.some(x=>x.hasLegalRecapture)&&
+   /\b(?:unprotected|undefended)\b/i.test(message))
+  issues.push('The moved piece can be recaptured after a legal capture; do not describe it as unprotected without explaining the defence.');
  return [...new Set(issues)];
 }
 function checkExplanation(message,input,budget){
