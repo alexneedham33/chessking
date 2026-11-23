@@ -755,6 +755,65 @@ html.app-fullscreen .side>.opening-progress-frame,html:fullscreen .side>.opening
  .opening-top-slot>.opening-progress-frame{padding:8px 10px}
  .opening-top-slot>.opening-progress-frame>.opening-progress-inner{padding:9px 11px}
 }
+/* A single coaching lesson should never be clipped or internally scrolled.
+   Reserve generous stable space for routine explanations, then grow naturally
+   for longer ones. The pale card fills the remaining space. */
+.side>.trainer-panel{
+ height:auto!important;
+ min-height:clamp(510px,62dvh,620px);
+ max-height:none!important;
+ overflow:visible!important;
+ display:flex;
+ flex-direction:column;
+ flex:0 0 auto;
+}
+.trainer-panel #chatTabPane{
+ display:flex;
+ flex:1 0 auto;
+ flex-direction:column;
+ min-height:auto!important;
+ overflow:visible!important;
+}
+.trainer-panel #chatZone{
+ display:flex!important;
+ flex:1 0 auto;
+ flex-direction:column;
+ height:auto!important;
+ min-height:auto!important;
+ max-height:none!important;
+ overflow:visible!important;
+ margin-bottom:0;
+}
+.trainer-panel #whyPanel{
+ flex:1 0 auto;
+ min-height:0;
+}
+.trainer-panel #whyPanel:not([style*="display: none"]){
+ display:flex;
+ flex-direction:column;
+}
+.trainer-panel #whyContent{
+ display:flex!important;
+ flex:1 0 auto;
+ flex-direction:column;
+ gap:0!important;
+ overflow:visible!important;
+ padding-bottom:0!important;
+}
+.trainer-panel #whyContent>.why-entry{
+ flex:1 0 auto;
+ min-height:min-content;
+ margin:0!important;
+}
+.trainer-panel #chatWelcome:not([style*="display: none"]){
+ flex:1 0 auto;
+}
+@media(max-width:1020px){
+ .side>.trainer-panel{min-height:clamp(450px,58dvh,570px)}
+}
+@media(max-width:650px){
+ .side>.trainer-panel{min-height:420px}
+}
 </style></head><body>
 <div class="app">
   <header class="top">
