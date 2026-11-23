@@ -646,31 +646,10 @@ html:fullscreen .side>.capture-tray-frame{padding:14px}
 .capture-tray-side+.capture-tray-side{border-left-color:#cfcbc6}
 .trainer-panel .panel-header{margin-bottom:12px}
 .coach-internal-status{display:none!important}
-/* Optional cached deeper coaching inside the existing light message card. */
-.trainer-panel .coach-more-actions{margin-top:14px;padding-top:11px;border-top:1px solid #ccc7c0}
-.trainer-panel .coach-more-btn{border:0;background:transparent;color:#6e3cba;font-size:15px;font-weight:750;padding:5px 0;cursor:pointer}
-.trainer-panel .coach-more-btn:hover{text-decoration:underline;color:#552398}
-.trainer-panel .coach-more-btn:disabled{opacity:.45;cursor:wait;text-decoration:none}
-.trainer-panel .coach-more-btn:focus-visible{outline:2px solid #8750df;outline-offset:3px;border-radius:4px}
-.trainer-panel .coach-extra-detail{font-size:inherit;line-height:inherit;margin-top:10px;color:#33343a}
-/* Separate progress card: unobtrusive during the lesson, celebratory at handoff. */
-.side>.opening-progress-card{
- flex:0 0 auto;min-width:0;display:block;
- background:#0a0d15;border:1px solid #22293b;border-radius:20px;
- padding:15px 17px 12px;box-shadow:0 14px 38px rgba(0,0,0,.19);
- transition:border-color .25s ease,box-shadow .25s ease;
-}
-.opening-progress-card .opening-progress-heading{margin:0;align-items:center}
-.opening-progress-card .opening-progress-heading .muted{font-size:15px;color:#b0bacc;font-weight:650}
-.opening-progress-card .opening-progress-heading .badge{font-size:14px}
-.opening-progress-card .progress{margin:12px 0 4px}
-.opening-progress-card.is-complete{border-color:#9855e9;box-shadow:0 0 0 1px rgba(171,100,255,.19),0 0 24px rgba(153,78,235,.13)}
-.opening-progress-card.is-complete .opening-progress-heading .muted{color:#e6d5fc;font-size:17px;font-weight:800}
-.opening-progress-card .stockfish-handoff{margin:13px 0 3px;align-items:flex-start;gap:10px;color:#ddd0f4;font-size:15px;line-height:1.45;font-weight:650}
-.opening-progress-card .stockfish-handoff-dot{width:9px;height:9px;margin-top:6px;background:#b579f5}
-.trainer-panel .coach-side-badge{width:39px;height:43px;flex:0 0 39px;border-radius:8px}
-.trainer-panel .coach-side-piece{width:32px;height:36px}
-@media(max-width:650px){.side>.opening-progress-card{padding:13px}.trainer-panel .coach-side-badge{width:34px;height:38px;flex-basis:34px}.trainer-panel .coach-side-piece{width:28px;height:32px}}
+/* Give the app comfortable breathing room at the page edges. */
+.app{padding-top:24px;padding-bottom:32px}
+html.app-fullscreen .app,html:fullscreen .app{padding-top:22px;padding-bottom:28px}
+@media(max-width:700px){.app{padding-top:20px;padding-bottom:26px}}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -1489,7 +1468,7 @@ function revealLatestCoachMove(){
  sizeCoachConversation(true);
 }
 function invalidateReview(){comparisonView=null;reviewSerial++;reviewData=null;reviewSelection=0;$('reviewResults').style.display='none';$('reviewStatus').textContent='Game changed. Analyse the current moves to refresh the review.';}
-function reset(){coachPinnedSquare=null;coachHoveredSquare=null;strategicAiNonce++;strategicAiBusy=false;strategicAiStatus='';strategicAiFailed=false;strategicAiError='';aiRequestedPly.clear();coachMoveMessages.clear();coachExpansions.clear();coachSeenPositionCount=1;clearOutsideLinePreview();coachScrollPending=false;coachScrollGeneration++;$('chatZone').scrollTop=0;invalidateReview();comparisonView=null;variationPanelOpen=false;gameReviewOpen=false;coachAnswerText='';challengeStarted=false;challengeFinished=false;challengeScore=null;shownEngineFen='';simEvalRequest++;replySelectionToken++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();if(trainingMode==='learn'&&playerSide()===-1)prepareOpponentReply();}
+function reset(){coachPinnedSquare=null;coachHoveredSquare=null;strategicAiNonce++;strategicAiBusy=false;strategicAiStatus='';strategicAiFailed=false;strategicAiError='';aiRequestedPly.clear();coachMoveMessages.clear();coachSeenPositionCount=1;clearOutsideLinePreview();coachScrollPending=false;coachScrollGeneration++;$('chatZone').scrollTop=0;invalidateReview();comparisonView=null;variationPanelOpen=false;gameReviewOpen=false;coachAnswerText='';challengeStarted=false;challengeFinished=false;challengeScore=null;shownEngineFen='';simEvalRequest++;replySelectionToken++;chatPageStart=0;activeBranch=null;routeHistory=[];deviationInfo=null;clearReplyState();scenario=null;scenarioPositions=[];scenarioIndex=0;strategyOn=false;h=[original()];selectedSquare=-1;showHint=false;feedback='';promotion=null;logs=[];notes=[];lastSquares=[];render();if(trainingMode==='learn'&&playerSide()===-1)prepareOpponentReply();}
 function startChallenge(){reset();challengeStarted=true;feedback='Challenge started. Play your opening against Stockfish.';render();if(current().t!==openings[selected].side)prepareOpponentReply();}
 function current(){return h.at(-1)}function suggested(){const s=current();return legal(s).find(m=>key(m)===routeLine()[s.i]?.[0])}
 function readablePv(s,pv){
@@ -1826,7 +1805,6 @@ function renderCapturedPieces(){
 let strategicAiEnabled=true,strategicAiBusy=false,strategicAiFailed=false,strategicAiNonce=0,strategicAiStatus='',strategicAiError='';
 const coachDetail='adaptive';
 const aiRequestedPly=new Set(),coachMoveMessages=new Map();
-const coachExpansions=new Map(); // cached separately from the initial explanation
 const AI_COACH_MIN_PLY=1,AI_COACH_INTERVAL=1,AI_COACH_GAME_LIMIT=24;
 let coachSeenPositionCount=1;
 // AI coaching is built in: no toggle or user-facing length setting.
@@ -1934,60 +1912,12 @@ async function requestUnifiedMoveCoaching(ply){
   if(nonce===strategicAiNonce){strategicAiBusy=false;render();}
  }
 }
-async function requestExtraCoaching(ply){
- const before=h[ply-1],after=h[ply],note=notes[ply-1];
- if(!before||!after||!note?.uci||trainingMode!=='learn')return;
- const move=legal(before).find(m=>key(m)===note.uci);
- if(!move)return;
- const cached=coachExpansions.get(ply);
- if(cached&&cached.position===after&&(cached.pending||cached.message))return;
- const original=coachMoveMessages.get(ply);
- const base=original&&!original.pending&&original.message?original.message:note.reason;
- if(!base||base.length<15)return;
- const entry={position:after,pending:true,open:true,message:'',error:''};
- coachExpansions.set(ply,entry);
- const nonce=strategicAiNonce,openingAtRequest=selected;
- render();
- try{
-  let engine=null;
-  try{engine=coachEngineEvidence(after,await fetchEngine(after,12));}catch{}
-  if(nonce!==strategicAiNonce||h[ply]!==after||coachExpansions.get(ply)!==entry||selected!==openingAtRequest)return;
-  const prior=evalCache.get('16:'+fenOf(before))||evalCache.get('12:'+fenOf(before));
-  const recentCoaching=[...coachMoveMessages.entries()]
-   .filter(([at,item])=>at<ply&&!item.pending&&item.message).slice(-3).map(([,item])=>item.message);
-  const response=await fetch('/api/coach/move',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-   expand:true,baseExplanation:base,beforeFen:fenOf(before),afterFen:fenOf(after),
-   opening:openings[openingAtRequest].name,player:playerSide()===1?'White':'Black',
-   played:playedMoveEvidence(before,move),scripted:note.reason,
-   history:logs.slice(Math.max(0,ply-10),ply),recentCoaching,engine,detail:'adaptive',
-   moveOrigin:note.manual?'player':note.engineSelected?'engine':note.inPreparedLine?'prepared':'automatic',
-   priorEngine:prior?{evaluation:prior.evaluation,depth:prior.depth}:null
-  })});
-  if(!response.ok){const info=await response.json().catch(()=>({}));throw Error(info.error||'Extra explanation unavailable');}
-  const data=await response.json();
-  if(typeof data.message!=='string'||data.message.trim().length<15||data.message.length>1400)throw Error('Extra explanation incomplete');
-  if(nonce!==strategicAiNonce||h[ply]!==after||coachExpansions.get(ply)!==entry||selected!==openingAtRequest)return;
-  entry.message=data.message.trim();
- }catch(err){
-  if(nonce===strategicAiNonce&&h[ply]===after&&coachExpansions.get(ply)===entry)
-   entry.error=err.message||'Extra explanation unavailable';
- }finally{
-  if(nonce===strategicAiNonce&&h[ply]===after&&coachExpansions.get(ply)===entry){entry.pending=false;render();}
- }
-}
-function toggleExtraCoaching(ply){
- const entry=coachExpansions.get(ply);
- if(entry&&entry.position===h[ply]){
-  entry.open=!entry.open;render();
- }else requestExtraCoaching(ply);
-}
 function refreshUnifiedMoveCoaching(){
  const status=$('aiCoachStatus');
  const visible=trainingMode==='learn'&&!scenario;
  if(coachSeenPositionCount>h.length){
   strategicAiNonce++;strategicAiBusy=false;
   for(const ply of coachMoveMessages.keys())if(ply>=h.length)coachMoveMessages.delete(ply);
-  for(const ply of coachExpansions.keys())if(ply>=h.length)coachExpansions.delete(ply);
   for(const ply of [...aiRequestedPly])if(ply>=h.length)aiRequestedPly.delete(ply);
   clearPendingCoaching();
  }
@@ -2006,8 +1936,10 @@ function render(){syncOpeningChoices();requestAnimationFrame(alignCapturedTrayWi
 const lessonDone=Math.min(lessonLimit,Math.max(0,h.length-1));
 $('progressLabel').textContent=lessonDone+' / '+lessonLimit;const progressPct=100*lessonDone/lessonLimit;$('progressBar').style.width=progressPct+'%';
 const showingGuidedProgress=trainingMode==='learn'&&learnOpponent==='guided';
-$('openingProgress').style.display=showingGuidedProgress?'':'none';
-const atHandoff=showingGuidedProgress&&!scenario&&h.length-1>=lessonLimit;
+const atHandoff=showingGuidedProgress&&!scenario&&h.length-1===lessonLimit;
+// Show progress during the prepared sequence, celebrate on its final move,
+// then hide it as soon as Stockfish free play begins. Undo restores it.
+$('openingProgress').style.display=showingGuidedProgress&&!scenario&&h.length-1<=lessonLimit?'':'none';
 $('openingProgress').classList.toggle('is-complete',atHandoff);
 $('openingProgressTitle').textContent=atHandoff?'Opening sequence completed':'Opening progress';
 $('stockfishHandoff').hidden=!atHandoff;
@@ -2134,34 +2066,7 @@ if(item.proposed){const summary=document.createElement('div');summary.className=
   addCoachSquareReferences(explanation,ai?.message||item.reason);
   copy.append(explanation);
  }
- // Keep one optional expansion inside each committed move's original card.
- if(!item.proposed&&item.__i<notes.length){
-  const ply=item.__i+1,extra=coachExpansions.get(ply);
-  const valid=extra&&extra.position===h[ply]?extra:null;
-  const actions=document.createElement('div');actions.className='coach-more-actions';
-  const more=document.createElement('button');more.type='button';more.className='coach-more-btn';
-  more.textContent=valid?.open?'Show less':'✧ Explain more';
-  // Wait for the original AI explanation so the expansion builds on the
-  // final text rather than an interim scripted placeholder.
-  more.disabled=!!(ai?.pending||queuedAi);
-  more.setAttribute('aria-expanded',String(!!valid?.open));
-  more.onclick=()=>toggleExtraCoaching(ply);
-  actions.append(more);copy.append(actions);
-  if(valid?.open){
-   const extraBody=document.createElement('div');extraBody.className='coach-extra-detail';
-   if(valid.pending){
-    extraBody.textContent='Exploring this position…';extraBody.setAttribute('role','status');
-   }else if(valid.error){
-    const problem=document.createElement('span');problem.textContent=valid.error+'. ';
-    const retry=document.createElement('button');retry.type='button';retry.className='coach-more-btn';
-    retry.textContent='Try again';retry.onclick=()=>{coachExpansions.delete(ply);requestExtraCoaching(ply);};
-    extraBody.append(problem,retry);
-   }else if(valid.message){
-    addCoachSquareReferences(extraBody,valid.message);
-   }
-   copy.append(extraBody);
-  }
- }
+
 }
 entry.append(title,copy);$('whyContent').append(entry);});
 coachScrollPending=false;
