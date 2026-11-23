@@ -725,23 +725,23 @@ html.app-fullscreen .side>.opening-progress-frame,html:fullscreen .side>.opening
 }
 /* Guided opening and positional evaluation share a stable top-right slot.
    Only one appears at once, without shifting the coach below. */
-.side>.opening-top-slot{flex:0 0 172px;min-height:172px;min-width:0;display:flex;flex-direction:column}
+.side>.opening-top-slot{flex:0 0 122px;min-height:122px;min-width:0;display:flex;flex-direction:column}
 .opening-top-slot>.opening-progress-frame,
 .opening-top-slot>.engine-panel{
  width:100%;height:100%;min-height:0;flex:1 1 auto;margin:0;
  box-sizing:border-box;
 }
 .opening-top-slot>.opening-progress-frame{
- padding:12px 15px;
+ padding:8px 11px;
  display:flex;align-items:stretch;
 }
 .opening-top-slot>.opening-progress-frame>.opening-progress-inner{
- width:100%;padding:14px 16px;border-radius:15px;
+ width:100%;padding:10px 13px;border-radius:13px;
  display:flex;flex-direction:column;justify-content:center;
 }
 .opening-top-slot .opening-progress-heading{flex:0 0 auto}
-.opening-top-slot .opening-progress-inner .progress{flex:0 0 auto;margin:12px 0 0}
-.opening-top-slot .stockfish-handoff{margin:12px 0 0;font-size:13px;line-height:1.35}
+.opening-top-slot .opening-progress-inner .progress{flex:0 0 auto;margin:8px 0 0;height:7px}
+.opening-top-slot .stockfish-handoff{margin:7px 0 0;font-size:12px;line-height:1.25}
 .opening-top-slot>.engine-panel{
  display:flex;flex-direction:column;justify-content:center;
  padding:14px 16px;
@@ -751,9 +751,9 @@ html.app-fullscreen .side>.opening-progress-frame,html:fullscreen .side>.opening
 /* The captured material panel remains anchored to the bottom. */
 .side>.capture-tray-frame{margin-top:auto}
 @media(max-width:650px){
- .side>.opening-top-slot{flex-basis:172px;min-height:172px}
- .opening-top-slot>.opening-progress-frame{padding:10px 12px}
- .opening-top-slot>.opening-progress-frame>.opening-progress-inner{padding:12px 13px}
+ .side>.opening-top-slot{flex-basis:122px;min-height:122px}
+ .opening-top-slot>.opening-progress-frame{padding:8px 10px}
+ .opening-top-slot>.opening-progress-frame>.opening-progress-inner{padding:9px 11px}
 }
 </style></head><body>
 <div class="app">
@@ -2041,7 +2041,7 @@ $('enginePanel').style.display=showOpeningProgress?'none':'';
 $('openingProgressInner').classList.toggle('is-complete',atHandoff);
 $('openingProgressTitle').textContent=atHandoff?'Opening sequence completed':'Opening progress';
 $('stockfishHandoff').hidden=!atHandoff;
-if(atHandoff)$('stockfishHandoffText').textContent='Stockfish now takes over at approximately '+opponentElo()+' Elo. Continue one move per click.';
+if(atHandoff)$('stockfishHandoffText').textContent='Stockfish takes over · '+opponentElo()+' Elo · One move per click';
 $('openingLineWarning').style.display=outsideLinePreview?'block':'none';
 if(outsideLinePreview){
  $('openingPreviewHeading').textContent=outsideLinePreview.heading;
