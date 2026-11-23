@@ -1224,7 +1224,7 @@ function engineExplanation(s,m){
  if(piece==='k')return 'I’m repositioning my king to '+to+'. Whether this is safe depends on the threats in the position.';
  return 'I’m moving the '+n+' from '+from+' to '+to+' to improve the position or address a potential threat.';
 }
-function record(m,engineSelected=false,analysis=null){coachPinnedSquare=null;coachHoveredSquare=null;if(!(trainingMode==='learn'&&learnOpponent!=='adaptive'))coachScrollPending=true;coachAnswerText='';invalidateReview();const s=current();routeHistory.push({branch:activeBranch,info:deviationInfo});guideMove(s,m);const text=moveLabel(s,m),lineIndex=s.i,correct=lineIndex>=0&&key(m)===routeLine()[lineIndex]?.[0];h.push(apply(s,m));logs.push(text);lastSquares=[m[0],m[1]];feedback=deviationInfo?.kind==='variation'&&lineIndex===activeBranch?.at?'Variation recognised: '+deviationInfo.name:correct?'✓ In line with the opening.':deviationInfo?.name||'Adapted continuation';notes.push({uci:key(m),engineSelected,engineAnalysis:engineSelected?analysis:null,engineComment:engineSelected?engineExplanation(s,m):'',text,color:s.t,opening:selected,index:correct&&!activeBranch?lineIndex:-1,reason:activeBranch&&lineIndex>=activeBranch.at?routeLine()[lineIndex]?.[1]:correct?rationales[selected][lineIndex]:explainDeviation(s,m)});return correct;}
+function record(m,engineSelected=false,analysis=null,manual=false){coachPinnedSquare=null;coachHoveredSquare=null;if(!(trainingMode==='learn'&&learnOpponent!=='adaptive'))coachScrollPending=true;coachAnswerText='';invalidateReview();const s=current();routeHistory.push({branch:activeBranch,info:deviationInfo});guideMove(s,m);const text=moveLabel(s,m),lineIndex=s.i,correct=lineIndex>=0&&key(m)===routeLine()[lineIndex]?.[0];h.push(apply(s,m));logs.push(text);lastSquares=[m[0],m[1]];feedback=deviationInfo?.kind==='variation'&&lineIndex===activeBranch?.at?'Variation recognised: '+deviationInfo.name:correct?'✓ In line with the opening.':deviationInfo?.name||'Adapted continuation';notes.push({uci:key(m),manual:!!manual,engineSelected,engineAnalysis:engineSelected?analysis:null,engineComment:engineSelected?engineExplanation(s,m):'',text,color:s.t,opening:selected,index:correct&&!activeBranch?lineIndex:-1,reason:activeBranch&&lineIndex>=activeBranch.at?routeLine()[lineIndex]?.[1]:correct?rationales[selected][lineIndex]:explainDeviation(s,m)});return correct;}
 function squarePct(i){const row=i>>4,col=i&7;return {x:(col+0.5)*12.5+'%',y:(row+0.5)*12.5+'%'};}
 function shouldUseEngineReply(s){return !!deviationInfo&&(deviationInfo.kind==='warning'||deviationInfo.kind==='detour'||s.i<0);}
 async function prepareOpponentReply(){
@@ -1262,7 +1262,7 @@ async function prepareOpponentReply(){
  render();
 }
 function queueReply(m){pendingReply=m;feedback='Opponent is thinking...';render();replyTimer=setTimeout(()=>startMoveAnimation(m,true),800);}
-function startMoveAnimation(m,isOpponent,autoReplyAfterManual=false){
+function startMoveAnimation(m,isOpponent,autoReplyAfterManual=false,manual=false){
   if(isOpponent){replyTimer=null;pendingReply=null;previewReply=null;}
   const guided=trainingMode==='learn'&&learnOpponent!=='adaptive'&&!scenario;
   const ghost=$('moveGhost');
@@ -1274,6 +1274,8 @@ function startMoveAnimation(m,isOpponent,autoReplyAfterManual=false){
   // making the AI wait until the piece finishes moving.
   if(guided&&strategicAiEnabled&&aiRequestedPly.size<AI_COACH_GAME_LIMIT){
     fetchEngine(apply(current(),m),12).catch(()=>{});
+    // A manually chosen move needs a baseline for a fair assessment.
+    if(manual)fetchEngine(current(),12).catch(()=>{});
   }
   const engineSelected=!!(isOpponent&&previewReplyEngine),engineAnalysis=engineSelected?previewAnalysis:null;previewReplyEngine=false;previewAnalysis=null;
   animatingMove={move:m,piece,from:m[0],to:m[1],isOpponent};
@@ -1283,7 +1285,7 @@ function startMoveAnimation(m,isOpponent,autoReplyAfterManual=false){
   requestAnimationFrame(()=>requestAnimationFrame(()=>{if(animatingMove){const ghost=$('moveGhost');if(ghost)ghost.classList.add('moving');}}));
   animationTimer=setTimeout(async()=>{
     animationTimer=null;
-    record(m,engineSelected,engineAnalysis);
+    record(m,engineSelected,engineAnalysis,manual);
     animatingMove=null;
     if(trainingMode==='challenge'&&!scenario&&(current().t===1&&current().full>Number($('challengeTarget').value)||gameStatus(h).done)){finalizeChallenge();render();return;}
     if(!isOpponent&&mode==='play'&&!gameStatus(h).done&&current().t!==openings[selected].side&&(
@@ -1304,7 +1306,7 @@ function play(m,manual=false){
    if(!expected||key(found)!==key(expected)){rejectOutsideOpeningLine(found);return;}
   }
   clearOutsideLinePreview();
-  startMoveAnimation(found,false,manual);
+  startMoveAnimation(found,false,manual,manual);
 }
 function clickSquare(i){if(outsideLinePreview){clearOutsideLinePreview();render();return;}if(trainingMode==='challenge'&&!challengeStarted)return;if(challengeFinished||scenario||pendingReply||animatingMove)return;if(gameStatus(h).done||promotion||mode==='play'&&current().t!==openings[selected].side)return;const s=current(),moves=legal(s);if(side(s.b[i])===s.t){selectedSquare=selectedSquare===i?-1:i;feedback='';render();return;}const choices=moves.filter(m=>m[0]===selectedSquare&&m[1]===i);if(choices.length>1){promotion=choices;render();return;}if(choices.length===1)play(choices[0],true);else{feedback='Choose one of the highlighted legal destinations.';render();}}
 function challengeObjectives(){
@@ -1506,13 +1508,28 @@ async function requestUnifiedMoveCoaching(ply){
   try{engine=coachEngineEvidence(after,await fetchEngine(after,12));}catch{}
   if(nonce!==strategicAiNonce||h[ply]!==after||coachMoveMessages.get(ply)!==record||selected!==openingAtRequest)return;
   const prior=evalCache.get('16:'+fenOf(before))||evalCache.get('12:'+fenOf(before));
+  let moveAssessment=null;
+  if(note.manual){
+   try{
+    const best=await fetchEngine(before,12);
+    if(nonce!==strategicAiNonce||h[ply]!==after||coachMoveMessages.get(ply)!==record||selected!==openingAtRequest)return;
+    const bestMove=legal(before).find(candidate=>key(candidate)===best.best);
+    const same=bestMove&&key(bestMove)===note.uci;
+    const loss=Number.isFinite(best.evaluation)&&Number.isFinite(engine?.evaluation)?
+     Math.max(0,before.t*(best.evaluation-engine.evaluation)):null;
+    moveAssessment={manual:true,playedIsEngineChoice:!!same,
+     centipawnLoss:loss===null?null:Math.round(loss*100),
+     approximate:true,depth:Math.min(best.depth,engine?.depth||best.depth),
+     suggestedMove:bestMove?moveLabel(before,bestMove):null};
+   }catch{moveAssessment={manual:true,playedIsEngineChoice:false,centipawnLoss:null,approximate:true,suggestedMove:null};}
+  }
   const recentCoaching=[...coachMoveMessages.entries()]
    .filter(([at,item])=>at<ply&&!item.pending&&item.message).slice(-3).map(([,item])=>item.message);
   const response=await fetch('/api/coach/move',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
    beforeFen:fenOf(before),afterFen:fenOf(after),
    opening:openings[openingAtRequest].name,player:openings[openingAtRequest].side===1?'White':'Black',
    played:playedMoveEvidence(before,move),scripted:note.reason,
-   history:logs.slice(Math.max(0,ply-10),ply),recentCoaching,engine,detail:record.detail,
+   history:logs.slice(Math.max(0,ply-10),ply),recentCoaching,engine,detail:record.detail,moveAssessment,
    priorEngine:prior?{evaluation:prior.evaluation,depth:prior.depth}:null
   })});
   if(!response.ok){const details=await response.json().catch(()=>({}));const error=new Error(details.error||'AI request failed');error.httpStatus=response.status;throw error;}
