@@ -95,7 +95,7 @@ async function explainMove(payload){
   'Keep the main explanation focused on the played move and avoid repeating the optional observation. When warranted, the secondary note is normally 20-35 words, expanding only for a consequential trade or danger requiring a clear why. It must add genuinely new insight, not rephrase the main text. Prefer a shorter complete message over two long paragraphs.',
   'Output JSON with a message (required string) and lookout (string or null). Use lookout:null for most ordinary moves. No headings, markdown, numbered lists or other fields.'
  ].join(' ');
- const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),18000);
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),25000);
  try{
   const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',signal:controller.signal,headers:{
    'Authorization':'Bearer '+process.env.OPENAI_API_KEY,'Content-Type':'application/json'
@@ -106,13 +106,13 @@ async function explainMove(payload){
   if(!response.ok){
    const errorBody=(await response.text()).slice(0,1200);
    console.error('OpenAI API response',response.status,errorBody.replace(/sk-[A-Za-z0-9_-]+/g,'[redacted key]'));
-   throw Error('AI service returned '+response.status);
+   const error=new Error('AI service returned '+response.status);error.status=response.status;throw error;
   }
   const data=await response.json(),raw=(data.output||[]).flatMap(x=>x.content||[])
    .filter(x=>x.type==='output_text').map(x=>x.text).join('');
   const result=JSON.parse(raw);
-  if(typeof result.message!=='string'||result.message.trim().length<30||result.message.length>900)throw Error('Invalid coach message');
-  if(result.lookout!==null&&(typeof result.lookout!=='string'||result.lookout.length>500))throw Error('Invalid coach lookout');
+  if(typeof result.message!=='string'||result.message.trim().length<15||result.message.length>900)throw Error('Invalid coach message');
+  if(result.lookout!==null&&result.lookout!==undefined&&(typeof result.lookout!=='string'||result.lookout.length>500))result.lookout=null;
   return {message:result.message.trim(),lookout:engine&&typeof result.lookout==='string'&&result.lookout.trim().length>=15?result.lookout.trim():null,engineGrounded:!!engine};
  }finally{clearTimeout(timer);}
 }
@@ -132,7 +132,18 @@ const server=http.createServer(async(req,res)=>{
   history.set(ip,[...recent,now]);
   // Count attempts, including API failures, to protect against unexpected spend.
   dailyCalls++;
-  try{json(res,200,await explainMove(await body(req)));}catch(err){console.error('AI coaching request:',err.message);json(res,502,{error:'Coaching unavailable'});}
+  try{json(res,200,await explainMove(await body(req)));}catch(err){
+    console.error('AI coaching request:',err.message);
+    const upstreamStatus=err.status;
+    const status=upstreamStatus===429?429:upstreamStatus===401||upstreamStatus===403?503:502;
+    const message=err.name==='AbortError'?'AI response timed out — retry':
+      upstreamStatus===429?'AI provider rate limit — retry shortly':
+      upstreamStatus===401||upstreamStatus===403?'AI key or provider access issue':
+      upstreamStatus>=500?'AI provider temporarily unavailable':
+      err instanceof SyntaxError||/Invalid coach (message|lookout)/.test(err.message)?'AI returned an incomplete explanation — retry':
+      'AI request failed — retry';
+    json(res,status,{error:message});
+   }
   return;
  }
  if(req.method!=='GET'&&req.method!=='HEAD'){json(res,405,{error:'Method not allowed'});return;}
