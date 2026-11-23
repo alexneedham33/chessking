@@ -71,31 +71,31 @@ function unsupportedStructuralClaims(message,input){
  const routes=facts.bishopRoutes||{};
  const actualBishops=routes.after||[];
  const routeChanges=routes.changes||[];
- const clauses=message.split(/(?<=[.!?])\\s+|[;,]/);
+ const clauses=message.split(/(?<=[.!?])\s+|[;,]/);
  for(const clause of clauses){
-  const central=/(?:\\b([de])-file\\b|\\b([de])\\s+file\\b)/ig;
+  const central=/(?:\b([de])-file\b|\b([de])\s+file\b)/ig;
   for(const m of clause.matchAll(central)){
    const file=(m[1]||m[2]).toLowerCase(),state=after[file];
    if(!state)continue;
    const segment=clause.slice(Math.max(0,m.index-50),Math.min(clause.length,m.index+m[0].length+55));
-   if(/\\b(?:blocked|closed|locked)\\b/i.test(segment)&&!state.directlyBlocked)
+   if(/\b(?:blocked|closed|locked)\b/i.test(segment)&&!state.directlyBlocked)
     issues.push('Do not call the '+file+'-file blocked/closed: its pawns do not directly face each other on adjacent ranks.');
-   if(/\\b(?:open|opened|opening)\\b/i.test(segment)&&!/(?:not|isn't|is not|wasn't|was not|rather than)\\s+(?:fully\\s+)?open/i.test(segment)&&state.state!=='open')
+   if(/\b(?:open|opened|opening)\b/i.test(segment)&&!/(?:not|isn't|is not|wasn't|was not|rather than)\s+(?:fully\s+)?open/i.test(segment)&&state.state!=='open')
     issues.push('Do not call the '+file+'-file open: pawns remain on it.');
   }
-  if(/\\bboth central files\\b/i.test(clause)&&/\\b(?:closed|blocked|locked)\\b/i.test(clause)&&
+  if(/\bboth central files\b/i.test(clause)&&/\b(?:closed|blocked|locked)\b/i.test(clause)&&
    (!after.d?.directlyBlocked||!after.e?.directlyBlocked))
     issues.push('Do not call both central files blocked or closed: at least one lacks directly opposed pawns.');
   // Detect claims that a move opens (or blocks) the specified bishop's
   // diagonal only if the square is explicit and the bishop exists.
-  const bishopClaim=/(?:\\b(?:opens?|opened|unlocks?|unlocked|frees?|freed|releases?|released|blocks?|blocked|closes?|closed)\\b[^.!?;,]{0,90}?\\bbishop\\s+(?:on|at)\\s+([a-h][1-8])\\b|\\bbishop\\s+(?:on|at)\\s+([a-h][1-8])\\b[^.!?;,]{0,90}?\\b(?:opens?|opened|unlocks?|unlocked|frees?|freed|blocks?|blocked|closes?|closed)\\b)/ig;
+  const bishopClaim=/(?:\b(?:opens?|opened|unlocks?|unlocked|frees?|freed|releases?|released|blocks?|blocked|closes?|closed)\b[^.!?;,]{0,90}?\bbishop\s+(?:on|at)\s+([a-h][1-8])\b|\bbishop\s+(?:on|at)\s+([a-h][1-8])\b[^.!?;,]{0,90}?\b(?:opens?|opened|unlocks?|unlocked|frees?|freed|blocks?|blocked|closes?|closed)\b)/ig;
   for(const match of clause.matchAll(bishopClaim)){
    const square=match[1]||match[2];
    const bishop=actualBishops.find(x=>x.square===square);
    if(!bishop)continue;
    const changed=routeChanges.find(x=>x.side===bishop.side&&x.bishopSquare===square);
-   const opened=/(?:\\b(?:opens?|opened|unlocks?|unlocked|frees?|freed|releases?|released)\\b)/i.test(match[0]);
-   const blocked=/(?:\\b(?:blocks?|blocked|closes?|closed)\\b)/i.test(match[0]);
+   const opened=/(?:\b(?:opens?|opened|unlocks?|unlocked|frees?|freed|releases?|released)\b)/i.test(match[0]);
+   const blocked=/(?:\b(?:blocks?|blocked|closes?|closed)\b)/i.test(match[0]);
    if(opened&&!changed?.newlyClearSquares?.length)
     issues.push('The move did not open a new clear diagonal for the bishop on '+square+'. Remove that claim.');
    if(blocked&&!changed?.newlyBlockedSquares?.length)
