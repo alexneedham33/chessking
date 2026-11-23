@@ -2252,6 +2252,39 @@ function coachCentralFiles(position){
  }
  return result;
 }
+// For each surviving bishop, report unobstructed squares on its diagonals.
+// Empty squares are reachability geometry, not proof of a legal or good move.
+function coachBishopRoutes(position){
+ const bishops=[];
+ for(let i=0;i<128;i++)if(on(i)&&position.b[i].toLowerCase()==='b'){
+  const clearSquares=[],firstBlockers=[];
+  for(const delta of [-17,-15,15,17]){
+   for(let at=i+delta;on(at);at+=delta){
+    if(position.b[at]!=='.'){
+     firstBlockers.push({square:sq(at),piece:coachPieceNames[position.b[at].toLowerCase()],side:side(position.b[at])===1?'White':'Black'});
+     break;
+    }
+    clearSquares.push(sq(at));
+   }
+  }
+  bishops.push({side:side(position.b[i])===1?'White':'Black',square:sq(i),clearSquares,firstBlockers});
+ }
+ return bishops;
+}
+function coachBishopRouteChanges(before,after){
+ const old=coachBishopRoutes(before),now=coachBishopRoutes(after),changes=[];
+ for(const current of now){
+  const previous=old.find(x=>x.side===current.side&&x.square===current.square);
+  if(!previous)continue; // No claims about 'opening' routes of a newly moved bishop.
+  const a=new Set(previous.clearSquares),b=new Set(current.clearSquares);
+  const opened=current.clearSquares.filter(x=>!a.has(x));
+  const closed=previous.clearSquares.filter(x=>!b.has(x));
+  if(opened.length||closed.length)changes.push({side:current.side,bishopSquare:current.square,
+   newlyClearSquares:opened,newlyBlockedSquares:closed,
+   interpretation:'The bishop remains on the same square. Newly clear squares are geometric diagonal access only; this does not itself establish a good move.'});
+ }
+ return {before:old,after:now,changes};
+}
 function coachTeachingPriorities(before,move,after,strategic,tactics){
  const points=[];
  const add=(priority,type,evidence)=>points.push({priority,type,evidence});
@@ -2266,6 +2299,10 @@ function coachTeachingPriorities(before,move,after,strategic,tactics){
    change.type.startsWith('doubled-')?72:
    change.type.startsWith('isolated-')?66:58;
   add(rating,change.type,change);
+ }
+ for(const change of strategic.bishopRoutes.changes){
+  if(change.newlyClearSquares.length)add(65,'bishop-route-opened',change);
+  if(change.newlyBlockedSquares.length)add(60,'bishop-route-blocked',change);
  }
  for(const file of ['d','e']){
   if(strategic.before.centralFiles[file].state!==strategic.after.centralFiles[file].state)
@@ -2338,7 +2375,7 @@ function coachStrategicChanges(before,after){
    changes.push({type:now.bishops[colour].hasPair?'bishop-pair-gained':'bishop-pair-lost',side:colour});
  }
  return {
-  before:old,after:now,changes,
+  before:old,after:now,changes,bishopRoutes:coachBishopRouteChanges(before,after),
   interpretation:'Pins are king-line absolute pins verified by ray scanning. Doubled/isolated pawns and bishop pairs are objective board features, NOT automatic assessments of good or bad. Explain a feature when it is newly created, removed, or tactically relevant. If a bishop was traded for a knight, describe the piece exchange only using actual captured pieces; retaining two bishops is a positional resource, not proof of an advantage.'
  };
 }
