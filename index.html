@@ -1802,12 +1802,13 @@ function startMoveAnimation(m,isOpponent,autoReplyAfterManual=false,manual=false
   // Show the pending coach bubble as the piece moves.
   if(guided)coachScrollPending=true;
   const piece=current().b[m[0]];
-  // Prepare Stockfish coaching evidence during the animation rather than
-  // making the AI wait until the piece finishes moving.
+  // Prefetch BOTH depth-12 full-strength positions during the animation.
+  // Guided and opponent moves previously waited until after animation to
+  // analyse the position before the move.
   if(guided&&strategicAiEnabled&&aiRequestedPly.size<AI_COACH_GAME_LIMIT){
-    fetchEngine(apply(current(),m),12).catch(()=>{});
-    // A manually chosen move needs a baseline for a fair assessment.
-    if(manual)fetchEngine(current(),12).catch(()=>{});
+    const before=current(),after=apply(before,m);
+    fetchEngine(after,12).catch(()=>{});
+    if(fenOf(before)!==fenOf(after))fetchEngine(before,12).catch(()=>{});
   }
   const engineSelected=!!previewReplyEngine,engineAnalysis=engineSelected?previewAnalysis:null;previewReplyEngine=false;previewAnalysis=null;
   animatingMove={move:m,piece,from:m[0],to:m[1],isOpponent};
@@ -2145,18 +2146,21 @@ async function requestUnifiedMoveCoaching(ply){
  const aiStatus=$('aiCoachStatus');
  if(aiStatus){aiStatus.hidden=false;aiStatus.textContent='Preparing…';aiStatus.classList.remove('error');}
  try{
-  let engine=null;
-  try{engine=coachEngineEvidence(after,await fetchEngine(after,12));}catch{}
+  // Attach to the already queued analyses immediately, with safe fallbacks.
+  const afterAnalysisPromise=fetchEngine(after,12).catch(()=>null);
+  const beforeAnalysisPromise=fetchEngine(before,12).catch(()=>null);
+  const afterAnalysis=await afterAnalysisPromise;
+  const engine=coachEngineEvidence(after,afterAnalysis);
   if(nonce!==strategicAiNonce||h[ply]!==after||coachMoveMessages.get(ply)!==record||selected!==openingAtRequest)return;
   // Evaluate both sides of EVERY coached move on the same depth, not only
   // manually selected moves. Engine scores are White-relative pawn units.
   // The balance bar is a normalized positional index, NOT a win probability.
   let prior=null,baseline=null,moveAssessment=null,positionAssessment=null,priorEngine=null;
   try{
-   prior=await fetchEngine(before,12);
+   prior=await beforeAnalysisPromise;
    if(nonce!==strategicAiNonce||h[ply]!==after||coachMoveMessages.get(ply)!==record||selected!==openingAtRequest)return;
    priorEngine=coachEngineEvidence(before,prior);
-   const afterEval=evalCache.get('12:'+fenOf(after));
+   const afterEval=afterAnalysis;
    const beforeCp=Number.isFinite(prior.evaluation)?prior.evaluation:null;
    const afterCp=Number.isFinite(afterEval?.evaluation)?afterEval.evaluation:null;
    const bestMove=prior.best?legal(before).find(candidate=>key(candidate)===prior.best):null;
@@ -2181,7 +2185,8 @@ async function requestUnifiedMoveCoaching(ply){
    const initial=original();
    baseline=evalCache.get('12:'+fenOf(initial))||evalCache.get('16:'+fenOf(initial));
    if(!baseline){
-    baseline=await fetchEngine(initial,12);
+    // Reuse the same depth-16 initial analysis requested by the gauge.
+    baseline=await fetchEngine(initial,16);
     if(nonce!==strategicAiNonce||h[ply]!==after||coachMoveMessages.get(ply)!==record||selected!==openingAtRequest)return;
    }
    const baselineValue=engineAdvantage(baseline);
