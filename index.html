@@ -897,7 +897,9 @@ html.app-fullscreen .side>.opening-progress-frame,html:fullscreen .side>.opening
 }
 /* Icon-only optional expanded-view comparison. Move only expanded workspace lower,
    and let fitBoardToViewport reserve its entire action row on short screens. */
-.top .icon-expand{width:40px;height:40px;display:grid;place-items:center;padding:0;font-size:20px;line-height:1}
+/* Match the expand button's top edge to the visible Opening Lab title,
+   without shifting the heading, toolbar, or board. */
+.top .icon-expand{width:40px;height:40px;display:grid;place-items:center;padding:0;font-size:20px;line-height:1;transform:translateY(7px)}
 html.app-fullscreen .app,html:fullscreen .app{padding-top:60px;padding-bottom:8px}
 @media(max-height:750px){
  html.app-fullscreen .app,html:fullscreen .app{padding-top:36px}
