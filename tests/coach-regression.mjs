@@ -785,3 +785,21 @@ test('134 repair square-first references without touching non-owning references'
  assert.match(out.message,/White's d4 pawn/);
  assert.match(out.message,/your c4 pawn/i);
 });
+
+test('135 Guided coach sends verified prepared move rationale independently of mover colour',()=>{
+ assert.match(html,/preparedMovePurpose:trainingMode==='learn'&&learnOpponent==='guided'&&/);
+ assert.match(html,/note\.inPreparedLine&&typeof note\.reason==='string'\?note\.reason:null/);
+});
+test('136 Guided pawn push explains opening purpose before speculative captures',()=>{
+ const lambda=readFileSync(resolve(root,'lambda-coach/index.mjs'),'utf8');
+ assert.match(lambda,/preparedMovePurpose is the SPECIFIC planned purpose/);
+ assert.match(lambda,/For a routine prepared Guided opening move, first consider preparedMovePurpose/);
+ assert.match(lambda,/Do not call such a capture a meaningful vulnerability without engine evidence/);
+ assert.match(lambda,/A legal capture is NOT necessarily a tactical threat/);
+});
+test('137 real Queen Gambit Accepted lesson teaches a6 to prepare b5',()=>{
+ const move=html.match(/\["a7a6","([^"]+)"\]/);
+ assert.ok(move,'a7a6 move in actual prepared Queen Gambit Accepted line');
+ assert.match(move[1],/b5/);
+ assert.match(move[1],/queenside/i);
+});
