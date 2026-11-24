@@ -2253,6 +2253,31 @@ function coachMoveTactics(before,move,previousBefore=null,previousMove=null){
  });
  const checkingReplies=opponentReplies.filter(reply=>checked(apply(after,reply))).slice(0,5).map(reply=>coachPlainMove(after,reply));
  const legalCapturesOfMovedPiece=captureReplies.filter(reply=>reply.capturesMovedPiece).slice(0,4);
+ const forkTargets=attackedSquares.filter(square=>{
+  const target=after.b[square];
+  return target!=='.'&&side(target)===-mover&&
+   ['n','b','r','q','k'].includes(target.toLowerCase());
+ }).map(square=>({piece:coachPieceNames[after.b[square].toLowerCase()],square:sq(square)}));
+ const forkEvidence=forkTargets.length>=2?{
+  attackingPiece:coachPieceNames[movedType],from:sq(from),to:sq(to),
+  targets:forkTargets,
+  note:'Geometric simultaneous attacks only. This may be a fork, but it does not prove both pieces can be won or the moved piece is safe.'
+ }:null;
+ const discoveredAttacks=[];
+ for(let i=0;i<128;i++)if(on(i)&&i!==to&&
+   side(after.b[i])===mover&&after.b[i]===before.b[i]&&
+   ['b','r','q'].includes(after.b[i].toLowerCase())){
+  const oldAttacks=new Set(coachPieceAttackSquares(before,i));
+  for(const square of coachPieceAttackSquares(after,i)){
+   if(oldAttacks.has(square)||after.b[square]==='.'||
+     side(after.b[square])!==-mover||side(before.b[square])!==-mover||
+     after.b[square]!==before.b[square])continue;
+   discoveredAttacks.push({revealedByMoveFrom:sq(from),attacker:coachPieceNames[after.b[i].toLowerCase()],
+    attackerSquare:sq(i),target:coachPieceNames[after.b[square].toLowerCase()],
+    targetSquare:sq(square),
+    note:'The stationary sliding piece has newly acquired a geometric line to this enemy piece. No tactical gain or forced continuation is implied.'});
+  }
+ }
  const exchangeEvidence=coachExchangeEvidence(before,move,previousBefore,previousMove);
  return {
   movedPiece:{colour:mover===1?'White':'Black',type:coachPieceNames[movedType],from:sq(from),to:sq(to)},
@@ -2262,6 +2287,8 @@ function coachMoveTactics(before,move,previousBefore=null,previousMove=null){
   movedPieceUnderAttack:attacked(after,to,-mover),
   legalImmediateCapturesOfMovedPiece:legalCapturesOfMovedPiece,
   exchangeEvidence,
+  forkEvidence,
+  discoveredAttacks,
   opponentLegalCheckingReplies:checkingReplies,
   inCheckAfterMove:checked(after),
   givesCheck:checked(after,-mover),
@@ -2334,6 +2361,8 @@ function coachTeachingPriorities(before,move,after,strategic,tactics){
   add(78,'direct-attack',tactics.enemyPiecesAttackedByMovedPiece);
  if(tactics.legalImmediateCapturesOfMovedPiece?.length)
   add(76,'moved-piece-capturable',tactics.legalImmediateCapturesOfMovedPiece);
+ if(tactics.forkEvidence)add(91,'possible-fork',tactics.forkEvidence);
+ if(tactics.discoveredAttacks?.length)add(84,'discovered-attack',tactics.discoveredAttacks.slice(0,3));
  if(tactics.exchangeEvidence?.completedExchange)
   add(94,'completed-exchange',tactics.exchangeEvidence.completedExchange);
  if(tactics.exchangeEvidence?.captureOptions?.some(x=>x.hasLegalRecapture))
