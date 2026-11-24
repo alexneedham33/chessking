@@ -209,6 +209,21 @@ try{
     responses.push({ply:j+1,message:priorMessages.get(j+1)});
    }
    const payload=payloadFor(entry,states[j-1],pre,post,labels,recent,game);
+   // Regression: in the real 12.h4 Immortal position, 12...Qxh4
+   // 13.Nxh4 is a verified queen capture by a knight, not a queen trade.
+   if(game.id==='immortal'&&j+1===23){
+    const options=payload.tacticalFacts.exchangeEvidence.captureOptions;
+    const queenCapture=options.find(x=>x.uci==='g5h4');
+    const knightRecapture=queenCapture?.recaptures?.find(x=>x.uci==='f5h4');
+    if(queenCapture?.capturedPiece!=='pawn'||queenCapture?.capturedValue!==1||
+       knightRecapture?.withPiece!=='knight'||
+       knightRecapture?.capturedPiece!=='queen'||
+       knightRecapture?.capturedValue!==9||
+       knightRecapture?.replySideNetLoss!==8||
+       knightRecapture?.queenForQueen!==false)
+     throw Error('Invalid verified Immortal 12.h4 queen-capture material accounting');
+   }
+
    const payloadBytes=Buffer.byteLength(JSON.stringify(payload),'utf8');
    // AWS Lambda rejects a coaching request body over 30,000 characters.
    // Validate the same practical limit before issuing any paid requests.
