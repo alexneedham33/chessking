@@ -131,7 +131,7 @@ const guardEnd=lambdaSource.indexOf('async function generateCoaching(',guardStar
 assert.ok(guardStart>=0&&guardEnd>guardStart,'Lambda guard implementation present');
 const guardContext={};vm.createContext(guardContext);
 vm.runInContext(lambdaSource.slice(guardStart,guardEnd)+
- '\nthis.guard={checkExplanation,coachingBudget,unsupportedDirectClaims,verifiedRelations,unsupportedStructuralClaims,unsupportedExchangeClaims,unsupportedQueenTradeClaims,unsupportedMaterialSequenceClaims,shortenVerifiedExplanation,unsupportedCheckMechanismClaims,unsupportedSevereBlunderClaims,moveQualityContext,coachPawnBoard,unsupportedPawnHistoryClaims,verifiedPawnCaptureFallback,coachingValidationCodes,needlessEngineAttribution};',guardContext);
+ '\nthis.guard={checkExplanation,coachingBudget,unsupportedDirectClaims,verifiedRelations,unsupportedStructuralClaims,unsupportedExchangeClaims,unsupportedQueenTradeClaims,unsupportedMaterialSequenceClaims,unsupportedPrimaryTacticalClaims,unsupportedHangingMinorClaims,shortenVerifiedExplanation,unsupportedCheckMechanismClaims,unsupportedSevereBlunderClaims,moveQualityContext,coachPawnBoard,unsupportedPawnHistoryClaims,verifiedPawnCaptureFallback,coachingValidationCodes,needlessEngineAttribution};',guardContext);
 const bishopPositionBefore=pos({c8:'b',f8:'b',d7:'.',e7:'p',d5:'p',e2:'P',d4:'P'});
 const bishopPositionAfter=pos({c8:'b',f8:'b',d7:'.',e6:'p',e7:'.',d5:'p',e2:'P',d4:'P'});
 const guardInput={strategicFacts:changes(bishopPositionBefore,bishopPositionAfter),tacticalFacts:{}};
@@ -536,4 +536,56 @@ test('104 verified capture outcomes distinguish queen loss from equal exchange',
  assert.equal(c.withPiece,'knight');
  assert.equal(c.replySideNetLoss,8);
  assert.equal(c.queenForQueen,false);
+});
+
+const immortalBishop15={
+ afterFen:'rnb1kbnr/p2p1ppp/8/1p3NqP/4PBP1/3P1Q2/PPP5/RN3KR1 b kq - 0 15',
+ mover:'White',played:{piece:'b',from:'c1',to:'f4',capture:true},
+ tacticalFacts:{movedPiece:{type:'bishop',to:'f4'},exchangeEvidence:{
+  captured:{piece:'pawn',value:1,square:'f4'},
+  captureOptions:[{withPiece:'queen',capturedPiece:'bishop',uci:'g5f4',
+   recaptures:[{withPiece:'queen',capturedPiece:'queen',uci:'f3f4',
+    replySideNetLoss:6,capturedValue:9,originalCaptureValue:3}]}]
+ }},
+ moveAssessment:{centipawnLoss:0}
+};
+const immortalBishop18={
+ afterFen:'rnb1k1nr/p2p1ppp/3B4/1pbN1N1P/4P1P1/3P1Q2/PqP5/R4KR1 b kq - 1 18',
+ mover:'White',played:{piece:'b',from:'f4',to:'d6',capture:false},
+ moveAssessment:{centipawnLoss:395},
+ tacticalContinuation:{moves:[{uci:'b2a1',label:'18... Qxa1+',side:'Black',
+  piece:'queen',from:'b2',to:'a1',capturedPiece:'rook',check:true}]}
+};
+test('105 15.Bxf4: reject queen takes bishop without acknowledging legal queen recapture',()=>{
+ const bad='Black can move the queen to f4 and capture your bishop, so the bishop is not safe on that square.';
+ const issues=Array.from(guardContext.guard.unsupportedHangingMinorClaims(bad,immortalBishop15));
+ assert.ok(issues.some(x=>x.includes('Material threat')));
+});
+test('106 15.Bxf4: describe legal Qxf4 Qxf4 as a losing capture of queen',()=>{
+ const good='Black can capture your bishop with Qxf4, but your queen on f3 can recapture Black’s queen on f4.';
+ assert.equal(Array.from(guardContext.guard.unsupportedHangingMinorClaims(good,immortalBishop15)).length,0);
+});
+test('107 18.Bd6: reject explanation that ignores first Qxa1+ in high-swing PV',()=>{
+ const bad='This is a serious mistake because Black can take the bishop on d6 and obtain material.';
+ assert.ok(Array.from(guardContext.guard.unsupportedPrimaryTacticalClaims(bad,immortalBishop18))
+  .some(x=>x.includes('Primary tactic')));
+});
+test('108 18.Bd6: accept explicit verified Qxa1+ capture of rook with check',()=>{
+ const good='A serious mistake: 18... Qxa1+ captures your rook with check in the verified continuation.';
+ assert.equal(Array.from(guardContext.guard.unsupportedPrimaryTacticalClaims(good,immortalBishop18)).length,0);
+});
+test('109 18.Bd6: primary capture must be immediate and checked, not speculative',()=>{
+ const noCheck={...immortalBishop18,tacticalContinuation:{moves:[{
+  ...immortalBishop18.tacticalContinuation.moves[0],check:false}]}};
+ assert.equal(Array.from(guardContext.guard.unsupportedPrimaryTacticalClaims(
+  'Black might capture a bishop.',noCheck)).length,0);
+ const quiet={...immortalBishop18,moveAssessment:{centipawnLoss:10}};
+ assert.equal(Array.from(guardContext.guard.unsupportedPrimaryTacticalClaims(
+  'Black may capture the bishop.',quiet)).length,0);
+});
+test('110 severe-blunder first PV guard participates in full explanation validation',()=>{
+ const bad='This is a serious mistake because Black can capture the bishop on d6.';
+ const issues=Array.from(guardContext.guard.checkExplanation(
+  bad,immortalBishop18,guardContext.guard.coachingBudget(immortalBishop18)));
+ assert.ok(issues.some(x=>x.includes('Primary tactic')));
 });
