@@ -131,7 +131,7 @@ const guardEnd=lambdaSource.indexOf('async function generateCoaching(',guardStar
 assert.ok(guardStart>=0&&guardEnd>guardStart,'Lambda guard implementation present');
 const guardContext={};vm.createContext(guardContext);
 vm.runInContext(lambdaSource.slice(guardStart,guardEnd)+
- '\nthis.guard={checkExplanation,coachingBudget,unsupportedDirectClaims,verifiedRelations,unsupportedStructuralClaims,unsupportedExchangeClaims,unsupportedQueenTradeClaims,unsupportedMaterialSequenceClaims,unsupportedPrimaryTacticalClaims,unsupportedHangingMinorClaims,shortenVerifiedExplanation,unsupportedCheckMechanismClaims,unsupportedSevereBlunderClaims,moveQualityContext,coachPawnBoard,unsupportedPawnHistoryClaims,verifiedPawnCaptureFallback,verifiedMajorCaptureFallback,coachingGuardFailures,coachingValidationCodes,needlessEngineAttribution};',guardContext);
+ '\nthis.guard={checkExplanation,coachingBudget,unsupportedDirectClaims,verifiedRelations,unsupportedStructuralClaims,unsupportedExchangeClaims,unsupportedQueenTradeClaims,unsupportedMaterialSequenceClaims,unsupportedPrimaryTacticalClaims,unsupportedHangingMinorClaims,unsupportedFriendlyTargetClaims,unsupportedHypotheticalCheckClaims,shortenVerifiedExplanation,unsupportedCheckMechanismClaims,unsupportedSevereBlunderClaims,moveQualityContext,coachPawnBoard,unsupportedPawnHistoryClaims,verifiedPawnCaptureFallback,verifiedMajorCaptureFallback,coachingGuardFailures,coachingValidationCodes,needlessEngineAttribution};',guardContext);
 const bishopPositionBefore=pos({c8:'b',f8:'b',d7:'.',e7:'p',d5:'p',e2:'P',d4:'P'});
 const bishopPositionAfter=pos({c8:'b',f8:'b',d7:'.',e6:'p',e7:'.',d5:'p',e2:'P',d4:'P'});
 const guardInput={strategicFacts:changes(bishopPositionBefore,bishopPositionAfter),tacticalFacts:{}};
@@ -625,4 +625,56 @@ test('114 diagnostics expose only exact failing guard names',()=>{
   bad,realImmortalBishop18,guardContext.guard.coachingBudget(realImmortalBishop18)));
  assert.ok(guards.includes('primary-tactic'));
  assert.ok(guards.every(x=>/^[a-z-]+$/.test(x)));
+});
+
+const friendlyBishopE5={
+ tacticalFacts:{
+  movedPiece:{colour:'White',type:'pawn',from:'e4',to:'e5'},
+  movedPiecePotentialChecks:[],
+  friendlyPiecesDefendedByMovedPiece:[{piece:'bishop',square:'d6'}],
+  enemyPiecesAttackedByMovedPiece:[],
+ }};
+test('115 19.e5 does not attack own bishop on d6',()=>{
+ const bad='Pushing the pawn to e5 does hit the bishop on d6, but overlooks Black’s reply.';
+ const errors=Array.from(guardContext.guard.unsupportedFriendlyTargetClaims(bad,friendlyBishopE5));
+ assert.ok(errors.some(x=>x.includes('Friendly target')));
+});
+test('116 19.e5 correctly describes pawn defending friendly bishop',()=>{
+ const good='The e5 pawn defends your bishop on d6 while controlling f6.';
+ assert.equal(Array.from(guardContext.guard.unsupportedFriendlyTargetClaims(good,friendlyBishopE5)).length,0);
+});
+test('117 friendly piece guard does not reject a genuine enemy attack',()=>{
+ const enemy={tacticalFacts:{...friendlyBishopE5.tacticalFacts,
+  friendlyPiecesDefendedByMovedPiece:[],
+  enemyPiecesAttackedByMovedPiece:[{piece:'bishop',square:'d6'}]}};
+ assert.equal(Array.from(guardContext.guard.unsupportedFriendlyTargetClaims(
+  'This pawn hits the bishop on d6.',enemy)).length,0);
+});
+const knightNa6={
+ tacticalFacts:{
+  movedPiece:{colour:'Black',type:'knight',from:'b8',to:'a6'},
+  movedPiecePotentialChecks:[{to:'c5',uci:'a6c5'}]
+ }};
+test('118 20...Na6 rejects invented checking jump to c7',()=>{
+ const bad='The knight heads to a6, where it now eyes c7 and b4, so White has to watch the checking jump to c7 on the next move.';
+ assert.ok(Array.from(guardContext.guard.unsupportedHypotheticalCheckClaims(bad,knightNa6))
+  .some(x=>x.includes('c7')));
+});
+test('119 validates both word orders and accepts a verified hypothetical check',()=>{
+ const bad='The knight can jump to c7 with check.';
+ assert.ok(guardContext.guard.unsupportedHypotheticalCheckClaims(bad,knightNa6).length);
+ const good='The knight can jump to c5 with check if White allows it.';
+ assert.equal(Array.from(guardContext.guard.unsupportedHypotheticalCheckClaims(good,knightNa6)).length,0);
+});
+test('120 does not block ordinary knight control or chess-check discussion',()=>{
+ const good='The knight eyes c7 and b4. Black must also watch the king’s safety before giving check.';
+ assert.equal(Array.from(guardContext.guard.unsupportedHypotheticalCheckClaims(good,knightNa6)).length,0);
+});
+test('121 both guards are active in complete response validation',()=>{
+ const bad1='The pawn on e5 attacks the bishop on d6.';
+ const bad2='The knight has a checking jump to c7.';
+ assert.ok(Array.from(guardContext.guard.checkExplanation(bad1,friendlyBishopE5,
+  guardContext.guard.coachingBudget(friendlyBishopE5))).some(x=>x.includes('Friendly target')));
+ assert.ok(Array.from(guardContext.guard.checkExplanation(bad2,knightNa6,
+  guardContext.guard.coachingBudget(knightNa6))).some(x=>x.includes('Hypothetical check')));
 });
