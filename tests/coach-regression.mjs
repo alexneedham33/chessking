@@ -237,7 +237,7 @@ assert.ok(attackFrom>=0&&attackTo>attackFrom,'Production attack routine exists')
 const attacksContext={on,side,dirs:{n:[-33,-31,-18,-14,14,18,31,33],
  b:[-17,-15,15,17],r:[-16,-1,1,16],k:[-17,-16,-15,-1,1,15,16,17]}};
 vm.runInNewContext(html.slice(attackFrom,attackTo)+
- '\\nthis.attacks=coachPieceAttackSquares;',attacksContext);
+ '\nthis.attacks=coachPieceAttackSquares;',attacksContext);
 const squareIndex=square=>(8-Number(square[1]))*16+'abcdefgh'.indexOf(square[0]);
 function knightRelationsAt(from,pawns){
  const b=pos({...Object.fromEntries(pawns.map(square=>[square,'P'])),[from]:'N'});
