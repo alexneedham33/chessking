@@ -5,6 +5,7 @@ on:
       - index.html
       - lambda-coach/index.mjs
       - tests/coach-regression.mjs
+      - tests/coach-browser-startup.mjs
       - tests/coach-ai-regression.mjs
       - tests/coach-game-simulation.mjs
       - tests/coach-game-lines.json
@@ -39,6 +40,7 @@ jobs:
         with:
           node-version: '22'
       - run: node --check lambda-coach/index.mjs
+      - run: node tests/coach-browser-startup.mjs
       - run: node --test tests/coach-regression.mjs
       - run: node tests/coach-ai-regression.mjs
       - run: node tests/coach-ai-regression.mjs --group engine --stockfish --depth 12
