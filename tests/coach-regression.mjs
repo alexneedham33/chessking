@@ -592,6 +592,8 @@ test('110 severe-blunder first PV guard participates in full explanation validat
 
 const realImmortalBishop18={
  ...immortalBishop18,
+ tacticalContinuation:{moves:[{...immortalBishop18.tacticalContinuation.moves[0],
+  ply:1,from:'b2',to:'a1'}]},
  afterFen:'rnb1k1nr/p2p1ppp/3B4/1pbN1N1P/4P1P1/3P1Q2/PqP5/R4KR1 b kq - 1 18',
  engine:{depth:12},priorEngine:{depth:12},
  moveAssessment:{centipawnLoss:395,depth:12,playedIsEngineChoice:false,
