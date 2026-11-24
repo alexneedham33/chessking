@@ -234,3 +234,44 @@ These are two paid AI calls in total and produce separate JSON reports. A passin
 ## Pawn-defence test correction
 
 The November 24 Nf3 coach response was **already correct**, despite an earlier human review assigning a poor score. The f3 knight attacks d4 and can protect the white d4 pawn. No app-side false-positive warnings were emitted, which was appropriate. The underlying bug was in the deterministic regression's *hand-written* attack-square fixture, not the production board generator or the live coach. Tests 65–67 and 72 now exercise actual production piece-attack geometry instead of manually omitting d4; the prompt explicitly confirms the true relation. Do not treat Nf3 defending d4 as an error.
+
+## Three complete-game coaching simulations (stateful regression)
+
+`tests/coach-game-simulation.mjs` replays **three complete chess games**, one ply at a time, through the **actual browser legal move generator**, produces two-sided **Stockfish 17.1** evidence and—when `--live` is explicitly enabled—passes each response as part of the recent three coaching messages in the next request. These are archived historical example lines for testing, **not** replays of the user's gameplay. No app UI changes or Lambda deployment are needed.
+
+| Game ID | Historical example | Length | Themes |
+| --- | --- | --- | --- |
+| `opera` | Paul Morphy's Opera Game | 33 plies, 17 numbered moves | Ordinary development through coordinated sacrifices and mate |
+| `immortal` | Anderssen–Kieseritzky Immortal Game | 45 plies, 23 numbered moves | King's Gambit, king safety, counterplay and mating combinations |
+| `evergreen` | Anderssen–Dufresne Evergreen Game | 47 plies, 24 numbered moves | Development, sacrifices, queen/rook exchanges and mating attack |
+
+These examples deliberately favour tactical games and are not a representative sample of ordinary long positional games. All **125 moves (plies)** are independently verified legal and each game is required to end in an actual checkmate; CI runs an **offline full-game Stockfish pass** at depth 10 in addition to the existing regression groups.
+
+The JSON report contains the chronological move, board position, actual Stockfish PV and evaluation (before and after), move loss, AI response, the **previous three coaching responses**, response latency, deterministic validation warnings, heuristic repetition candidates, and blank fields for human ratings. The repetition similarity metric is an **inspection aid**, not proof of a repeated or poor lesson. Terminal checkmate positions are verified using the application's own legal rules, not an invented Stockfish PV from a position with no legal moves.
+
+### Commands
+
+Preflight legality only (no engine or API calls):
+
+```bash
+node tests/coach-game-simulation.mjs --validate-only
+```
+
+Full offline evaluation of all 125 plies, with no paid AI requests:
+
+```bash
+node tests/coach-game-simulation.mjs --depth 12
+```
+
+Run the real AI **sequentially** for the first 12 plies of the Opera Game (12 paid Lambda/OpenAI requests, with messages carried forward):
+
+```bash
+cd ~/chessking
+git pull origin main
+# In another terminal keep node local-server.mjs running
+node tests/coach-game-simulation.mjs --live --game opera --depth 12 --limit 12
+```
+
+The `--limit` flag caps **paid requests per selected game**; it defaults to 8. You can also choose `--game immortal` or `--game evergreen`. Without `--game`, `--live --limit 8` calls the coach **24 times total** (8 in each game), while analysing all 125 positions offline. To send all 125 historical plies to the AI in one invocation, `--live --limit 50` is technically supported but will incur **125 paid requests** and is not recommended until the initial samples pass human review. Repetition, accuracy and teaching quality cannot be established by offline engine checks alone.
+
+The simulation currently exceeds the application's ordinary 24-message-per-game coaching cap for longer games. It is a purpose-built **test harness**, not a claim that the production UI sends a coach request on every move across these whole games. The local proxy must be restarted after source changes; the Lambda remains separately deployed. Never commit report files or API credentials.
