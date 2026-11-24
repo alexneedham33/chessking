@@ -2459,8 +2459,8 @@ function coachOpponentReplyThreats(position,engineEvidence=null){
  };
 }
 // General legal continuation summary, not an instruction to play a move.
-function coachTacticalOpportunities(position,engineEvidence=null){
- const scan=coachOpponentReplyThreats(position,engineEvidence);
+function coachTacticalOpportunities(position,engineEvidence=null,precomputedScan=null){
+ const scan=precomputedScan||coachOpponentReplyThreats(position,engineEvidence);
  const opportunities=[];
  for(const reply of scan.candidates){
   const captures=reply.immediateDefenderCaptures||[];
@@ -2990,6 +2990,7 @@ async function requestUnifiedMoveCoaching(ply){
   const tacticalContinuation=coachTacticalContinuation(after,engine);
   const recentCoaching=[...coachMoveMessages.entries()]
    .filter(([at,item])=>at<ply&&!item.pending&&item.message).slice(-3).map(([,item])=>item.message);
+  const threatScan=coachOpponentReplyThreats(after,engine);
   const coachPayload={
    beforeFen:fenOf(before),afterFen:fenOf(after),
    opening:openings[openingAtRequest].name,player:playerColour,
@@ -3007,8 +3008,8 @@ async function requestUnifiedMoveCoaching(ply){
    strategicFacts,
    teachingPriorities,
    tacticalContinuation,
-   opponentReplyThreats:coachOpponentReplyThreats(after,engine),
-   tacticalOpportunities:coachTacticalOpportunities(after,engine),
+   opponentReplyThreats:threatScan,
+   tacticalOpportunities:coachTacticalOpportunities(after,engine,threatScan),
    alternativeEvidence,
    openingContext:coachOpeningContext(ply),
    // The exact, author-written explanation for this verified guided move.
