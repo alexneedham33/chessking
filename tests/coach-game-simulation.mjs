@@ -251,7 +251,7 @@ try{
      errors++;
      // Server-side failures are not chess-quality feedback. Halt this game's
      // paid requests instead of repeatedly calling an unhealthy backend.
-     if(/^(?:HTTP 5\\d\\d|fetch failed|The operation was aborted)/i.test(current.error))
+     if(/^(?:HTTP 5\d\d|fetch failed|The operation was aborted)/i.test(current.error))
       backendUnavailable=true;
     }
    }
