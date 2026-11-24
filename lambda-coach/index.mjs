@@ -663,6 +663,7 @@ function checkExplanation(message,input,budget){
  issues.push(...unsupportedHypotheticalCheckClaims(message,input));
  issues.push(...unsupportedCheckMechanismClaims(message,input));
  issues.push(...unsupportedLooseCheckingRecommendation(message,input));
+ issues.push(...unsupportedUnsafeQueenSuggestions(message,input));
  issues.push(...unsupportedSevereBlunderClaims(message,input));
  issues.push(...needlessEngineAttribution(message,input));
  return issues;
@@ -684,6 +685,7 @@ function coachingGuardFailures(message,input,budget){
   'hypothetical-check':unsupportedHypotheticalCheckClaims(message,input).length>0,
   'check-mechanism':unsupportedCheckMechanismClaims(message,input).length>0,
   'loose-check-recommendation':unsupportedLooseCheckingRecommendation(message,input).length>0,
+  'unsafe-queen-suggestion':unsupportedUnsafeQueenSuggestions(message,input).length>0,
   'move-severity':unsupportedSevereBlunderClaims(message,input).length>0,
   'engine-attribution':needlessEngineAttribution(message,input).length>0
  };
@@ -699,6 +701,7 @@ function coachingValidationCodes(issues){
   else if(x.includes('capture sequence'))codes.add('capture-sequence');
   else if(x.includes('material sequence'))codes.add('material-accounting');
   else if(x.includes('primary tactic'))codes.add('primary-tactic');
+   else if(x.includes('unsafe queen suggestion'))codes.add('unsafe-queen-suggestion');
   else if(x.includes('material threat'))codes.add('material-accounting');
   else if(x.includes('friendly target'))codes.add('friendly-target');
   else if(x.includes('hypothetical check'))codes.add('hypothetical-check');
