@@ -256,16 +256,17 @@ try{
     }
    }
    output.entries.push(current);
-   if(backendUnavailable){
+   if(backendUnavailable&&current.error){
     console.error('Aborted live calls for '+game.id+' after '+current.error+
      '; remaining plies will not trigger more API requests.');
-    // Preserve complete offline analysis of the rest of the game, but do not
-    // issue further live calls while the backend is unhealthy.
+    // Preserve complete offline analysis of the remaining game plies,
+    // but report the failure only once and make no further paid requests.
    }
   }
   output.summary={analyzedPlies:count,liveAttempted:output.entries.filter(x=>x.attempted).length,
    liveCompleted:output.entries.filter(x=>x.response).length,errors,warnings,
    repaired:output.entries.filter(x=>x.validation?.status==='repaired').length,
+   verifiedFallbacks:output.entries.filter(x=>x.validation?.status==='fallback').length,
    failedValidation:output.entries.filter(x=>x.validation?.status==='failed').length,
    repetitionFlags:output.entries.reduce((n,x)=>n+x.repetitionFlags.length,0),
    meanResponseMs:output.entries.some(x=>x.responseTimeMs!==null)?
