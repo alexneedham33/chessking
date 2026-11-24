@@ -447,6 +447,9 @@ if(useStockfish){
    if(item.expectedStyle==='routine'&&(fixture.payload.tacticalFacts.givesCheck||
      fixture.payload.tacticalFacts.exchangeEvidence.captured))
     throw Error('Routine fixture unexpectedly has a check or capture: '+item.id);
+   if(item.expectedStyle==='routine'&&(loss===null||loss>90))
+    throw Error('Routine fixture is not engine-confirmed as reasonably playable: '+
+     item.id+' centipawnLoss='+loss);
    fixture.payload.engine=after.evidence;
    fixture.payload.priorEngine=before.evidence;
    fixture.payload.tacticalContinuation=chess.coachTacticalContinuation(fixture.after,after.evidence);
@@ -472,11 +475,9 @@ if(useStockfish){
     const queenCapture=fixture.payload.tacticalFacts.exchangeEvidence.captureOptions.find(x=>x.uci==='d3g3');
     if(!queenCapture||queenCapture.capturedPiece!=='queen')
      throw Error('Bad queen capture fixture must have a legal queen recapture: '+item.id);
-    fixture.payload.verifiedBadMoveConsequence={
-     legalImmediateRecapture:{uci:'d3g3',piece:'queen',capturedPiece:'queen'},
-     measuredCentipawnLoss:loss,
-     note:'Immediate legal queen recapture is verified by production chess rules. Its tactical value is separately corroborated by Stockfish; do not equate legal possibility with a forced reply.'
-    };
+    // The Lambda already receives the legal recapture through
+   // tacticalFacts.exchangeEvidence and Stockfish's evaluation through
+   // moveAssessment. Do not add a redundant, non-whitelisted payload field.
    }
    fixture.engineProvenance={engine:after.raw.version,depth:stockfishDepth,
     before:before.raw,after:after.raw,centipawnLoss:loss,expectedStyle:item.expectedStyle};
