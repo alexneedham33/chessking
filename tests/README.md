@@ -18,7 +18,7 @@ node tests/coach-ai-regression.mjs
 
 This free **offline mode** replays fixed legal move sequences using the **production chess rules**, generates the same board/tactical/strategic evidence used by Opening Lab, and writes a JSON report to `tests/reports/`. It does **not** call GPT and does not claim AI explanations have passed.
 
-There are **26 runnable review cases**: 22 historical checks (some repeat the same position with different grading objectives) plus four independent curated tactical FENs. Two incomplete historical cases are still skipped. The tactical cases are checked against the production move generator and require legal moves, exact FEN round trips and board-derived facts. Their evaluation is intentionally unknown without a frozen engine analysis. The reconstruction of the central-pawn line is an illustrative fixed scenario, not a claim about a previously played Stockfish game.
+There are **28 runnable review cases**: 22 historical checks (some repeat the same position with different grading objectives), four independent curated geometric tactical FENs, and two Stockfish-backed checkmate tests (one blunder and one justified queen sacrifice). Two incomplete historical cases are still skipped. The tactical cases are checked against the production move generator and require legal moves, exact FEN round trips and board-derived facts. Their evaluation is intentionally unknown without a frozen engine analysis. The reconstruction of the central-pawn line is an illustrative fixed scenario, not a claim about a previously played Stockfish game.
 
 ### Run real coaching requests
 
@@ -75,13 +75,13 @@ The new report includes a per-case `samePosition` and `sameEvidence` check and t
 node tests/coach-ai-regression.mjs --live --case 13-white-b-pawn-takes-c3
 ```
 
-The human quality rubric in `tests/coach-review-cases.json` contains 28 named checks with expected lessons and historical failure modes. Review the full coach text for **correctness, tactical insight, teaching value, and conciseness**, each 0–5, and mark factual hallucinations even if the automated warnings miss them.
+The human quality rubric in `tests/coach-review-cases.json` contains 30 named checks with expected lessons and historical failure modes. Review the full coach text for **correctness, tactical insight, teaching value, and conciseness**, each 0–5, and mark factual hallucinations even if the automated warnings miss them.
 
 Automated checks flag only a limited subset of possible issues (e.g., inaccurate claims about direct pawn defence, unsupported alternatives and response lengths). **Zero warnings does not mean a response is correct.**
 
 ### CI
 
-The GitHub Actions workflow **Chess coach regression** runs the 60 mechanical and validator tests and the offline AI-fixture replay on pushes and PRs affecting the test code. It makes no paid API requests. Generated reports are ignored by Git.
+The GitHub Actions workflow **Chess coach regression** runs the 60 mechanical and validator tests, the offline AI-fixture replay, and two actual Stockfish 17.1 searches (at depth 12) on pushes and PRs affecting the test code. It makes no paid API requests. Generated reports are ignored by Git.
 
 The goal is reproducible evidence, not a misleading overall “AI accuracy score.” Once full position+engine payloads exist, we can expand the fixed set to cover every case and measure true prompt/model changes.
 
@@ -92,3 +92,25 @@ The coach now attaches `tacticalFacts.exchangeEvidence`, derived from the exact 
 The replay harness automatically checks the historical positions: White's a3 allows a bishop capture answered by the b-pawn, White's e4 allows knight/pawn captures that can be recaptured by the c3 knight, Black's bishop capture on c3 permits a b-pawn recapture, and White's bxc3 completes an equal-value bishop-for-knight exchange. The Lambda text validator also flags ungrounded 'wins a piece' and 'undefended' claims in these supported cases.
 
 **Important:** legal recapture options are not forcing lines or proof of a favourable trade. Stockfish evidence is still necessary to claim one side gains from the complete sequence. In previous-position capture cases where reliable history is missing, the runner must not infer an exchange.
+
+## Engine-grounded tactical reasoning (two evaluated scenarios)
+
+This is **separate from the four simple geometric tactic fixtures**. The runner uses the checked-in Stockfish 17.1 lite JS/WASM via UCI from Node, evaluates the position **before and after the candidate move**, validates the engine's PV against the actual production chess rules, and records raw engine scores and legally checked mate continuations in `engineProvenance`. Unlike the earlier geometry-only tests, `engine`, `priorEngine`, and `moveAssessment` are backed by actual engine output. Engine scores are White-relative in the coach payload and explicitly signed from the side to move in the raw provenance.
+
+- `29-blunder-allows-fools-mate`: after 1.f3 e5 2.g4??, Black has 2...Qh4#.
+- `30-queen-sacrifice-smothered-mate`: a curated legal position with Qg8+ Rxg8 Nf7#, whose defender reply and mate are verified from actual legal moves. This is an illustrative forcing puzzle, not an attribution to a historical game.
+
+Offline verification, without any AI requests:
+
+```bash
+node tests/coach-ai-regression.mjs --group engine --stockfish --depth 14
+```
+
+Live AI review, which makes **two paid Lambda/OpenAI requests** and requires the current `lambda-coach/index.mjs` deployed:
+
+```bash
+node tests/coach-ai-regression.mjs --live --group engine --stockfish --depth 14 --limit 2
+```
+
+The runner refuses to run the engine group without `--stockfish` and fails if Stockfish doesn't confirm the expected mate or supplies a non-matching PV. Mate scores and checked mate lines describe the specific board state; evaluating a real complicated sacrifice generally needs stronger depth and further validation. Do not claim all tactical variations are forced merely because one engine PV ends in mate: the test marks defender moves as forced only if they are the only legal replies.
+
