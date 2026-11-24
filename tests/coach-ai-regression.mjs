@@ -225,13 +225,19 @@ function legalEngineAnalysis(board,raw){
 }
 function verifyForcedLine(fixture,expected){
  let p=fixture.after;
+ const line=[];
  for(const uci of expected){
-  const m=chess.legal(p).find(x=>chess.key(x)===uci);
-  if(!m)throw Error('Expected forcing continuation is illegal: '+fixture.id+' '+uci);
+  const choices=chess.legal(p);
+  const m=choices.find(x=>chess.key(x)===uci);
+  if(!m)throw Error('Expected continuation is illegal: '+fixture.id+' '+uci);
+  line.push({uci,plainEnglish:chess.coachPlainMove(p,m),side:p.t===1?'White':'Black',
+   onlyLegalReply:choices.length===1,legalReplyCount:choices.length});
   p=chess.apply(p,m);
  }
  if(!chess.checked(p)||chess.legal(p).length!==0)
   throw Error('Expected continuation does not actually end in checkmate: '+fixture.id);
+ return {moves:line,endsInCheckmate:true,endingSideToMove:p.t===1?'White':'Black',
+  explanation:'Every move was checked using production legal chess rules and ends in checkmate. Only a reply whose legalReplyCount is 1 is logically forced; otherwise this is one checkmating line, not proof of forced mate.'};
 }
 if(useStockfish){
  const targets=fixed.filter(x=>x.id.startsWith('29-')||x.id.startsWith('30-'));
@@ -240,7 +246,7 @@ if(useStockfish){
   if(targets.length)sf=await startStockfish(root);
   for(const fixture of targets){
    const item=review.cases.find(x=>x.id===fixture.id);
-   verifyForcedLine(fixture,item.engineExpectedLine);
+   const verifiedLine=verifyForcedLine(fixture,item.engineExpectedLine);
    const before=legalEngineAnalysis(fixture.before,await sf.analyze(fixture.payload.beforeFen,stockfishDepth));
    const after=legalEngineAnalysis(fixture.after,await sf.analyze(fixture.payload.afterFen,stockfishDepth));
    if(!after.analysis.mate||Math.sign(after.analysis.mate)!==(item.engineExpectedMateFor==='White'?1:-1))
@@ -248,11 +254,16 @@ if(useStockfish){
    const expectedFirst=item.engineExpectedLine[0];
    if(after.raw.bestmove!==expectedFirst)
     throw Error('Stockfish did not select expected forcing reply '+expectedFirst+' for '+fixture.id+'; got '+after.raw.bestmove);
+   if(!item.engineExpectedLine.every((move,i)=>after.raw.pv[i]===move))
+    throw Error('Stockfish PV did not confirm checkmating continuation in '+fixture.id);
+   if(item.engineMustBeForced&&verifiedLine.moves.some(x=>x.side!==item.engineExpectedMateFor&&x.legalReplyCount!==1))
+    throw Error('Checkmate line has a non-forced defender move in '+fixture.id);
    const side=fixture.before.t;
    const change=before.analysis.evaluation!==null&&after.analysis.evaluation!==null?
     Math.round(100*(after.analysis.evaluation-before.analysis.evaluation)):null;
    const first=before.evidence.variations[0]?.moves[0];
    fixture.payload.engine=after.evidence;
+   fixture.payload.verifiedTacticalContinuation=verifiedLine;
    fixture.payload.priorEngine=before.evidence;
    fixture.payload.moveAssessment={
     manual:true,playedIsEngineChoice:before.raw.bestmove===fixture.payload.played.uci,
@@ -272,7 +283,8 @@ if(useStockfish){
    fixture.payload.scripted='Engine-evaluated regression: teach the verified tactical consequence, including checks and the recorded forcing line. Do not improvise a continuation.';
    fixture.engineProvenance={engine:after.raw.version,depth:stockfishDepth,
     before:before.raw,after:after.raw,
-    verifiedCheckmateLine:item.engineExpectedLine};
+    verifiedCheckmateLine:item.engineExpectedLine,
+    verifiedDefenderForced:item.engineMustBeForced||false};
    fixture.hash=sha(fixture.payload);
   }
  }finally{sf?.stop();}
