@@ -1,6 +1,6 @@
 # Opening Lab chess-coach regression testing
 
-There are two complementary suites.
+There are two complementary suites, including a targeted tactical stress pack.
 
 ## 1. Deterministic chess facts — free, automatic
 
@@ -18,7 +18,7 @@ node tests/coach-ai-regression.mjs
 
 This free **offline mode** replays fixed legal move sequences using the **production chess rules**, generates the same board/tactical/strategic evidence used by Opening Lab, and writes a JSON report to `tests/reports/`. It does **not** call GPT and does not claim AI explanations have passed.
 
-There are currently **15 complete legal replay fixtures** (13 moves from the recorded bishop-for-knight sequence plus two alternative central-pawn continuation snapshots). The other **9 of the 24 review prompts** are explicitly marked as skipped until a complete move sequence or exact FEN plus payload is recorded. The reconstruction of the central-pawn line is an illustrative fixed scenario, not a claim about a previously played Stockfish game.
+There are **26 runnable review cases**: 22 historical checks (some repeat the same position with different grading objectives) plus four independent curated tactical FENs. Two incomplete historical cases are still skipped. The tactical cases are checked against the production move generator and require legal moves, exact FEN round trips and board-derived facts. Their evaluation is intentionally unknown without a frozen engine analysis. The reconstruction of the central-pawn line is an illustrative fixed scenario, not a claim about a previously played Stockfish game.
 
 ### Run real coaching requests
 
@@ -43,6 +43,22 @@ The script saves model messages, input fingerprints, incomplete/skipped cases, b
 
 **Important:** The replay payloads contain real, deterministic board facts, but deliberately have **no fabricated Stockfish evaluations or principal variations**. As a result, they test the coach's ability to use board evidence and explain ordinary moves, but **do not test model claims about best alternatives**. Engine-specific and high-stakes tactical scenarios need separately frozen, genuine Stockfish payloads.
 
+### Tactical stress pack (four paid AI requests)
+
+The separate tactical group covers a knight fork of king and queen, a revealed bishop attack after a knight moves, an absolute rook pin, and a bishop capture that can be met by a king capture (a **possible** sacrifice, not an asserted sound sacrifice).
+
+After deploying the latest Lambda and starting `node local-server.mjs` in terminal 1, run in terminal 2:
+
+```bash
+cd ~/chessking
+git pull origin main
+node tests/coach-ai-regression.mjs --live --group tactical --limit 4
+```
+
+Offline: `node tests/coach-ai-regression.mjs --group tactical` checks only these four positions, with **no paid calls**. The normal default `--limit` is 6 and the supported maximum is 40. Use `--group historical` to exclude tactical cases.
+
+**Scope:** these four situations are constructed educational positions, not a claim about a recorded game or Stockfish's best continuation. The harness does not fabricate engine scores. The live review checks whether GPT describes the correct fork targets, newly exposed sliding-piece attack, absolute pin, and sacrifice uncertainty. Automatic success indicates validated geometry, *not* that the language-model explanation is tactically sound.
+
 ### Compare before / after
 
 Run a baseline first and note the saved file path, for example `tests/reports/coach-live-2026-11-23T23-59-00-000Z.json`. After an update, run:
@@ -59,7 +75,7 @@ The new report includes a per-case `samePosition` and `sameEvidence` check and t
 node tests/coach-ai-regression.mjs --live --case 13-white-b-pawn-takes-c3
 ```
 
-The human quality rubric in `tests/coach-review-cases.json` contains 24 named checks with expected lessons and historical failure modes. Review the full coach text for **correctness, tactical insight, teaching value, and conciseness**, each 0–5, and mark factual hallucinations even if the automated warnings miss them.
+The human quality rubric in `tests/coach-review-cases.json` contains 28 named checks with expected lessons and historical failure modes. Review the full coach text for **correctness, tactical insight, teaching value, and conciseness**, each 0–5, and mark factual hallucinations even if the automated warnings miss them.
 
 Automated checks flag only a limited subset of possible issues (e.g., inaccurate claims about direct pawn defence, unsupported alternatives and response lengths). **Zero warnings does not mean a response is correct.**
 
