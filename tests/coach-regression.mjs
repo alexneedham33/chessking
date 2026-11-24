@@ -131,7 +131,7 @@ const guardEnd=lambdaSource.indexOf('async function generateCoaching(',guardStar
 assert.ok(guardStart>=0&&guardEnd>guardStart,'Lambda guard implementation present');
 const guardContext={};vm.createContext(guardContext);
 vm.runInContext(lambdaSource.slice(guardStart,guardEnd)+
- '\nthis.guard={checkExplanation,coachingBudget,unsupportedDirectClaims,verifiedRelations,unsupportedStructuralClaims,unsupportedExchangeClaims,unsupportedCheckMechanismClaims,unsupportedSevereBlunderClaims,coachingValidationCodes,needlessEngineAttribution};',guardContext);
+ '\nthis.guard={checkExplanation,coachingBudget,unsupportedDirectClaims,verifiedRelations,unsupportedStructuralClaims,unsupportedExchangeClaims,unsupportedCheckMechanismClaims,unsupportedSevereBlunderClaims,moveQualityContext,coachingValidationCodes,needlessEngineAttribution};',guardContext);
 const bishopPositionBefore=pos({c8:'b',f8:'b',d7:'.',e7:'p',d5:'p',e2:'P',d4:'P'});
 const bishopPositionAfter=pos({c8:'b',f8:'b',d7:'.',e6:'p',e7:'.',d5:'p',e2:'P',d4:'P'});
 const guardInput={strategicFacts:changes(bishopPositionBefore,bishopPositionAfter),tacticalFacts:{}};
@@ -267,7 +267,9 @@ test('67 permits true direct support and general square-control language',()=>{
  assert.equal(directGuard('The knight supports the centre and controls e5.').length,0);
 });
 const severeInput={engine:{variations:[{moves:[]}]},priorEngine:{variations:[{moves:[]}]},
- moveAssessment:{centipawnLoss:740,depth:14,playedIsEngineChoice:false}};
+ mover:'Black',player:'White',
+ moveAssessment:{centipawnLoss:740,depth:14,playedIsEngineChoice:false,
+ evaluationBefore:-2.91,evaluationAfter:4.49}};
 test('68 severe engine loss cannot be described as neutral tactical sequence',()=>{
  assert.ok(guardContext.guard.unsupportedSevereBlunderClaims(
  'Black takes the rook, but the queen can be captured, so this is tactical pressure.',severeInput).length>0);
@@ -316,4 +318,55 @@ test('76 validator rejects routine engine-name recital',()=>{
  const msg="The pawn advances to e4 and Stockfish's main line replies e6.";
  assert.ok(guardContext.guard.checkExplanation(msg,input,
   guardContext.guard.coachingBudget(input)).some(x=>x.includes('Stockfish')));
+});
+
+const winningBeforeAndAfter={engine:{variations:[{moves:[]}]},priorEngine:{variations:[{moves:[]}]},
+ mover:'White',player:'White',
+ moveAssessment:{centipawnLoss:384,depth:12,playedIsEngineChoice:false,
+ evaluationBefore:5.85,evaluationAfter:2.01,approximate:true}};
+test('77 Opera Game 15.Bxd7+ is a missed stronger win, not a serious mistake',()=>{
+ assert.equal(guardContext.guard.moveQualityContext(winningBeforeAndAfter).kind,
+  'missed-stronger-win');
+ assert.ok(guardContext.guard.unsupportedSevereBlunderClaims(
+  'This is a serious mistake: the bishop captures the rook.',winningBeforeAndAfter).length>0);
+ assert.equal(guardContext.guard.unsupportedSevereBlunderClaims(
+  'White captures the rook and retains a substantial initiative, though a stronger continuation was available.',winningBeforeAndAfter).length,0);
+});
+test('78 queen-for-rook error goes from winning for Black to clearly losing',()=>{
+ const verdict=guardContext.guard.moveQualityContext(severeInput);
+ assert.equal(verdict.kind,'serious-deterioration');
+ assert.ok(verdict.before>0&&verdict.after<0);
+ assert.ok(guardContext.guard.unsupportedSevereBlunderClaims(
+  'Black captures the rook, but White can take the queen.',severeInput).length>0);
+ assert.equal(guardContext.guard.unsupportedSevereBlunderClaims(
+  'This is a serious mistake: Black gives up the queen for a rook and loses the advantage.',severeInput).length,0);
+});
+test('79 seriously worsening a position already lost does not automatically create a blunder',()=>{
+ const input={...winningBeforeAndAfter,
+  moveAssessment:{centipawnLoss:340,depth:14,playedIsEngineChoice:false,
+   evaluationBefore:-2.4,evaluationAfter:-5.8}};
+ assert.equal(guardContext.guard.moveQualityContext(input).kind,'already-losing');
+ assert.ok(guardContext.guard.unsupportedSevereBlunderClaims(
+  'White makes a catastrophic blunder.',input).length>0);
+});
+test('80 squandering a clear win is distinct from still-winning and losing outcomes',()=>{
+ const input={...winningBeforeAndAfter,
+  moveAssessment:{centipawnLoss:340,depth:14,playedIsEngineChoice:false,
+   evaluationBefore:3.6,evaluationAfter:0.2}};
+ assert.equal(guardContext.guard.moveQualityContext(input).kind,
+  'squandered-winning-advantage');
+});
+test('81 insufficient or shallow evidence cannot justify severe move grading',()=>{
+ const input={...winningBeforeAndAfter,
+  moveAssessment:{centipawnLoss:500,depth:8,playedIsEngineChoice:false,
+   evaluationBefore:5.85,evaluationAfter:0.85}};
+ assert.equal(guardContext.guard.moveQualityContext(input).kind,'ungraded');
+ assert.equal(guardContext.guard.unsupportedSevereBlunderClaims(
+  'This is a blunder.',input).length,0);
+});
+test('82 full validator catches the actual Opera mistaken blunder wording',()=>{
+ const output='This is a serious mistake: White’s bishop takes the rook on d7.';
+ const problems=guardContext.guard.checkExplanation(output,winningBeforeAndAfter,
+  guardContext.guard.coachingBudget(winningBeforeAndAfter));
+ assert.ok(problems.some(x=>x.includes('Move severity')));
 });
