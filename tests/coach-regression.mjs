@@ -131,7 +131,7 @@ const guardEnd=lambdaSource.indexOf('async function generateCoaching(',guardStar
 assert.ok(guardStart>=0&&guardEnd>guardStart,'Lambda guard implementation present');
 const guardContext={};vm.createContext(guardContext);
 vm.runInContext(lambdaSource.slice(guardStart,guardEnd)+
- '\nthis.guard={checkExplanation,coachingBudget,unsupportedDirectClaims,verifiedRelations,unsupportedStructuralClaims,unsupportedExchangeClaims,unsupportedCheckMechanismClaims,unsupportedSevereBlunderClaims,moveQualityContext,coachingValidationCodes,needlessEngineAttribution};',guardContext);
+ '\nthis.guard={checkExplanation,coachingBudget,unsupportedDirectClaims,verifiedRelations,unsupportedStructuralClaims,unsupportedExchangeClaims,unsupportedCheckMechanismClaims,unsupportedSevereBlunderClaims,moveQualityContext,coachPawnBoard,unsupportedPawnHistoryClaims,coachingValidationCodes,needlessEngineAttribution};',guardContext);
 const bishopPositionBefore=pos({c8:'b',f8:'b',d7:'.',e7:'p',d5:'p',e2:'P',d4:'P'});
 const bishopPositionAfter=pos({c8:'b',f8:'b',d7:'.',e6:'p',e7:'.',d5:'p',e2:'P',d4:'P'});
 const guardInput={strategicFacts:changes(bishopPositionBefore,bishopPositionAfter),tacticalFacts:{}};
@@ -369,4 +369,58 @@ test('82 full validator catches the actual Opera mistaken blunder wording',()=>{
  const problems=guardContext.guard.checkExplanation(output,winningBeforeAndAfter,
   guardContext.guard.coachingBudget(winningBeforeAndAfter));
  assert.ok(problems.some(x=>x.includes('Move severity')));
+});
+
+const immortalCapture={
+ beforeFen:'rnbqkbnr/pppp1ppp/8/4p3/4PP2/8/PPPP2PP/RNBQKBNR b KQkq f3 0 2',
+ afterFen:'rnbqkbnr/pppp1ppp/8/8/4Pp2/8/PPPP2PP/RNBQKBNR w KQkq - 0 3',
+ mover:'Black',player:'White',
+ played:{piece:'p',side:'Black',from:'e5',to:'f4',capture:true},
+ tacticalFacts:{exchangeEvidence:{captured:{piece:'pawn',square:'f4'},completedExchange:null}},
+ strategicFacts:{}
+};
+const pawnHistory=message=>Array.from(guardContext.guard.unsupportedPawnHistoryClaims(message,immortalCapture));
+test('83 Immortal 2...exf4: first capture must not be described as recapture',()=>{
+ assert.ok(pawnHistory('Black recaptures on f4.').some(x=>x.includes('Capture sequence')));
+ assert.equal(pawnHistory('Black captures the f4 pawn.').length,0);
+});
+test('84 Immortal 2...exf4: the e-file has only a White pawn',()=>{
+ assert.ok(pawnHistory('The e-file still has pawns for both sides.').some(x=>x.includes('Pawn file occupancy')));
+ assert.ok(pawnHistory('Both sides have pawns remaining on the e-file.').length>0);
+ assert.equal(pawnHistory('The e-file still contains White’s e4 pawn.').length,0);
+});
+test('85 Immortal 2...exf4: doubled black f-pawns are true',()=>{
+ const actual=guardContext.guard.coachPawnBoard(immortalCapture.afterFen);
+ assert.equal(actual.Black.filter(square=>square[0]==='f').length,2);
+ assert.equal(pawnHistory('Doubled black pawns on the f-file.').length,0);
+ assert.equal(pawnHistory('Black pawns on f7 and f4.').length,0);
+});
+test('86 reject false pawn-square claims even when file is correct',()=>{
+ assert.ok(pawnHistory('Black pawns on f7 and f5.').some(x=>x.includes('f5')));
+ assert.ok(pawnHistory('Doubled black pawns on the e-file.').length>0);
+});
+test('87 full validator rejects actual Immortal response after a repair',()=>{
+ const incorrect='Black recaptures on f4, but the move creates doubled black pawns on the f-file, with pawns now on f7 and f4. The e-file still has pawns for both sides, so it remains occupied rather than open or blocked by directly facing pawns.';
+ const issues=Array.from(guardContext.guard.checkExplanation(incorrect,immortalCapture,
+  guardContext.guard.coachingBudget(immortalCapture)));
+ assert.ok(issues.some(x=>x.includes('Capture sequence')));
+ assert.ok(issues.some(x=>x.includes('Pawn file occupancy')));
+});
+test('88 true same-square recapture remains permitted',()=>{
+ const recapture={...immortalCapture,tacticalFacts:{exchangeEvidence:{
+  captured:{piece:'pawn',square:'f4'},completedExchange:{sameSquareRecapture:true}}}};
+ assert.equal(guardContext.guard.unsupportedPawnHistoryClaims(
+  'Black recaptures on f4.',recapture).length,0);
+});
+test('89 missing board data does not manufacture occupancy claims',()=>{
+ const incomplete={...immortalCapture,afterFen:'unknown'};
+ assert.equal(guardContext.guard.unsupportedPawnHistoryClaims(
+  'Black pawns on f7 and f5.',incomplete).length,0);
+});
+test('90 pawn-structure validator exposes safe failure categories',()=>{
+ const codes=Array.from(guardContext.guard.coachingValidationCodes([
+  'Capture sequence: this is a first capture, not a recapture.',
+  'Pawn file occupancy: the e-file lacks pawns from both sides.'
+ ]));
+ assert.deepEqual(codes,['capture-sequence','pawn-structure']);
 });
