@@ -19,8 +19,8 @@ const stockfishDepth=Math.max(10,Math.min(20,Number((()=>{const i=args.indexOf('
 const option=name=>{const i=args.indexOf(name);return i>=0?args[i+1]:undefined;};
 const max=Math.max(1,Math.min(40,Number(option('--limit')||6)));
 const group=option('--group');
-if(group&&!['tactical','historical','engine','middlegame'].includes(group))throw Error('--group must be tactical, historical, engine or middlegame');
-if(['engine','middlegame'].includes(group)&&!useStockfish)throw Error('--group '+group+' requires --stockfish: never fabricate engine evaluations');
+if(group&&!['tactical','historical','engine','middlegame','balance'].includes(group))throw Error('--group must be tactical, historical, engine, middlegame or balance');
+if(['engine','middlegame','balance'].includes(group)&&!useStockfish)throw Error('--group '+group+' requires --stockfish: never fabricate engine evaluations');
 const endpoint=option('--endpoint')||'http://127.0.0.1:8000/api/coach/move';
 const selected=option('--case');
 const baselineFile=option('--baseline');
@@ -60,7 +60,7 @@ const otherSequences={
 };
 const base=['d2d4','d7d5','g1f3','g8f6','b1c3','e7e6','e2e4','f8b4','a2a3','b4a5','f1d3','a5c3','b2c3'];
 function sequenceFor(item){
- if(['tactical-fen','engine-fen','engine-line','middlegame-puzzle'].includes(item.referenceSequence))return item.moves;
+ if(['tactical-fen','engine-fen','engine-line','middlegame-puzzle','balance-line','balance-fen'].includes(item.referenceSequence))return item.moves;
  if(item.referenceSequence==='main-line')return item.moves;
  if(otherSequences[item.id])return [...base,...otherSequences[item.id]];
  return null;
@@ -163,10 +163,11 @@ const fixed=[],skipped=[];
 for(const item of review.cases){
  if(selected&&item.id!==selected)continue;
  if(group==='tactical'&&item.referenceSequence!=='tactical-fen')continue;
- if(group==='historical'&&['tactical-fen','engine-fen','engine-line','middlegame-puzzle'].includes(item.referenceSequence))continue;
+ if(group==='historical'&&['tactical-fen','engine-fen','engine-line','middlegame-puzzle','balance-line','balance-fen'].includes(item.referenceSequence))continue;
  if(group==='engine'&&!item.referenceSequence.startsWith('engine-'))continue;
  if(group==='middlegame'&&item.referenceSequence!=='middlegame-puzzle')continue;
- if((item.referenceSequence.startsWith('engine-')||item.referenceSequence==='middlegame-puzzle')&&!useStockfish)continue;
+ if(group==='balance'&&!item.referenceSequence.startsWith('balance-'))continue;
+ if((item.referenceSequence.startsWith('engine-')||item.referenceSequence==='middlegame-puzzle'||item.referenceSequence.startsWith('balance-'))&&!useStockfish)continue;
  const moves=sequenceFor(item);
  if(!moves){skipped.push({id:item.id,reason:'No complete legal move sequence / exact FEN recorded'});continue;}
  const fixture=makeInput(item,moves);
@@ -243,9 +244,10 @@ function verifyForcedLine(fixture,expected){
 if(useStockfish){
  const targets=fixed.filter(x=>x.id.startsWith('29-')||x.id.startsWith('30-'));
  const middlegameTargets=fixed.filter(x=>review.cases.some(item=>item.id===x.id&&item.referenceSequence==='middlegame-puzzle'));
+ const balanceTargets=fixed.filter(x=>review.cases.some(item=>item.id===x.id&&item.referenceSequence.startsWith('balance-')));
  let sf=null;
  try{
-  if(targets.length||middlegameTargets.length)sf=await startStockfish(root);
+  if(targets.length||middlegameTargets.length||balanceTargets.length)sf=await startStockfish(root);
   for(const fixture of targets){
    const item=review.cases.find(x=>x.id===fixture.id);
    const verifiedLine=verifyForcedLine(fixture,item.engineExpectedLine);
@@ -423,6 +425,65 @@ if(useStockfish){
    fixture.hash=sha(fixture.payload);
    console.log('Stockfish middlegame '+fixture.id+': played '+fixture.payload.played.uci+
     ', pre-best '+before.raw.bestmove+', before '+before.raw.scoreType+' '+before.raw.score+
+    ', after '+after.raw.scoreType+' '+after.raw.score);
+  }
+  // Counterbalance tactical puzzles with routine chess and a deliberately bad
+  // middlegame decision. Never assign the quality label from the fixture title:
+  // the bad choice must actually lose substantial evaluation at this depth.
+  for(const fixture of balanceTargets){
+   const item=review.cases.find(x=>x.id===fixture.id);
+   const before=legalEngineAnalysis(fixture.before,await sf.analyze(fixture.payload.beforeFen,stockfishDepth));
+   const after=legalEngineAnalysis(fixture.after,await sf.analyze(fixture.payload.afterFen,stockfishDepth));
+   const mover=fixture.before.t;
+   const change=before.analysis.evaluation!==null&&after.analysis.evaluation!==null?
+    Math.round(100*(after.analysis.evaluation-before.analysis.evaluation)):null;
+   const loss=change===null?null:Math.max(0,-mover*change);
+   // Match analysis at equal depth; avoid pretending mate scores are centipawns.
+   if(item.expectedStyle==='blunder'&&
+      (loss===null||loss<150||before.raw.bestmove===fixture.payload.played.uci))
+    throw Error('Blunder fixture did not establish a substantial Stockfish loss: '+
+     item.id+' loss='+loss+' best='+before.raw.bestmove+
+     ' played='+fixture.payload.played.uci);
+   if(item.expectedStyle==='routine'&&(fixture.payload.tacticalFacts.givesCheck||
+     fixture.payload.tacticalFacts.exchangeEvidence.captured))
+    throw Error('Routine fixture unexpectedly has a check or capture: '+item.id);
+   fixture.payload.engine=after.evidence;
+   fixture.payload.priorEngine=before.evidence;
+   fixture.payload.tacticalContinuation=chess.coachTacticalContinuation(fixture.after,after.evidence);
+   fixture.payload.moveAssessment={
+    manual:true,playedIsEngineChoice:before.raw.bestmove===fixture.payload.played.uci,
+    centipawnLoss:loss,approximate:true,depth:Math.min(before.raw.depth,after.raw.depth),
+    suggestedMove:null,suggestedMovePlainEnglish:null,
+    evaluationBefore:before.analysis.evaluation,evaluationAfter:after.analysis.evaluation,
+    evaluationChangeCentipawns:change,
+    evaluationChangeForMoverCentipawns:change===null?null:mover*change,
+    expectedContinuation:before.evidence.variations[0]?.moves||[]
+   };
+   fixture.payload.coachingGuidance.focus=item.expectedStyle==='blunder'?'turning-point':'strategic';
+   fixture.payload.coachingGuidance.explainAlternatives=false;
+   fixture.payload.coachingGuidance.alternativePolicy=
+    'No alternativeEvidence is provided. Do not recommend a specific unverified better move.';
+   fixture.payload.coachingGuidance.evaluationPolicy=
+    'Stockfish before and after evaluations are genuine, at the same depth. Its PV is a possible best-play continuation, not a forced line.';
+   fixture.payload.scripted=item.expectedStyle==='routine'
+    ?'Routine or quiet move: teach the immediate practical purpose of the actual played move. A remote tactical event in a speculative PV is not the move’s main theme. Do not invent a check, sacrifice, fork, forced win or engine preference.'
+    :'Bad middlegame choice: evaluate the real material consequence, highlight a legal verified recapture when present, and do not claim that merely taking a rook was a free win.';
+   if(item.expectedStyle==='blunder'){
+    const queenCapture=fixture.payload.tacticalFacts.exchangeEvidence.captureOptions.find(x=>x.uci==='d3g3');
+    if(!queenCapture||queenCapture.capturedPiece!=='queen')
+     throw Error('Bad queen capture fixture must have a legal queen recapture: '+item.id);
+    fixture.payload.verifiedBadMoveConsequence={
+     legalImmediateRecapture:{uci:'d3g3',piece:'queen',capturedPiece:'queen'},
+     measuredCentipawnLoss:loss,
+     note:'Immediate legal queen recapture is verified by production chess rules. Its tactical value is separately corroborated by Stockfish; do not equate legal possibility with a forced reply.'
+    };
+   }
+   fixture.engineProvenance={engine:after.raw.version,depth:stockfishDepth,
+    before:before.raw,after:after.raw,centipawnLoss:loss,expectedStyle:item.expectedStyle};
+   fixture.hash=sha(fixture.payload);
+   console.log('Stockfish balance '+fixture.id+': played '+fixture.payload.played.uci+
+    ', best '+before.raw.bestmove+', loss '+loss+
+    ', before '+before.raw.scoreType+' '+before.raw.score+
     ', after '+after.raw.scoreType+' '+after.raw.score);
   }
  }finally{sf?.stop();}
