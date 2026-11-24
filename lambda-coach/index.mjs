@@ -151,10 +151,10 @@ function unsupportedCheckMechanismClaims(message,input){
    p.king==='e1'&&p.clearSquaresBetween?.includes('g3')&&
    p.clearSquaresBetween?.includes('f2')));
  if(!mate)return [];
- const sentences=message.split(/(?<=[.!?])\\s+|[;:]/);
- if(sentences.some(x=>/\\bh3\\b/i.test(x)&&
-  /\\b(?:g[- ]?pawn|pawn|queen|mate|checkmate)\\b/i.test(x)&&
-  /\\b(?:because|since|so|therefore|hence|means|allow(?:s|ing|ed)?|open(?:s|ing|ed)?|route|reason|danger|caus(?:e|es|ing))\\b/i.test(x)))
+ const sentences=message.split(/(?<=[.!?])\s+|[;:]/);
+ if(sentences.some(x=>/\bh3\b/i.test(x)&&
+  /\b(?:g[- ]?pawn|pawn|queen|mate|checkmate)\b/i.test(x)&&
+  /\b(?:because|since|so|therefore|hence|means|allow(?:s|ing|ed)?|open(?:s|ing|ed)?|route|reason|danger|caus(?:e|es|ing))\b/i.test(x)))
   return ['The actual queen-checkmate diagonal is h4-g3-f2-e1, through the empty g3 and f2 squares. Do not attribute this checkmate to h3 or pawn cover on h3.'];
  return [];
 }
