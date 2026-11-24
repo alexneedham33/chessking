@@ -162,6 +162,10 @@ function verifyOpponentReplyThreatScan(){
   if(!found||!sample.matches(found)||found.status!=='legal-next-move-threat-candidate'||
     found.stockfishFirstReply)
    throw Error('Missing or misclassified '+sample.kind+' reply threat: '+sample.name);
+  if(sample.kind==='pin'&&!found.immediateDefenderCaptures.some(c=>
+    c.uci==='d7b5'&&c.immediatelyRecaptured.some(r=>r.uci==='c3b5'&&
+      r.capturedPiece==='queen')))
+   throw Error('Queen pin test must verify that Qxb5 permits Nxb5 and does not simply win a bishop');
  }
  console.log('Verified opponent reply threat scan: queen pins, knight forks and discovered attacks even off the engine PV.');
 }
