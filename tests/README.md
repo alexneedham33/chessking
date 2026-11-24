@@ -18,7 +18,7 @@ node tests/coach-ai-regression.mjs
 
 This free **offline mode** replays fixed legal move sequences using the **production chess rules**, generates the same board/tactical/strategic evidence used by Opening Lab, and writes a JSON report to `tests/reports/`. It does **not** call GPT and does not claim AI explanations have passed.
 
-There are **28 runnable review cases**: 22 historical checks (some repeat the same position with different grading objectives), four independent curated geometric tactical FENs, and two Stockfish-backed checkmate tests (one blunder and one justified queen sacrifice). Two incomplete historical cases are still skipped. The tactical cases are checked against the production move generator and require legal moves, exact FEN round trips and board-derived facts. Their evaluation is intentionally unknown without a frozen engine analysis. The reconstruction of the central-pawn line is an illustrative fixed scenario, not a claim about a previously played Stockfish game.
+There are **32 runnable review cases**: 22 historical checks (some repeat the same position with different grading objectives), four curated geometric tactical FENs, two Stockfish-backed checkmate tests, and four real Lichess middlegame puzzle snapshots. Two incomplete historical cases are still skipped. The tactical cases are checked against the production move generator and require legal moves, exact FEN round trips and board-derived facts. Their evaluation is intentionally unknown without a frozen engine analysis. The reconstruction of the central-pawn line is an illustrative fixed scenario, not a claim about a previously played Stockfish game.
 
 ### Run real coaching requests
 
@@ -75,13 +75,13 @@ The new report includes a per-case `samePosition` and `sameEvidence` check and t
 node tests/coach-ai-regression.mjs --live --case 13-white-b-pawn-takes-c3
 ```
 
-The human quality rubric in `tests/coach-review-cases.json` contains 30 named checks with expected lessons and historical failure modes. Review the full coach text for **correctness, tactical insight, teaching value, and conciseness**, each 0–5, and mark factual hallucinations even if the automated warnings miss them.
+The human quality rubric in `tests/coach-review-cases.json` contains 34 named checks with expected lessons and historical failure modes. Review the full coach text for **correctness, tactical insight, teaching value, and conciseness**, each 0–5, and mark factual hallucinations even if the automated warnings miss them.
 
 Automated checks flag only a limited subset of possible issues (e.g., inaccurate claims about direct pawn defence, unsupported alternatives and response lengths). **Zero warnings does not mean a response is correct.**
 
 ### CI
 
-The GitHub Actions workflow **Chess coach regression** runs the 64 mechanical and validator tests, the offline AI-fixture replay, and two actual Stockfish 17.1 searches (at depth 12) on pushes and PRs affecting the test code. It makes no paid API requests. Generated reports are ignored by Git.
+The GitHub Actions workflow **Chess coach regression** runs the 64 mechanical and validator tests, the offline AI-fixture replay, and six Stockfish 17.1 tactical scenarios (at depth 12) on pushes and PRs affecting the test code. It makes no paid API requests. Generated reports are ignored by Git.
 
 The goal is reproducible evidence, not a misleading overall “AI accuracy score.” Once full position+engine payloads exist, we can expand the fixed set to cover every case and measure true prompt/model changes.
 
@@ -128,3 +128,41 @@ node tests/coach-ai-regression.mjs --live --group engine --stockfish --depth 14 
 ```
 
 The validation runs both offline and against live responses. The API Lambda has to be **deployed separately** from GitHub changes. If the local proxy is already running, stop/restart it after pulling.
+
+## Real middlegame tactics from Lichess puzzles (four evaluated scenarios)
+
+The new `--group middlegame` is based on **four publicly accessible Lichess puzzle records**. Each fixture preserves the source FEN **before the opponent's setup move** and the source UCI puzzle line. The harness replays the opponent's setup move, coaches the subsequent candidate move, validates the entire published puzzle line as legal and independently evaluates **before and after** with the bundled Stockfish 17.1. The published puzzle line is NOT silently treated as Stockfish's PV or proof of a forced continuation.
+
+| ID | Theme | Source |
+| --- | --- | --- |
+| `31-lichess-0066C-bishop-sacrifice` | Bishop capture / dynamic compensation | [Lichess puzzle 0066C](https://lichess.org/ZyuTEP3l#38) |
+| `32-lichess-00KNK-knight-tactic` | Knight tactics and replies | [Lichess puzzle 00KNK](https://lichess.org/L8oTZ2cM/black#44) |
+| `33-lichess-00sJ9-rook-infiltration` | Rook attack and material | [Lichess puzzle 00sJ9](https://lichess.org/gyFeQsOE#35) |
+| `34-lichess-00sO1-bishop-intermezzo` | Bishop counterattack in a busy position | [Lichess puzzle 00sO1](https://lichess.org/vsfFkG0s/black#62) |
+
+These are **real game-derived puzzle positions**, not previously played games by the learner and not a statistically representative benchmark. In the GitHub CI depth-12 run, Stockfish independently selected the recorded move in all four cases. CI also runs the offline harness, the 64 deterministic chess-rule/guard tests, and the two checkmate fixtures.
+
+Use terminal 1 for the proxy (restart after a `git pull` if needed):
+
+```bash
+cd ~/chessking
+git pull origin main
+node local-server.mjs
+```
+
+With terminal 1 open, use terminal 2 for the four paid AI calls:
+
+```bash
+cd ~/chessking
+node tests/coach-ai-regression.mjs --live --group middlegame --stockfish --depth 14 --limit 4
+```
+
+Offline engine-only check (no API usage):
+
+```bash
+node tests/coach-ai-regression.mjs --group middlegame --stockfish --depth 14
+```
+
+The report includes model responses, both raw Stockfish scores and legal PVs, puzzle source attribution, original source continuation and an explicit marker that the source line has **not** been independently proven by Stockfish to be forcing. The engine group remains available separately, without changing its two established checkmate cases.
+
+**No new Lambda code deployment is required for this pack**; it uses the current coach API payload and the local test runner. Its real tactical quality still requires human review of the returned JSON responses.
