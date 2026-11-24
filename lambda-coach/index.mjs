@@ -213,7 +213,7 @@ function verifiedNeutralFallback(input){
   const actual=coachPieceAtFen(input.afterFen,square);
   const expected={pawn:'p',knight:'n',bishop:'b',rook:'r',queen:'q',king:'k'}[name];
   if(actual===(side==='White'?expected.toUpperCase():expected))
-   return side+' has moved the '+name+' to '+square+'. This changes the current position; review the move's consequences.';
+   return side+' has moved the '+name+' to '+square+". This changes the current position; review the move's consequences.";
  }
  return 'The move is complete; its consequences should be evaluated from the resulting position.';
 }
