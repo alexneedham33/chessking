@@ -131,7 +131,7 @@ const guardEnd=lambdaSource.indexOf('async function generateCoaching(',guardStar
 assert.ok(guardStart>=0&&guardEnd>guardStart,'Lambda guard implementation present');
 const guardContext={};vm.createContext(guardContext);
 vm.runInContext(lambdaSource.slice(guardStart,guardEnd)+
- '\nthis.guard={checkExplanation,coachingBudget,unsupportedStructuralClaims,unsupportedExchangeClaims,unsupportedCheckMechanismClaims};',guardContext);
+ '\nthis.guard={checkExplanation,coachingBudget,unsupportedDirectClaims,verifiedRelations,unsupportedStructuralClaims,unsupportedExchangeClaims,unsupportedCheckMechanismClaims,unsupportedSevereBlunderClaims};',guardContext);
 const bishopPositionBefore=pos({c8:'b',f8:'b',d7:'.',e7:'p',d5:'p',e2:'P',d4:'P'});
 const bishopPositionAfter=pos({c8:'b',f8:'b',d7:'.',e6:'p',e7:'.',d5:'p',e2:'P',d4:'P'});
 const guardInput={strategicFacts:changes(bishopPositionBefore,bishopPositionAfter),tacticalFacts:{}};
@@ -227,4 +227,37 @@ test('63 does not reject true isolated h3 pawn-control observation',()=>{
 test('64 no spurious checking-line warning without a verified Qh4 mate',()=>{
  assert.equal(guardContext.guard.unsupportedCheckMechanismClaims(
   'Because the pawn no longer covers h3, Black wins.',{tacticalFacts:{}}).length,0);
+});
+
+const knightRelations={movedPiece:{type:'knight',from:'g1',to:'f3'},
+ movedPieceAttacks:['d2','e1','e5','g5','h4','h2'],
+ friendlyPiecesDefendedByMovedPiece:[{piece:'pawn',square:'h2'}],
+ enemyPiecesAttackedByMovedPiece:[]};
+const directGuard=text=>Array.from(guardContext.guard.unsupportedDirectClaims(text,
+ guardContext.guard.verifiedRelations({tacticalFacts:knightRelations})));
+test('65 catches the actual false supports your d4 pawn response',()=>{
+ assert.ok(directGuard('The knight develops to f3, and it directly supports your d4 pawn while also covering h2.').some(x=>x.includes('d4')));
+});
+test('66 catches pawn on d4 and synonym phrasing',()=>{
+ assert.ok(directGuard('The knight protects your pawn on d4.').some(x=>x.includes('d4')));
+ assert.ok(directGuard('This piece defends the white d4 pawn.').some(x=>x.includes('d4')));
+});
+test('67 retains actually defended pawn and square-control language',()=>{
+ assert.equal(directGuard('The knight supports your h2 pawn and controls e5.').length,0);
+ assert.equal(directGuard('The knight supports the centre and increases control of d4.').length,0);
+});
+const severeInput={engine:{variations:[{moves:[]}]},priorEngine:{variations:[{moves:[]}]},
+ moveAssessment:{centipawnLoss:740,depth:14,playedIsEngineChoice:false}};
+test('68 severe engine loss cannot be described as neutral tactical sequence',()=>{
+ assert.ok(guardContext.guard.unsupportedSevereBlunderClaims(
+ 'Black takes the rook, but the queen can be captured, so this is tactical pressure.',severeInput).length>0);
+});
+test('69 verified severe error can be clearly described as blunder',()=>{
+ assert.equal(guardContext.guard.unsupportedSevereBlunderClaims(
+ 'This is a serious mistake: Black gives up the queen for a rook without enough compensation.',severeInput).length,0);
+});
+test('70 quiet moves and unverified scores do not trigger severity guard',()=>{
+ const routine={...severeInput,moveAssessment:{centipawnLoss:22,depth:14,playedIsEngineChoice:false}};
+ assert.equal(guardContext.guard.unsupportedSevereBlunderClaims('This improves king safety.',routine).length,0);
+ assert.equal(guardContext.guard.unsupportedSevereBlunderClaims('This loses material.',{...severeInput,engine:null}).length,0);
 });
