@@ -131,7 +131,7 @@ const guardEnd=lambdaSource.indexOf('async function generateCoaching(',guardStar
 assert.ok(guardStart>=0&&guardEnd>guardStart,'Lambda guard implementation present');
 const guardContext={};vm.createContext(guardContext);
 vm.runInContext(lambdaSource.slice(guardStart,guardEnd)+
- '\nthis.guard={checkExplanation,coachingBudget,unsupportedDirectClaims,verifiedRelations,unsupportedStructuralClaims,unsupportedExchangeClaims,unsupportedCheckMechanismClaims,unsupportedSevereBlunderClaims,moveQualityContext,coachPawnBoard,unsupportedPawnHistoryClaims,verifiedPawnCaptureFallback,coachingValidationCodes,needlessEngineAttribution};',guardContext);
+ '\nthis.guard={checkExplanation,coachingBudget,unsupportedDirectClaims,verifiedRelations,unsupportedStructuralClaims,unsupportedExchangeClaims,unsupportedQueenTradeClaims,shortenVerifiedExplanation,unsupportedCheckMechanismClaims,unsupportedSevereBlunderClaims,moveQualityContext,coachPawnBoard,unsupportedPawnHistoryClaims,verifiedPawnCaptureFallback,coachingValidationCodes,needlessEngineAttribution};',guardContext);
 const bishopPositionBefore=pos({c8:'b',f8:'b',d7:'.',e7:'p',d5:'p',e2:'P',d4:'P'});
 const bishopPositionAfter=pos({c8:'b',f8:'b',d7:'.',e6:'p',e7:'.',d5:'p',e2:'P',d4:'P'});
 const guardInput={strategicFacts:changes(bishopPositionBefore,bishopPositionAfter),tacticalFacts:{}};
@@ -449,4 +449,53 @@ test('94 verified fallback cannot invent chess teaching with unknown board facts
   played:{piece:'p',from:'e5',to:'f4',capture:true,side:'Black'},
   tacticalFacts:{exchangeEvidence:{captured:{piece:'pawn',square:'f4'}}}
  }),null);
+});
+
+const immortalQueenTrap10={
+ afterFen:'rnb1kb1r/p2p1ppp/2p5/1B3Nqn/4PpP1/3P4/PPP4P/RNBQ1K1R b kq g3 0 10',
+ played:{piece:'p',from:'g2',to:'g4',capture:false},tacticalFacts:{},
+ coachingGuidance:{focus:'strategic'}
+};
+const immortalQueenTrap12={
+ afterFen:'rnb1kb1r/p2p1ppp/8/1p3Nqn/4Pp1P/3P4/PPP5/RNBQ1KR1 b kq h3 0 12',
+ played:{piece:'p',from:'h2',to:'h4',capture:false},tacticalFacts:{},
+ coachingGuidance:{focus:'strategic'}
+};
+test('95 Immortal 10.g4: rejected unverified queen trade despite hypothetical queen recapture',()=>{
+ const bad='Black can capture the g4 pawn with the queen, and White can take the queen, so it is a queen trade.';
+ assert.ok(Array.from(guardContext.guard.unsupportedQueenTradeClaims(bad,immortalQueenTrap10)).length>0);
+ assert.ok(Array.from(guardContext.guard.checkExplanation(bad,immortalQueenTrap10,
+  guardContext.guard.coachingBudget(immortalQueenTrap10))).some(x=>x.includes('Queen exchange')));
+});
+test('96 Immortal 12.h4: knight capturing queen is not a queen trade',()=>{
+ const bad='If Black takes the pawn on h4, the knight on f5 can capture the queen; this invites a queen trade.';
+ assert.ok(Array.from(guardContext.guard.unsupportedQueenTradeClaims(bad,immortalQueenTrap12)).length>0);
+});
+test('97 actual queen-for-queen verified evidence permits correct explanation',()=>{
+ const verified={...immortalQueenTrap12,verifiedQueenExchange:{bothQueensCaptured:true}};
+ assert.deepEqual(Array.from(guardContext.guard.unsupportedQueenTradeClaims(
+  'This results in a queen trade.',verified)),[]);
+});
+test('98 non-trade descriptions of a queen capture are allowed',()=>{
+ assert.deepEqual(Array.from(guardContext.guard.unsupportedQueenTradeClaims(
+  'The knight on f5 could capture the queen on h4.',immortalQueenTrap12)),[]);
+});
+test('99 safe length-only recovery retains full factual sentences and obeys limits',()=>{
+ const input={coachingGuidance:{focus:'strategic'},tacticalFacts:{}};
+ const original='The queen moves from g5 to g6 and stays active on the kingside. This allows Black to keep an eye on the g-file without forcing an immediate capture. The move is useful because it may lead to further activity if the opponent permits it, but the immediate decision is to keep the queen positioned and avoid committing to a direct exchange.';
+ const budget=guardContext.guard.coachingBudget(input);
+ assert.ok(guardContext.guard.checkExplanation(original,input,budget).some(x=>x.startsWith('Too long')));
+ const reduced=guardContext.guard.shortenVerifiedExplanation(original,input,budget);
+ assert.ok(reduced&&reduced.includes('g5 to g6'));
+ assert.ok(!reduced.includes('The move is useful because'));
+ assert.deepEqual(Array.from(guardContext.guard.checkExplanation(reduced,input,budget)),[]);
+});
+test('100 do not shorten a single long sentence or hide factual failures',()=>{
+ const input={...immortalQueenTrap12};
+ const bad='The queen trade happens after Black captures on h4 and White takes back, and we must be absolutely sure that we are describing exactly what the players can do with their pieces as this game develops through the kingside, because there is a lot going on in this complicated chess position and the outcome matters enormously.';
+ assert.equal(guardContext.guard.shortenVerifiedExplanation(bad,input,
+  guardContext.guard.coachingBudget(input)),null);
+ const mixed='Black is getting a queen trade here and could also win the pawn on h4. This longer supporting sentence should not conceal the first sentence, whose material assessment is incorrect and is prohibited by our factual validator.';
+ assert.equal(guardContext.guard.shortenVerifiedExplanation(mixed,input,
+  {maxWords:25,maxSentences:1}),null);
 });
