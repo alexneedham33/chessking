@@ -286,6 +286,7 @@ report.summary={
  liveCompleted:report.games.reduce((n,g)=>n+g.summary.liveCompleted,0),
  errors:report.games.reduce((n,g)=>n+g.summary.errors,0),
  repaired:report.games.reduce((n,g)=>n+g.summary.repaired,0),
+ verifiedFallbacks:report.games.reduce((n,g)=>n+g.summary.verifiedFallbacks,0),
  failedValidation:report.games.reduce((n,g)=>n+g.summary.failedValidation,0),
  warnings:report.games.reduce((n,g)=>n+g.summary.warnings,0),
  repetitionCandidates:report.games.reduce((n,g)=>n+g.summary.repetitionFlags,0),
