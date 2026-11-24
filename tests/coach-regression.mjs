@@ -131,7 +131,7 @@ const guardEnd=lambdaSource.indexOf('async function generateCoaching(',guardStar
 assert.ok(guardStart>=0&&guardEnd>guardStart,'Lambda guard implementation present');
 const guardContext={};vm.createContext(guardContext);
 vm.runInContext(lambdaSource.slice(guardStart,guardEnd)+
- '\nthis.guard={checkExplanation,coachingBudget,unsupportedDirectClaims,verifiedRelations,unsupportedStructuralClaims,unsupportedExchangeClaims,unsupportedQueenTradeClaims,unsupportedMaterialSequenceClaims,unsupportedPrimaryTacticalClaims,unsupportedHangingMinorClaims,unsupportedFriendlyTargetClaims,unsupportedHypotheticalCheckClaims,shortenVerifiedExplanation,unsupportedCheckMechanismClaims,unsupportedSevereBlunderClaims,moveQualityContext,coachPawnBoard,unsupportedPawnHistoryClaims,verifiedPawnCaptureFallback,verifiedCaptureWithReplyFallback,verifiedMajorCaptureFallback,coachingGuardFailures,coachingValidationCodes,needlessEngineAttribution};',guardContext);
+ '\nthis.guard={checkExplanation,coachingBudget,unsupportedDirectClaims,verifiedRelations,unsupportedStructuralClaims,unsupportedExchangeClaims,unsupportedQueenTradeClaims,unsupportedMaterialSequenceClaims,unsupportedPrimaryTacticalClaims,unsupportedHangingMinorClaims,unsupportedFriendlyTargetClaims,unsupportedHypotheticalCheckClaims,shortenVerifiedExplanation,unsupportedCheckMechanismClaims,unsupportedSevereBlunderClaims,moveQualityContext,coachPawnBoard,unsupportedPawnHistoryClaims,verifiedPawnCaptureFallback,verifiedCaptureWithReplyFallback,verifiedMajorCaptureFallback,coachingGuardFailures,coachingValidationCodes,needlessEngineAttribution,correctCoachPerspective,coachPieceAtFen};',guardContext);
 const bishopPositionBefore=pos({c8:'b',f8:'b',d7:'.',e7:'p',d5:'p',e2:'P',d4:'P'});
 const bishopPositionAfter=pos({c8:'b',f8:'b',d7:'.',e6:'p',e7:'.',d5:'p',e2:'P',d4:'P'});
 const guardInput={strategicFacts:changes(bishopPositionBefore,bishopPositionAfter),tacticalFacts:{}};
@@ -743,4 +743,45 @@ test('128 prompts encourage succinct squares without sacrificing verified tactic
  assert.match(lambda,/openingContext\.strategyConnectionSuggested/);
  assert.match(lambda,/Exceptions: a concrete forced tactic or checkmate/);
  assert.ok(html.includes('normally name at most two board squares in a routine explanation'));
+});
+
+const blackLearnerPerspective={
+ player:'Black',mover:'White',isOpponentMove:true,
+ afterFen:'rnbqkbnr/pp1ppppp/5n2/8/2pPP3/4P3/PP3PPP/RNBQKBNR b KQkq - 0 4',
+ beforeFen:'rnbqkbnr/pp1ppppp/5n2/8/2pP4/4P3/PP3PPP/RNBQKBNR w KQkq - 0 4'
+};
+test('129 Black learner watching White receives White ownership for White pawn',()=>{
+ const msg='This supports your pawn on d4 and opens the bishop on f1 along the diagonal.';
+ const out=guardContext.guard.correctCoachPerspective(msg,blackLearnerPerspective);
+ assert.equal(out.adjusted,true);
+ assert.match(out.message,/White's pawn on d4/);
+ assert.ok(!out.message.includes('your pawn on d4'));
+});
+test('130 keep your pawn references when the pawn belongs to Black',()=>{
+ const msg='Your pawn on c4 puts pressure on the centre.';
+ const out=guardContext.guard.correctCoachPerspective(msg,blackLearnerPerspective);
+ assert.equal(out.adjusted,false);
+ assert.equal(out.message,msg);
+});
+test('131 preserve references to the learners Black pawn when White just moved',()=>{
+ const msg='White now attacks your pawn on c4.';
+ const out=guardContext.guard.correctCoachPerspective(msg,blackLearnerPerspective);
+ assert.equal(out.adjusted,false);
+});
+test('132 White learner viewing Black move gets Black piece instead of your piece',()=>{
+ const input={...blackLearnerPerspective,player:'White',mover:'Black',isOpponentMove:true};
+ const out=guardContext.guard.correctCoachPerspective('This develops your knight on f6.',input);
+ assert.equal(out.message,"This develops Black's knight on f6.");
+});
+test('133 leave generic your king unswapped when board ownership is not established',()=>{
+ const msg='Keep your king safe while Black pressures the centre.';
+ const out=guardContext.guard.correctCoachPerspective(msg,blackLearnerPerspective);
+ assert.equal(out.adjusted,false);
+ assert.equal(out.message,msg);
+});
+test('134 repair square-first references without touching non-owning references',()=>{
+ const msg='Your d4 pawn is supported, but your c4 pawn could be captured.';
+ const out=guardContext.guard.correctCoachPerspective(msg,blackLearnerPerspective);
+ assert.match(out.message,/White's d4 pawn/);
+ assert.match(out.message,/your c4 pawn/i);
 });
