@@ -803,3 +803,33 @@ test('137 real Queen Gambit Accepted lesson teaches a6 to prepare b5',()=>{
  assert.match(move[1],/b5/);
  assert.match(move[1],/queenside/i);
 });
+
+const guideStart=html.indexOf('function guideMove(s,m){');
+const guideEnd=html.indexOf('function freeReply(s){',guideStart);
+assert.ok(guideStart>0&&guideEnd>guideStart,'Production guided/free-play transition is available');
+test('138 guided opening ends after 10 plies without classifying a free move as a deviation',()=>{
+ const context={trainingMode:'learn',learnOpponent:'guided',
+  h:Array(11).fill({}),guidedOpeningLimit:()=>10,
+  deviationInfo:{kind:'warning',name:'Off route'},selected:'queenAccepted',
+  playerSide:()=>-1,openings:{queenAccepted:{side:-1}}};
+ vm.createContext(context);
+ vm.runInContext(html.slice(guideStart,guideEnd)+'\nthis.guide=guideMove;',context);
+ context.guide({t:-1,i:-1},[4,20,'','']);
+ assert.equal(context.deviationInfo,null);
+});
+test('139 free-play note rationale does not call an ended opening a detour',()=>{
+ assert.match(html,/reason:postGuided\?coachPlainMove\(s,m\)/);
+ assert.match(html,/feedback=postGuided\?'':/);
+ assert.match(html,/correct=!postGuided&&/);
+});
+test('140 post-guided AI fallback is not the unhelpful opening-deviation paragraph',()=>{
+ assert.match(html,/const postGuidedCoach=trainingMode==='learn'&&learnOpponent==='guided'/);
+ assert.match(html,/AI coaching unavailable for this move\. Retry the analysis/);
+ assert.match(html,/AI coaching limit reached for this game/);
+});
+test('141 Lambda disregards old guided route after 10 moves',()=>{
+ const lambda=readFileSync(resolve(root,'lambda-coach/index.mjs'),'utf8');
+ assert.match(lambda,/openingContext\.phase is free-play-after-guided-opening/);
+ assert.match(lambda,/There is NO expected scripted continuation/);
+ assert.match(lambda,/Evaluate the actual move independently using the board and Stockfish/);
+});
