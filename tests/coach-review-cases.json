@@ -636,6 +636,52 @@
         "clarity": null,
         "notes": ""
       }
+    },
+    {
+      "id": "29-blunder-allows-fools-mate",
+      "category": "engine-blunder",
+      "referenceSequence": "engine-line",
+      "moves": [
+        "f2f3",
+        "e7e5",
+        "g2g4"
+      ],
+      "expectedLesson": "After White g4, Stockfish must verify that Black has Qh4 checkmate; contrast this losing move with a playable alternative without inventing a line",
+      "redFlag": "calling the losing pawn move harmless or describing the mate as merely speculative",
+      "engineExpectedLine": [
+        "d8h4"
+      ],
+      "engineExpectedMateFor": "Black",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "30-queen-sacrifice-smothered-mate",
+      "category": "engine-sacrifice",
+      "referenceSequence": "engine-fen",
+      "beforeFen": "5r1k/6pp/4Q2N/8/8/8/8/6K1 w - - 0 1",
+      "moves": [
+        "e6g8"
+      ],
+      "expectedLesson": "White Qg8+ offers queen to rook, followed by Nh6-f7 checkmate; explain why this queen sacrifice is justified by a forced continuation",
+      "redFlag": "calling the queen sacrifice unsound merely because rook can take the queen, or guessing unsupported escape moves",
+      "engineExpectedLine": [
+        "f8g8",
+        "h6f7"
+      ],
+      "engineExpectedMateFor": "White",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
     }
   ]
 }
