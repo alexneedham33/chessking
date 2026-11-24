@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Frozen, qualitative AI coach regression rubric. Scores intentionally blank until identical chess positions are evaluated. Distinguish mechanical node tests from model-output tests.",
+  "description": "Frozen, qualitative AI coach regression rubric. Scores intentionally blank until identical chess positions are evaluated. Distinguish mechanical node tests from model-output tests. Tactical FEN fixtures are curated legal positions without engine evaluations; tactical motifs are geometric, not proof of material gain or forced lines.",
   "scoring": {
     "scale": "0–5 each dimension, 5 best",
     "dimensions": [
@@ -539,6 +539,96 @@
       ],
       "expectedLesson": "Routine explanation relevant and concise; significant tactics may be longer",
       "redFlag": "repeated generic development filler",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "25-knight-fork-king-queen",
+      "category": "fork",
+      "referenceSequence": "tactical-fen",
+      "beforeFen": "1q6/4k3/8/4N3/8/8/8/6K1 w - - 0 1",
+      "moves": [
+        "e5c6"
+      ],
+      "expectedLesson": "Knight on c6 gives check and simultaneously attacks queen on b8; do not say queen is won without a legal continuation",
+      "redFlag": "fork guarantees material gain",
+      "expect": {
+        "forkTargets": [
+          "e7",
+          "b8"
+        ],
+        "check": true
+      },
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "26-discovered-bishop-attack",
+      "category": "discovered-attack",
+      "referenceSequence": "tactical-fen",
+      "beforeFen": "6k1/7r/8/8/8/3N4/8/1B4K1 w - - 0 1",
+      "moves": [
+        "d3f4"
+      ],
+      "expectedLesson": "Moving the knight clears bishop b1's diagonal and reveals an attack on rook h7; no automatic capture",
+      "redFlag": "discovered attack forces a rook win",
+      "expect": {
+        "discoveredTarget": "h7"
+      },
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "27-rook-absolute-pin",
+      "category": "pin",
+      "referenceSequence": "tactical-fen",
+      "beforeFen": "r6k/8/8/8/8/4N3/8/4K3 b - - 0 1",
+      "moves": [
+        "a8e8"
+      ],
+      "expectedLesson": "Rook e8 pins white knight e3 to king e1. Knight cannot legally leave the king exposed; this is not an immediate material win",
+      "redFlag": "pin means knight is already won",
+      "expect": {
+        "pinSquare": "e3"
+      },
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "28-bishop-sacrifice-check",
+      "category": "sacrifice",
+      "referenceSequence": "tactical-fen",
+      "beforeFen": "6k1/7p/8/8/8/3B4/8/6K1 w - - 0 1",
+      "moves": [
+        "d3h7"
+      ],
+      "expectedLesson": "Bishop takes pawn h7 with check and Black king can capture bishop; do not call sacrifice sound or forced without real Stockfish analysis",
+      "redFlag": "bishop sacrifice automatically wins or forces mate",
+      "expect": {
+        "check": true,
+        "capturedPiece": "pawn",
+        "opponentCaptureUci": "g8h7"
+      },
       "review": {
         "accuracy": null,
         "tactical": null,
