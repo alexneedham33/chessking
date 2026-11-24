@@ -232,7 +232,7 @@ function unsupportedExchangeClaims(message,input){
 }
 // A possible queen capture is NOT a queen trade unless BOTH queens are exchanged.
 function unsupportedQueenTradeClaims(message,input){
- if(!/\b(?:queen[- ](?:for[- ])?queen\s+(?:trade|exchange)|(?:trade|exchange|swap)(?:s|d|ing)?\s+(?:of\s+)?(?:the\s+|both\s+)?queens?|(?:queen|queens?)\s+(?:are|is|gets?|will be|would be)\s+(?:traded|exchanged))\b/i.test(message))return [];
+ if(!/\b(?:queen(?:[- ]for[- ]queen)?[- ](?:trade|exchange)|(?:trade|exchange|swap)(?:s|d|ing)?\s+(?:of\s+)?(?:the\s+|both\s+)?queens?|queens?\s+(?:are|is|gets?|will be|would be)\s+(?:traded|exchanged))\b/i.test(message))return [];
  const board=typeof input.afterFen==='string'?input.afterFen.split(' ')[0]:null;
  if(!board)return [];
  if(board.includes('Q')&&board.includes('q')&&input.verifiedQueenExchange?.bothQueensCaptured!==true)
