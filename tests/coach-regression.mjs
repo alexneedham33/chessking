@@ -131,7 +131,7 @@ const guardEnd=lambdaSource.indexOf('async function generateCoaching(',guardStar
 assert.ok(guardStart>=0&&guardEnd>guardStart,'Lambda guard implementation present');
 const guardContext={};vm.createContext(guardContext);
 vm.runInContext(lambdaSource.slice(guardStart,guardEnd)+
- '\nthis.guard={checkExplanation,coachingBudget,unsupportedDirectClaims,verifiedRelations,unsupportedStructuralClaims,unsupportedExchangeClaims,unsupportedQueenTradeClaims,shortenVerifiedExplanation,unsupportedCheckMechanismClaims,unsupportedSevereBlunderClaims,moveQualityContext,coachPawnBoard,unsupportedPawnHistoryClaims,verifiedPawnCaptureFallback,coachingValidationCodes,needlessEngineAttribution};',guardContext);
+ '\nthis.guard={checkExplanation,coachingBudget,unsupportedDirectClaims,verifiedRelations,unsupportedStructuralClaims,unsupportedExchangeClaims,unsupportedQueenTradeClaims,unsupportedMaterialSequenceClaims,shortenVerifiedExplanation,unsupportedCheckMechanismClaims,unsupportedSevereBlunderClaims,moveQualityContext,coachPawnBoard,unsupportedPawnHistoryClaims,verifiedPawnCaptureFallback,coachingValidationCodes,needlessEngineAttribution};',guardContext);
 const bishopPositionBefore=pos({c8:'b',f8:'b',d7:'.',e7:'p',d5:'p',e2:'P',d4:'P'});
 const bishopPositionAfter=pos({c8:'b',f8:'b',d7:'.',e6:'p',e7:'.',d5:'p',e2:'P',d4:'P'});
 const guardInput={strategicFacts:changes(bishopPositionBefore,bishopPositionAfter),tacticalFacts:{}};
@@ -498,4 +498,42 @@ test('100 do not shorten a single long sentence or hide factual failures',()=>{
  const mixed='Black is getting a queen trade here and could also win the pawn on h4. This longer supporting sentence should not conceal the first sentence, whose material assessment is incorrect and is prohibited by our factual validator.';
  assert.equal(guardContext.guard.shortenVerifiedExplanation(mixed,input,
   {maxWords:25,maxSentences:1}),null);
+});
+
+const verifiedKnightWinsQueen={
+ ...immortalQueenTrap12,tacticalFacts:{exchangeEvidence:{captureOptions:[{
+  withPiece:'queen',capturedPiece:'pawn',capturedValue:1,uci:'g5h4',
+  recaptures:[{withPiece:'knight',capturedPiece:'queen',
+   capturedValue:9,originalCaptureValue:1,replySideNetLoss:8,
+   capturesQueen:true,queenForQueen:false,uci:'f5h4'}],
+  hasLegalRecapture:true
+ }]}}
+};
+test('101 Immortal 12.h4: reject misleading queen-for-pawn-plus-knight material claim',()=>{
+ const bad='If Black takes on h4, your knight recaptures, so it is a queen-for-pawn-plus-knight sequence.';
+ assert.ok(Array.from(guardContext.guard.unsupportedMaterialSequenceClaims(
+  bad,verifiedKnightWinsQueen)).length>0);
+ assert.ok(Array.from(guardContext.guard.checkExplanation(bad,verifiedKnightWinsQueen,
+  guardContext.guard.coachingBudget(verifiedKnightWinsQueen))).some(x=>x.includes('Material sequence')));
+});
+test('102 Immortal 12.h4: correct knight captures queen explanation passes',()=>{
+ const good='If Black captures the h4 pawn with the queen, your knight from f5 can capture the queen on h4. That is not a queen trade.';
+ // The verified threat should be described without the ambiguous "queen trade" phrase.
+ const precise='If Black captures the pawn on h4 with the queen, White’s knight on f5 can capture Black’s queen in reply.';
+ assert.equal(Array.from(guardContext.guard.unsupportedMaterialSequenceClaims(
+  precise,verifiedKnightWinsQueen)).length,0);
+ assert.ok(Array.from(guardContext.guard.unsupportedQueenTradeClaims(
+  good,verifiedKnightWinsQueen)).length>0);
+});
+test('103 material accounting guard does not invent proof if recapture unavailable',()=>{
+ const input={...verifiedKnightWinsQueen,tacticalFacts:{exchangeEvidence:{captureOptions:[]}}};
+ assert.equal(Array.from(guardContext.guard.unsupportedMaterialSequenceClaims(
+  'This is a queen-for-pawn-plus-knight line.',input)).length,0);
+});
+test('104 verified capture outcomes distinguish queen loss from equal exchange',()=>{
+ const c=verifiedKnightWinsQueen.tacticalFacts.exchangeEvidence.captureOptions[0].recaptures[0];
+ assert.equal(c.capturedPiece,'queen');
+ assert.equal(c.withPiece,'knight');
+ assert.equal(c.replySideNetLoss,8);
+ assert.equal(c.queenForQueen,false);
 });
