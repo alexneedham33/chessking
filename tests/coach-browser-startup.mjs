@@ -8,7 +8,7 @@ import {Script} from 'node:vm';
 const root=resolve(fileURLToPath(new URL('../',import.meta.url)));
 const html=readFileSync(resolve(root,'index.html'),'utf8');
 const scripts=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)]
- .filter(m=>!m[0].includes(' src='));
+ .filter(m=>m[1].trim().length>0);
 if(!scripts.length)throw Error('No inline application JavaScript found');
 for(const [index,m] of scripts.entries()){
  new Script(m[1],{filename:'index.html:inline-script-'+(index+1)});
