@@ -28,7 +28,7 @@ const json = (res, status, body) => {
   res.end(JSON.stringify(body));
 };
 
-async function coach(req, res) {
+async function coach(req, res, benchmark = false) {
   const chunks = [];
   let size = 0;
   for await (const chunk of req) {
@@ -39,9 +39,9 @@ async function coach(req, res) {
   try {
     const upstream = await fetch(`${apiOrigin}/api/coach/move`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(benchmark ? { 'x-chessking-benchmark-token': req.headers['x-chessking-benchmark-token'] || '' } : {}) },
       body: Buffer.concat(chunks),
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(90000),
     });
     const body = await upstream.text();
     res.writeHead(upstream.status, {
@@ -60,6 +60,14 @@ createServer((req, res) => {
   try { url = new URL(req.url, 'http://127.0.0.1'); }
   catch { return json(res, 400, { error: 'Invalid URL' }); }
 
+  if (url.pathname === '/api/coach/benchmark') {
+    if (req.method !== 'POST') return json(res, 405, { error: 'Method not allowed' });
+    if (typeof req.headers['x-chessking-benchmark-token'] !== 'string' ||
+        req.headers['x-chessking-benchmark-token'].length < 32)
+      return json(res, 403, { error: 'Missing benchmark authorization' });
+    void coach(req, res, true);
+    return;
+  }
   if (url.pathname === '/api/coach/move') {
     if (req.method !== 'POST') return json(res, 405, { error: 'Method not allowed' });
     void coach(req, res);
