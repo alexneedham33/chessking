@@ -192,7 +192,7 @@ Four additional positions are available with `--group balance --stockfish`. The 
 | ID | Situation | Review criterion |
 | --- | --- | --- |
 | 35-routine-opening-d4 | Normal first-move central pawn push | Teach centre control without invented forced threats |
-| 36-routine-knight-development | Nf3 after d4/d5 | Teach development without inventing direct pawn defence |
+| 36-routine-knight-development | Nf3 after d4/d5 | Teach development and the actual defence of d4 accurately |
 | 37-quiet-kingside-castling | O-O in a developed position | Teach king safety and rook activation without a fake tactic |
 | 38-middlegame-queen-grabs-defended-rook | Black captures a rook on g3 with a queen in a real game-derived middlegame | Explain why White's queen can recapture and why Stockfish penalises the move; do not call the rook free |
 
@@ -217,7 +217,7 @@ For offline engine-only validation, omit `--live`. The resulting report records 
 
 ## Pawn-defence wording and major-blunder guards (November 2026)
 
-The Lambda's deterministic guard now checks both "defends your pawn on d4" and "defends your d4 pawn" against the moved piece's exact geometric defences. The previous mistake ("the knight on f3 directly supports your d4 pawn") is now rejected and retried once. Positive controls permit true direct support for the h2 pawn and general central-control language. This is a conservative validation of explicit piece-to-pawn claims, not full natural-language semantic verification.
+The Lambda's deterministic guard checks both "defends your pawn on d4" and "defends your d4 pawn" against the moved piece's exact geometric defences. **Correction:** the knight on f3 really DOES defend a pawn on d4 (f3 to d4 is a valid knight jump). An earlier human assessment and hand-written test mistakenly called this false. The regression now derives pawn defence from the production attack-square generator and correctly ACCEPTS the observed Nf3 response; a knight on c3 claiming to defend d4 is rejected. This guard checks explicit geometric relationships rather than unrestricted natural-language meanings.
 
 For genuine engine-grounded large errors (at least 300 centipawns lost from a same-depth before/after evaluation, analysis depth at least 10, and the played move was not Stockfish's first choice), the coach must explicitly identify a serious mistake or blunder, or describe the major material loss, rather than only describing a plausible tactical exchange. Its correction must use verified legal captures and engine continuations without assuming every reply is forced. This does not label a quiet move or a minor engine disagreement a mistake.
 
@@ -230,3 +230,7 @@ node tests/coach-ai-regression.mjs --live --group balance --stockfish --depth 14
 ```
 
 These are two paid AI calls in total and produce separate JSON reports. A passing deterministic test does not by itself prove the new live language is good.
+
+## Pawn-defence test correction
+
+The November 24 Nf3 coach response was **already correct**, despite an earlier human review assigning a poor score. The f3 knight attacks d4 and can protect the white d4 pawn. No app-side false-positive warnings were emitted, which was appropriate. The underlying bug was in the deterministic regression's *hand-written* attack-square fixture, not the production board generator or the live coach. Tests 65–67 and 72 now exercise actual production piece-attack geometry instead of manually omitting d4; the prompt explicitly confirms the true relation. Do not treat Nf3 defending d4 as an error.
