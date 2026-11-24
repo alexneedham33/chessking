@@ -45,7 +45,7 @@ function summary(report){
    majorFactualErrors:reviews.filter(x=>x.humanReview.majorFactualError).length};
  });
  const fullyReviewed=byVariant.every(v=>v.attempted>0&&v.reviewed===v.successful);
- const complete=variants.every(v=>report.fixtures?.length===v.attempted);
+ const complete=byVariant.every(v=>report.fixtures?.length===v.attempted);
  return {complete,fullyReviewed,models:byVariant,
   totalCostUSD:Number(byVariant.reduce((n,v)=>n+v.costUSD,0).toFixed(6)),
   verdict:!complete?'INCOMPLETE':!fullyReviewed?'AWAITING_HUMAN_REVIEW':
