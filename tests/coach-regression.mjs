@@ -842,8 +842,8 @@ function toggleHarness(){
  const c={strategicAiEnabled:true,strategicAiNonce:0,strategicAiBusy:true,
   strategicAiFailed:false,strategicAiStatus:'analysing',strategicAiError:'',
   coachMoveMessages:new Map([[3,{pending:true}]]),
-  coachSkippedPly:new Set(),h:[{},{},{},{}],renders:0,
-  render(){this.renders++}};
+  coachSkippedPly:new Set(),h:[{},{},{},{}],renders:0};
+ c.render=()=>{c.renders++};
  vm.createContext(c);
  vm.runInContext(html.slice(coachToggleStart,coachToggleEnd)+
   '\nthis.toggleCoach=setAutomaticCoachEnabled;',c);
