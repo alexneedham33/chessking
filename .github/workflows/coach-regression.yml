@@ -29,6 +29,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - run: node --check lambda-coach/index.mjs
       - run: node --test tests/coach-regression.mjs
       - run: node tests/coach-ai-regression.mjs
       - run: node tests/coach-ai-regression.mjs --group engine --stockfish --depth 12
