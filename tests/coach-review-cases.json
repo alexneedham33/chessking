@@ -801,6 +801,90 @@
         "clarity": null,
         "notes": ""
       }
+    },
+    {
+      "id": "35-routine-opening-d4",
+      "category": "balance-opening",
+      "referenceSequence": "balance-line",
+      "moves": [
+        "d2d4"
+      ],
+      "expectedLesson": "Explain ordinary central pawn development, without implying an immediate tactical win or inventing an opponent reply.",
+      "redFlag": "Treats a normal opening pawn push as a forced tactic",
+      "expectedStyle": "routine",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "36-routine-knight-development",
+      "category": "balance-development",
+      "referenceSequence": "balance-line",
+      "moves": [
+        "d2d4",
+        "d7d5",
+        "g1f3"
+      ],
+      "expectedLesson": "Explain Nf3 as natural development and central influence, without misidentifying a directly defended pawn.",
+      "redFlag": "Describes a simple developing move as a forcing combination",
+      "expectedStyle": "routine",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "37-quiet-kingside-castling",
+      "category": "balance-positional",
+      "referenceSequence": "balance-line",
+      "moves": [
+        "d2d4",
+        "d7d5",
+        "g1f3",
+        "g8f6",
+        "e2e3",
+        "e7e6",
+        "f1d3",
+        "f8d6",
+        "e1g1"
+      ],
+      "expectedLesson": "Explain castling as improving king safety and activating the rook, not as a newly created attack or mate.",
+      "redFlag": "Invents an immediate tactical threat from castling",
+      "expectedStyle": "routine",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "38-middlegame-queen-grabs-defended-rook",
+      "category": "balance-blunder",
+      "referenceSequence": "balance-fen",
+      "beforeFen": "r3r1k1/p4ppp/2p2n2/1p6/3P1qb1/2NQR3/PPB2PP1/R1B3K1 w - - 5 18",
+      "moves": [
+        "e3g3",
+        "f4g3"
+      ],
+      "expectedLesson": "Black chooses a tempting queen capture of White's rook on g3, even though White's queen on d3 may recapture on g3. Only label it a substantial blunder after Stockfish confirms loss of evaluation; explain recapture, not merely the rook capture.",
+      "redFlag": "Calls queen-for-rook tactical blunder a free rook win",
+      "expectedStyle": "blunder",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
     }
   ]
 }
