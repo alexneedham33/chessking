@@ -371,26 +371,43 @@ if(useStockfish){
    fixture.payload.scripted='Real-world middlegame puzzle snapshot: teach the concrete tactical consequences of the actual played move and the Stockfish line; do not invent replies, mate, a material gain, or claim puzzle solution line is forced.';
    if(!fixture.payload.tacticalContinuation?.moves.length)
     throw Error('Missing prioritized engine continuation for '+fixture.id);
+   // Never require a particular PV across engine depths: a better search
+   // can choose a different legal defense. Validate that each reported event
+   // belongs to the actually analysed Stockfish continuation.
+   const actual=fixture.payload.tacticalContinuation;
+   if(actual.moves.some((x,i)=>x.uci!==after.raw.pv[i]))
+    throw Error('Tactical continuation must match current Stockfish PV: '+fixture.id);
+   const realEvents=actual.moves.flatMap(x=>x.events.map(y=>({uci:x.uci,...y})));
+   if(actual.mainEvent&&!realEvents.some(x=>x.uci===actual.mainEvent.uci&&
+    x.type===actual.mainEvent.type&&x.priority===actual.mainEvent.priority))
+    throw Error('Top tactical event was not present in the actual line: '+fixture.id);
+   if(actual.highestPriorityEvents.some(x=>x.priority>(actual.mainEvent?.priority||0)))
+    throw Error('Tactical events are not ordered by priority: '+fixture.id);
+   // Separately test the publicly recorded legal puzzle continuation as
+   // a FROZEN MOTIF, not as the engine's currently chosen line. Do not send
+   // it to the coach as Stockfish evidence.
+   const frozen=chess.coachTacticalContinuation(fixture.after,{
+    depth:null,variations:[{rank:1,evaluation:null,mate:null,
+      moves:item.puzzleLine.slice(2,8).map(uci=>({uci}))}]
+   });
    if(fixture.id==='31-lichess-0066C-bishop-sacrifice'){
-    const e=fixture.payload.tacticalContinuation;
-    if(!e.moves.some(x=>x.uci==='f5d4'&&x.events.some(y=>y.type==='discovered-check'))||
-     !e.moves.some(x=>x.uci==='d4e6'&&x.events.some(y=>y.type==='capture'&&y.capturedPiece==='queen'))||
-     e.mainEvent?.type!=='capture'||e.mainEvent?.capturedPiece!=='queen')
-     throw Error('Bishop sacrifice must prioritize discovered check and later queen capture: '+JSON.stringify({moves:e.moves,main:e.mainEvent}));
+    if(!frozen.moves.some(x=>x.uci==='f5d4'&&x.events.some(y=>y.type==='discovered-check'))||
+     !frozen.moves.some(x=>x.uci==='d4e6'&&x.events.some(y=>y.type==='capture'&&y.capturedPiece==='queen'))||
+     frozen.mainEvent?.type!=='capture'||frozen.mainEvent?.capturedPiece!=='queen')
+     throw Error('Frozen bishop motif must identify discovered check and later queen capture.');
    }
    if(fixture.id==='32-lichess-00KNK-knight-tactic'){
-    const e=fixture.payload.tacticalContinuation;
-    if(!e.moves.some(x=>x.uci==='a1f6'&&x.check)||
-       !e.moves.some(x=>x.uci==='f3f6'&&x.events.some(y=>y.type==='capture'&&y.capturedPiece==='queen')))
-     throw Error('Knight tactic must retain checking sequence and queen recapture.');
+    if(!frozen.moves.some(x=>x.uci==='a1f6'&&x.check)||
+       !frozen.moves.some(x=>x.uci==='f3f6'&&x.events.some(y=>y.type==='capture'&&y.capturedPiece==='queen')))
+     throw Error('Frozen knight motif must retain checking sequence and queen recapture.');
    }
    if(fixture.id==='33-lichess-00sJ9-rook-infiltration'){
-    if(!fixture.payload.tacticalContinuation.moves.some(x=>x.uci==='e1c1'&&x.capturedPiece==='bishop'))
-     throw Error('Rook infiltration must retain bishop capture.');
+    if(!frozen.moves.some(x=>x.uci==='e1c1'&&x.capturedPiece==='bishop'))
+     throw Error('Frozen rook motif must retain bishop capture.');
    }
    if(fixture.id==='34-lichess-00sO1-bishop-intermezzo'){
-    if(!fixture.payload.tacticalContinuation.moves.some(x=>x.uci==='f1d1'&&x.capturedPiece==='rook'))
-     throw Error('Bishop tactic must retain rook capture.');
+    if(!frozen.moves.some(x=>x.uci==='f1d1'&&x.capturedPiece==='rook'))
+     throw Error('Frozen bishop motif must retain rook capture.');
    }
    fixture.source={puzzleId:item.puzzleId,puzzleUrl:item.puzzleUrl,
     attribution:'Lichess public puzzle record, FEN before opponent setup move',
