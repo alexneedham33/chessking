@@ -2308,11 +2308,24 @@ function coachExchangeEvidence(before,move,previousBefore=null,previousMove=null
  const captureOptions=legal(after).filter(reply=>reply[1]===target&&(reply[3]==='ep'||after.b[reply[1]]!=='.')).slice(0,6).map(reply=>{
   const next=apply(after,reply),recaptures=legal(next).filter(again=>
    again[1]===target&&(again[3]==='ep'||next.b[again[1]]!=='.')
-  ).slice(0,4).map(again=>({move:coachPlainMove(next,again),uci:key(again),
-   withPiece:pieceNames[next.b[again[0]].toLowerCase()]}));
+  ).slice(0,4).map(again=>{
+   const taken=next.b[target],capturing=next.b[again[0]];
+   return {move:coachPlainMove(next,again),uci:key(again),
+    withPiece:pieceNames[capturing.toLowerCase()],
+    capturedPiece:pieceNames[taken.toLowerCase()],
+    capturedValue:value[taken.toLowerCase()],
+    originalCaptureValue:value[after.b[target].toLowerCase()],
+    capturesQueen:taken.toLowerCase()==='q',
+    queenForQueen:after.b[target].toLowerCase()==='q'&&taken.toLowerCase()==='q',
+    // Legal two-ply sequence, not forced. After the reply+recapture,
+    // this is the material lost by the side making the reply, in pawn units.
+    replySideNetLoss:value[taken.toLowerCase()]-value[after.b[target].toLowerCase()]
+   };
+  });
   return {move:coachPlainMove(after,reply),uci:key(reply),
    withPiece:pieceNames[after.b[reply[0]].toLowerCase()],
    capturedPiece:pieceNames[after.b[target].toLowerCase()],
+   capturedValue:value[after.b[target].toLowerCase()],
    recaptures,hasLegalRecapture:recaptures.length>0};
  });
  let completedExchange=null;
@@ -2332,7 +2345,7 @@ function coachExchangeEvidence(before,move,previousBefore=null,previousMove=null
   }
  }
  return {captured,captureOptions,completedExchange,
-  interpretation:'All listed captures and recaptures are individually legal for successive positions, not forced or engine-recommended. A possible capture is not necessarily a profitable material gain. A legal recapture may exchange pieces of different value.'};
+  interpretation:'Each reply and recapture is a legal two-ply sequence, NOT necessarily forced, sound, or engine-recommended. capturedValue and replySideNetLoss are pawn-unit material accounting for this sequence only: +8 means the reply side lost a queen (9) after taking a pawn (1); that is NOT a queen trade. A recapture does not mean the recapturing piece is lost.'};
 }
 function coachMoveTactics(before,move,previousBefore=null,previousMove=null){
  const after=apply(before,move),mover=before.t,to=move[1],from=move[0];
