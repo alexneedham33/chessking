@@ -833,3 +833,55 @@ test('141 Lambda disregards old guided route after 10 moves',()=>{
  assert.match(lambda,/There is NO expected scripted continuation/);
  assert.match(lambda,/Evaluate the actual move independently using the board and Stockfish/);
 });
+
+const coachToggleStart=html.indexOf('function setAutomaticCoachEnabled(enabled){');
+const coachToggleEnd=html.indexOf('function coachEngineEvidence(',coachToggleStart);
+assert.ok(coachToggleStart>0&&coachToggleEnd>coachToggleStart,
+ 'Production Coach On/Off implementation present');
+function toggleHarness(){
+ const c={strategicAiEnabled:true,strategicAiNonce:0,strategicAiBusy:true,
+  strategicAiFailed:false,strategicAiStatus:'analysing',strategicAiError:'',
+  coachMoveMessages:new Map([[3,{pending:true}]]),
+  coachSkippedPly:new Set(),h:[{},{},{},{}],renders:0,
+  render(){this.renders++}};
+ vm.createContext(c);
+ vm.runInContext(html.slice(coachToggleStart,coachToggleEnd)+
+  '\nthis.toggleCoach=setAutomaticCoachEnabled;',c);
+ return c;
+}
+test('142 coach toggle is accessible, visible and on by default',()=>{
+ assert.match(html,/id="coachToggle"[^>]+aria-pressed="true"[^>]*>Coach On/);
+ assert.match(html,/\$\('coachToggle'\)\.onclick=\(\)=>setAutomaticCoachEnabled\(!strategicAiEnabled\)/);
+});
+test('143 Coach Off invalidates pending requests and keeps the move history',()=>{
+ const c=toggleHarness(),oldHistory=c.h;
+ c.toggleCoach(false);
+ assert.equal(c.strategicAiEnabled,false);
+ assert.equal(c.coachMoveMessages.has(3),false);
+ assert.equal(c.coachSkippedPly.has(3),true);
+ assert.equal(c.strategicAiNonce,1);
+ assert.equal(c.strategicAiBusy,false);
+ assert.equal(c.h,oldHistory);
+ assert.equal(c.renders,1);
+});
+test('144 Coach On resumes on subsequent moves without retroactive API requests',()=>{
+ const c=toggleHarness();
+ c.toggleCoach(false);
+ c.h.push({});
+ c.coachSkippedPly.add(4);
+ c.toggleCoach(true);
+ assert.equal(c.strategicAiEnabled,true);
+ assert.equal(c.coachSkippedPly.has(4),true);
+ assert.equal(c.strategicAiNonce,2);
+});
+test('145 muted mode skips coaching prefetch and does not show prior advice',()=>{
+ assert.match(html,/if\(guided&&strategicAiEnabled&&aiRequestedPly\.size<AI_COACH_GAME_LIMIT\)/);
+ assert.match(html,/if\(trainingMode==='learn'&&!scenario&&!strategicAiEnabled\)recent=\[\]/);
+ assert.match(html,/if\(!strategicAiEnabled&&h.length>1\)coachSkippedPly\.add\(h.length-1\)/);
+ assert.match(html,/aiRequestedPly\.has\(ply\)\|\|coachSkippedPly\.has\(ply\)/);
+ assert.match(html,/Coach is off\. Play freely/);
+});
+test('146 coaching remains on by default with ten prepared plies',()=>{
+ assert.match(html,/let strategicAiEnabled=true/);
+ assert.match(html,/function guidedOpeningLimit\(\)\{return Math\.min\(10,routeLine\(\)\.length\);\}/);
+});
