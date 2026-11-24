@@ -8,7 +8,7 @@ There are two complementary suites, including a targeted tactical stress pack.
 node --test tests/coach-regression.mjs
 ```
 
-60 tests verify geometry, absolute pins, central-file status, doubled/isolated pawns, bishop-pair changes, verified bishop routes, immediate legal recaptures, consecutive same-square exchanges and Lambda response checks. GitHub Actions runs this automatically when relevant files change.
+64 tests verify geometry, absolute pins, central-file status, doubled/isolated pawns, bishop-pair changes, verified bishop routes, immediate legal recaptures, consecutive same-square exchanges and Lambda response checks. GitHub Actions runs this automatically when relevant files change.
 
 ## 2. AI explanation regression — replayable positions
 
@@ -81,7 +81,7 @@ Automated checks flag only a limited subset of possible issues (e.g., inaccurate
 
 ### CI
 
-The GitHub Actions workflow **Chess coach regression** runs the 60 mechanical and validator tests, the offline AI-fixture replay, and two actual Stockfish 17.1 searches (at depth 12) on pushes and PRs affecting the test code. It makes no paid API requests. Generated reports are ignored by Git.
+The GitHub Actions workflow **Chess coach regression** runs the 64 mechanical and validator tests, the offline AI-fixture replay, and two actual Stockfish 17.1 searches (at depth 12) on pushes and PRs affecting the test code. It makes no paid API requests. Generated reports are ignored by Git.
 
 The goal is reproducible evidence, not a misleading overall “AI accuracy score.” Once full position+engine payloads exist, we can expand the fixed set to cover every case and measure true prompt/model changes.
 
@@ -114,3 +114,17 @@ node tests/coach-ai-regression.mjs --live --group engine --stockfish --depth 14 
 
 The runner refuses to run the engine group without `--stockfish` and fails if Stockfish doesn't confirm the expected mate or supplies a non-matching PV. Mate scores and checked mate lines describe the specific board state; evaluating a real complicated sacrifice generally needs stronger depth and further validation. Do not claim all tactical variations are forced merely because one engine PV ends in mate: the test marks defender moves as forced only if they are the only legal replies.
 
+
+## Checkmate mechanism / checking-ray evidence (November 24, 2026)
+
+`tacticalFacts.checkLine` identifies the actual checking piece(s), attacked king, and every empty intervening square on a bishop, rook, or queen's checking ray. `tacticalFacts.opponentCheckingReplyEvidence` provides these facts for up to five **legal checking replies** after the coached move, including whether the reply gives checkmate. Verified engine test continuations additionally carry `verifiedCheckLines` (only actual checking moves).
+
+The Fool's Mate regression validates that `...Qh4#` checks along **h4–g3–f2–e1**, not via h3. Lambda has a conservative guard against attributing this particular mate to h3 pawn-cover changes. This is a specific regression rule, not a general-purpose semantic proof checker. Four deterministic tests check the mistake is rejected, the correct diagonal is accepted, and unrelated pawn-cover remarks are not spuriously blocked.
+
+After redeploying the updated `lambda-coach/index.mjs` to AWS, and pulling the latest main branch locally, re-test the case with:
+
+```bash
+node tests/coach-ai-regression.mjs --live --group engine --stockfish --depth 14 --case 29-blunder-allows-fools-mate
+```
+
+The validation runs both offline and against live responses. The API Lambda has to be **deployed separately** from GitHub changes. If the local proxy is already running, stop/restart it after pulling.
