@@ -287,6 +287,45 @@ function unsupportedHangingMinorClaims(message,input){
   return ['Material threat: the opponent queen can capture the moved minor piece, but the defending queen can immediately capture that queen. Do not describe the minor piece as simply unsafe or lost; explain the verified recapture and account for the material difference.'];
  return [];
 }
+// After AI + one repair fail, explain a verified major checked capture directly.
+// Restricted to immediately played, legally verified first PV replies, corroborated
+// by the FEN board and a large negative evaluation change. No speculative lines.
+function verifiedMajorCaptureFallback(input){
+ const first=input.tacticalContinuation?.moves?.[0];
+ const loss=input.moveAssessment?.centipawnLoss;
+ const after=input.afterFen;
+ const quality=moveQualityContext(input);
+ if(!first||first.ply!==1||first.check!==true||
+    !['rook','queen'].includes(first.capturedPiece)||
+    !Number.isFinite(loss)||loss<300||quality.kind!=='serious-deterioration'||
+    !/^[a-h][1-8]$/.test(first.from||'')||
+    !/^[a-h][1-8]$/.test(first.to||'')||
+    !/^[a-h][1-8][a-h][1-8]$/.test(first.uci||'')||
+    first.uci!==first.from+first.to||
+    !['White','Black'].includes(first.side))return null;
+ const ranks=typeof after==='string'?after.split(' ')[0].split('/'):null;
+ if(!ranks||ranks.length!==8)return null;
+ const pieceAt=square=>{
+  let file=0;const wanted='abcdefgh'.indexOf(square[0]);
+  for(const c of ranks[8-Number(square[1])]){
+   if(/^[1-8]$/.test(c))file+=Number(c);
+   else if(/^[pnbrqkPNBRQK]$/.test(c)){
+    if(file===wanted)return c;
+    file++;
+   }else return null;
+  }
+  return '.';
+ };
+ const capturer=pieceAt(first.from),victim=pieceAt(first.to);
+ if(capturer!==(first.side==='Black'?'q':'Q')||
+    victim!==(first.capturedPiece==='rook'?
+     first.side==='Black'?'R':'r':first.side==='Black'?'Q':'q'))return null;
+ const notation=first.label;
+ if(typeof notation!=='string'||!/^([0-9]+\.\.\.\s*)?Qx[a-h][1-8]\+$/.test(notation))return null;
+ return 'This is a serious mistake. In the verified Stockfish line, '+
+  notation+' captures the '+first.capturedPiece+' on '+first.to+
+  ' with check, turning a previously better position into a worse one.';
+}
 // Keep complete leading sentences after a length-only validation failure.
 // Revalidate all chess claims; never cut inside a sentence or blindly slice.
 function shortenVerifiedExplanation(message,input,budget){
@@ -537,12 +576,12 @@ export const handler=async(event)=>{
    const validationCodes=coachingValidationCodes(issues);
    // A plain pawn-for-pawn capture can still be explained reliably from FEN
    // and capture history if the model keeps making unsupported structural claims.
-   const fallback=verifiedPawnCaptureFallback(input);
+   const fallback=verifiedMajorCaptureFallback(input)||verifiedPawnCaptureFallback(input);
    if(fallback&&!checkExplanation(fallback,input,budget).length){
     console.warn('AI coaching used verified pawn-capture fallback:',validationCodes);
     return reply(200,{message:fallback,engineGrounded:false,
      validation:{status:'fallback',repairAttempted,initialCodes:initialValidationCodes,
-      finalCodes:validationCodes,reason:'verified-pawn-capture'}});
+      finalCodes:validationCodes,reason:fallback===verifiedMajorCaptureFallback(input)?'verified-major-capture':'verified-pawn-capture'}});
    }
    console.warn('AI coaching failed validation:',issues.join(' '));
    return reply(502,{error:'Coaching explanation could not be verified; please retry',
