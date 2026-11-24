@@ -242,12 +242,18 @@ try{
      })).filter(x=>x.similarity>=0.56);
      recent.push(current.response);responses.push({ply:j+1,message:current.response});
      warnings+=current.objectiveWarnings.length;
-    }catch(error){current.error=error.message;errors++;}
+    }catch(error){
+     current.error=error.message;
+     current.responseTimeMs=Date.now()-started;
+     errors++;
+    }
    }
    output.entries.push(current);
   }
   output.summary={analyzedPlies:count,liveAttempted:output.entries.filter(x=>x.attempted).length,
    liveCompleted:output.entries.filter(x=>x.response).length,errors,warnings,
+   repaired:output.entries.filter(x=>x.validation?.status==='repaired').length,
+   failedValidation:output.entries.filter(x=>x.validation?.status==='failed').length,
    repetitionFlags:output.entries.reduce((n,x)=>n+x.repetitionFlags.length,0),
    meanResponseMs:output.entries.some(x=>x.responseTimeMs!==null)?
     Math.round(output.entries.reduce((n,x)=>n+(x.responseTimeMs||0),0)/
@@ -265,6 +271,8 @@ report.summary={
  liveAttempted:report.games.reduce((n,g)=>n+g.summary.liveAttempted,0),
  liveCompleted:report.games.reduce((n,g)=>n+g.summary.liveCompleted,0),
  errors:report.games.reduce((n,g)=>n+g.summary.errors,0),
+ repaired:report.games.reduce((n,g)=>n+g.summary.repaired,0),
+ failedValidation:report.games.reduce((n,g)=>n+g.summary.failedValidation,0),
  warnings:report.games.reduce((n,g)=>n+g.summary.warnings,0),
  repetitionCandidates:report.games.reduce((n,g)=>n+g.summary.repetitionFlags,0),
  reviewStatus:'Human quality scores not yet assigned'
