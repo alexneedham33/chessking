@@ -3006,7 +3006,10 @@ async function requestUnifiedMoveCoaching(ply){
   if(nonce!==strategicAiNonce||h[ply]!==after||coachMoveMessages.get(ply)!==record||selected!==openingAtRequest)return;
   if(typeof result.message!=='string'||result.message.trim().length<15||result.message.length>3000)throw Error('Invalid AI explanation');
   record.pending=false;record.message=result.message.trim();record.engineGrounded=!!result.engineGrounded;
-  strategicAiFailed=false;strategicAiError='';strategicAiStatus=result.engineGrounded?'engine':'position';
+  record.validation=result.validation||null;
+  strategicAiFailed=false;strategicAiError='';
+  strategicAiStatus=result.validation?.status==='fallback'?'fallback':
+   result.engineGrounded?'engine':'position';
  }catch(error){
   if(nonce===strategicAiNonce&&coachMoveMessages.get(ply)===record){
    coachMoveMessages.delete(ply);strategicAiFailed=true;strategicAiStatus='error';
@@ -3034,7 +3037,7 @@ function refreshUnifiedMoveCoaching(){
  coachSeenPositionCount=h.length;
  status.hidden=!visible||!strategicAiEnabled||!strategicAiStatus;
  status.classList.toggle('error',strategicAiStatus==='error');
- status.textContent=({analysing:'Preparing…',engine:'AI + Stockfish',position:'AI · position',error:strategicAiError||'AI unavailable'})[strategicAiStatus]||'';
+ status.textContent=({analysing:'Preparing…',engine:'AI + Stockfish',position:'AI · position',fallback:'Verified fallback · AI explanation unavailable',error:strategicAiError||'AI unavailable'})[strategicAiStatus]||'';
  const retry=$('aiCoachRetry');retry.hidden=!visible||!strategicAiEnabled||strategicAiBusy||strategicAiStatus!=='error'||!aiRequestedPly.has(h.length-1);
  status.title=strategicAiStatus==='error'?'AI coaching unavailable; scripted explanations are shown.':'A complete AI coaching explanation is displayed when ready.';
  if(!visible||!strategicAiEnabled||strategicAiBusy||aiRequestedPly.size>=AI_COACH_GAME_LIMIT)return;
