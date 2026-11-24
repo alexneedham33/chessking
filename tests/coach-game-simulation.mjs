@@ -19,6 +19,13 @@ if(!Number.isInteger(depth)||depth<10||depth>20)throw Error('--depth must be an 
 const limit=Number(opt('--limit')||8);
 if(!Number.isInteger(limit)||limit<1||limit>100)throw Error('--limit must be 1..100 coached plies per game');
 const maxPly=opt('--max-ply')===undefined?Infinity:Number(opt('--max-ply'));
+const startPly=Number(opt('--start-ply')||1);
+if(!Number.isInteger(startPly)||startPly<1)throw Error('--start-ply must be a positive integer');
+const resumePath=opt('--resume');
+const resumeReport=resumePath?JSON.parse(readFileSync(resolve(process.cwd(),resumePath),'utf8')):null;
+if(resumeReport&&(!Array.isArray(resumeReport.games)||resumeReport.mode!=='live'))
+ throw Error('--resume needs a previous live coach-games JSON report');
+
 if(maxPly!==Infinity&&(!Number.isInteger(maxPly)||maxPly<1))throw Error('--max-ply must be a positive integer');
 const endpoint=opt('--endpoint')||'http://127.0.0.1:8000/api/coach/move';
 if(live&&!/^http:\/\/(?:127\.0\.0\.1|localhost):\d+\/api\/coach\/move$/.test(endpoint))
@@ -146,7 +153,8 @@ function payloadFor(entry,previous,pre,post,labels,recent,game){
  };
 }
 const report={version:1,createdAt:new Date().toISOString(),
- mode:live?'live':'offline',engineDepth:depth,limitPerGame:live?limit:null,
+ mode:live?'live':'offline',engineDepth:depth,limitPerGame:live?limit:null,startPly,
+ resumeSource:resumePath||null,
  note:'A complete-game chess simulation uses all plies and real engine analysis. Live calls are deliberately capped by --limit per game. These are illustrative historical sequences, not user game records.',
  games:[],summary:{}};
 let sf;const cache=new Map();
@@ -161,6 +169,26 @@ try{
   const output={id:game.id,title:game.title,attribution:game.attribution,focus:game.focus,
    totalPlies:states.length,terminal:'checkmate',entries:[]};
   const labels=[],recent=[],responses=[];
+  const resumed=resumeReport?.games.find(x=>x.id===game.id);
+  if(resumeReport&&!resumed)throw Error('Resume report does not contain selected game '+game.id);
+  if(resumed&&resumed.totalPlies!==states.length)
+   throw Error('Resume report refers to a different game length: '+game.id);
+  // Validate every prior state against the exact move and FEN before reuse.
+  const priorMessages=new Map();
+  for(const p of resumed?.entries||[]){
+   if(!p.response)continue;
+   const state=states[p.ply-1];
+   if(!state||p.move!==state.uci||p.beforeFen!==chess.fenOf(state.before)||
+       p.afterFen!==chess.fenOf(state.after))
+    throw Error('Resume report differs from current chess sequence at '+game.id+' ply '+p.ply);
+   if(typeof p.response!=='string'||p.response.length>900)
+    throw Error('Invalid prior response length at ply '+p.ply);
+   priorMessages.set(p.ply,p.response);
+  }
+  // Do not fabricate earlier coaching context when --start-ply skips history.
+  if(startPly>1&&!resumeReport)
+   console.warn('Starting at ply '+startPly+' without --resume: the AI will have move history but no earlier coach messages.');
+
   let errors=0,warnings=0;
   const count=Math.min(states.length,maxPly);
   for(let j=0;j<count;j++){
@@ -175,6 +203,10 @@ try{
     evidence:null
    }:await get(entry.after);
    labels.push(entry.label);
+   if(j+1<startPly&&priorMessages.has(j+1)){
+    recent.push(priorMessages.get(j+1));
+    responses.push({ply:j+1,message:priorMessages.get(j+1)});
+   }
    const payload=payloadFor(entry,states[j-1],pre,post,labels,recent,game);
    const payloadBytes=Buffer.byteLength(JSON.stringify(payload),'utf8');
    // AWS Lambda rejects a coaching request body over 30,000 characters.
@@ -188,25 +220,27 @@ try{
     engine:{before:pre.raw,after:post.raw,centipawnLoss:payload.moveAssessment.centipawnLoss,
      isEngineChoice:payload.moveAssessment.playedIsEngineChoice},
     previousCoaching:recent.slice(-3),response:null,responseTimeMs:null,
-    objectiveWarnings:[],repetitionFlags:[],error:null,attempted:false,
+    objectiveWarnings:[],repetitionFlags:[],validation:null,error:null,attempted:false,
     humanReview:{accuracy:null,teaching:null,repetition:null,clarity:null,notes:''}};
-   if(live&&j<limit){
+   if(live&&j+1>=startPly&&j+1<startPly+limit){
     current.attempted=true;
     const started=Date.now();
     try{
      const reply=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify(payload),signal:AbortSignal.timeout(45000)});
      const body=await reply.json();
+     current.validation=body.validation||null;
      if(!reply.ok||typeof body.message!=='string')
-      throw Error('HTTP '+reply.status+': '+String(body.error||'Missing message'));
+      throw Error('HTTP '+reply.status+': '+String(body.error||'Missing message')+
+       (body.validation?.finalCodes?.length?' ['+body.validation.finalCodes.join(', ')+']':''));
+
      current.response=body.message.trim();current.responseTimeMs=Date.now()-started;
      current.objectiveWarnings=Array.from(guards.guards.checkExplanation(current.response,payload,
       guards.guards.coachingBudget(payload)));
-     current.repetitionFlags=responses.slice(-5).map((prior,i)=>({
-      priorPly:Math.max(1,j-responses.slice(-5).length+i+1),
-      similarity:similarity(current.response,prior)
+     current.repetitionFlags=responses.slice(-5).map(prior=>({
+      priorPly:prior.ply,similarity:similarity(current.response,prior.message)
      })).filter(x=>x.similarity>=0.56);
-     recent.push(current.response);responses.push(current.response);
+     recent.push(current.response);responses.push({ply:j+1,message:current.response});
      warnings+=current.objectiveWarnings.length;
     }catch(error){current.error=error.message;errors++;}
    }
