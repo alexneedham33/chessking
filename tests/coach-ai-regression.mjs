@@ -54,12 +54,42 @@ const otherSequences={
 };
 const base=['d2d4','d7d5','g1f3','g8f6','b1c3','e7e6','e2e4','f8b4','a2a3','b4a5','f1d3','a5c3','b2c3'];
 function sequenceFor(item){
+ if(item.referenceSequence==='tactical-fen')return item.moves;
  if(item.referenceSequence==='main-line')return item.moves;
  if(otherSequences[item.id])return [...base,...otherSequences[item.id]];
  return null;
 }
+// Exact 0x88 board state from a curated FEN. Every proposed move is still
+// checked through the application's legal() before any AI call.
+function positionFromFen(fen){
+ const parts=fen.trim().split(/\\s+/);
+ if(parts.length!==6)throw Error('Tactical FEN requires six fields');
+ const [placement,turn,castling,ep,half,full]=parts,rows=placement.split('/');
+ if(rows.length!==8||!['w','b'].includes(turn))throw Error('Invalid tactical FEN');
+ const b=Array(128).fill('.');
+ rows.forEach((row,rank)=>{
+  let file=0;
+  for(const ch of row){
+   if(/[1-8]/.test(ch))file+=Number(ch);
+   else if(/[pnbrqkPNBRQK]/.test(ch)&&file<8)b[rank*16+file++]=ch;
+   else throw Error('Invalid FEN piece '+ch);
+  }
+  if(file!==8)throw Error('Invalid FEN rank '+row);
+ });
+ if(b.filter(x=>x==='K').length!==1||b.filter(x=>x==='k').length!==1)
+  throw Error('Tactical FEN needs one king per side');
+ if(castling!=='-'&&/[^KQkq]/.test(castling))throw Error('Invalid FEN castling');
+ if(ep!=='-'&&!/^[a-h][1-8]$/.test(ep))throw Error('Invalid FEN en passant');
+ const epIndex=ep==='-'?-1:(8-Number(ep[1]))*16+'abcdefgh'.indexOf(ep[0]);
+ const s={b,t:turn==='w'?1:-1,c:castling==='-'?0:
+  (castling.includes('K')?1:0)+(castling.includes('Q')?2:0)+
+  (castling.includes('k')?4:0)+(castling.includes('q')?8:0),
+  ep:epIndex,half:Number(half),full:Number(full),i:-1};
+ if(chess.fenOf(s)!==fen)throw Error('Tactical FEN does not round-trip: '+fen);
+ return s;
+}
 function makeInput(item,moves){
- let state=chess.original(),before=null,playedMove=null,after=null,labels=[];
+ let state=item.beforeFen?positionFromFen(item.beforeFen):chess.original(),before=null,playedMove=null,after=null,labels=[];
  let previousBefore=null,previousMove=null;
  for(const uci of moves){
   const move=chess.legal(state).find(m=>chess.key(m)===uci);
@@ -94,12 +124,42 @@ function makeInput(item,moves){
  };
  return {payload,moves,labels};
 }
+
+// Tactics are curated independently of Stockfish. Verify only claims that can
+// be proven from board geometry, legal moves and actual castling/check state.
+function assertTacticalFixture(item,fixture){
+ if(item.referenceSequence!=='tactical-fen')return;
+ const facts=fixture.payload.tacticalFacts;
+ const expected=item.expect||{};
+ if(expected.forkTargets){
+  if(!facts.forkEvidence||!expected.forkTargets.every(x=>
+   facts.forkEvidence.targets.some(y=>y.square===x)))
+   throw Error('Tactical fork targets missing: '+item.id);
+ }
+ if(expected.discoveredTarget){
+  if(!facts.discoveredAttacks.some(x=>x.targetSquare===expected.discoveredTarget))
+   throw Error('Tactical discovered attack missing: '+item.id);
+ }
+ if(expected.pinSquare){
+  if(!fixture.payload.strategicFacts.changes.some(x=>x.type==='pin-created'&&x.pinnedSquare===expected.pinSquare))
+   throw Error('Tactical pin missing: '+item.id);
+ }
+ if(expected.check===true&&!facts.givesCheck)
+  throw Error('Expected move to give check: '+item.id);
+ if(expected.capturedPiece&&facts.exchangeEvidence.captured?.piece!==expected.capturedPiece)
+  throw Error('Incorrect tactical capture: '+item.id);
+ if(expected.opponentCaptureUci&&!facts.exchangeEvidence.captureOptions.some(
+   x=>x.uci===expected.opponentCaptureUci))
+  throw Error('Expected legal reply capturing moved piece: '+item.id);
+}
+
 const fixed=[],skipped=[];
 for(const item of review.cases){
  if(selected&&item.id!==selected)continue;
  const moves=sequenceFor(item);
  if(!moves){skipped.push({id:item.id,reason:'No complete legal move sequence / exact FEN recorded'});continue;}
  const fixture=makeInput(item,moves);
+ assertTacticalFixture(item,fixture);
  fixed.push({id:item.id,category:item.category,expectedLesson:item.expectedLesson,redFlag:item.redFlag,...fixture,
   hash:sha(fixture.payload)});
 }
