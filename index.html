@@ -2193,6 +2193,38 @@ function coachPieceAttackSquares(position,from){
  }
  return targets;
 }
+// Explain the *mechanism* of an actual check using the final board, not
+// assumptions about nearby pawn cover. Rays list every intervening EMPTY square
+// between the checking slider and the king. Only geometrically verified
+// checking pieces are reported; this is not an engine evaluation.
+function coachCheckLineEvidence(position,kingColour){
+ const king=position.b.indexOf(kingColour===1?'K':'k');
+ if(king<0||!attacked(position,king,-kingColour))return null;
+ const checkingPieces=[];
+ for(let from=0;from<128;from++){
+  if(!on(from)||side(position.b[from])!==-kingColour)continue;
+  const p=position.b[from].toLowerCase();
+  if(!coachPieceAttackSquares(position,from).includes(king))continue;
+  let path=[];
+  if(['b','r','q'].includes(p)){
+   const fr=from>>4,fc=from&7,kr=king>>4,kc=king&7;
+   const dr=Math.sign(kr-fr),dc=Math.sign(kc-fc);
+   const diagonal=Math.abs(kr-fr)===Math.abs(kc-fc);
+   const straight=fr===kr||fc===kc;
+   if((p==='b'&&!diagonal)||(p==='r'&&!straight)||
+    (p==='q'&&!diagonal&&!straight))continue;
+   const step=dr*16+dc;
+   for(let at=from+step;at!==king;at+=step)path.push(sq(at));
+  }
+  checkingPieces.push({piece:coachPieceNames[p],from:sq(from),king:sq(king),
+   geometry:['b','r','q'].includes(p)?'unobstructed-ray':p==='n'?'knight-jump':
+    p==='p'?'pawn-diagonal':'adjacent-king',
+   clearSquaresBetween:path});
+ }
+ return {checkedKing:kingColour===1?'White':'Black',kingSquare:sq(king),
+  checkingPieces,checkmate:legal(position).length===0,
+  note:'Clear squares between a sliding checker and the king are empty in this position. Pawn-cover claims are not implied by the checking line.'};
+}
 // The legality of a capture and the material outcome of an exchange are distinct.
 // For a legal capture of the moved piece, check whether the other side can
 // recapture the capturing piece on the very next ply. This is NOT an engine
@@ -2279,6 +2311,13 @@ function coachMoveTactics(before,move,previousBefore=null,previousMove=null){
   }
  }
  const exchangeEvidence=coachExchangeEvidence(before,move,previousBefore,previousMove);
+ const checkLine=coachCheckLineEvidence(after,-mover);
+ const opponentCheckingReplyEvidence=opponentReplies.filter(reply=>checked(apply(after,reply)))
+  .slice(0,5).map(reply=>{
+   const next=apply(after,reply);
+   return {uci:key(reply),move:coachPlainMove(after,reply),
+    checkLine:coachCheckLineEvidence(next,mover)};
+  });
  return {
   movedPiece:{colour:mover===1?'White':'Black',type:coachPieceNames[movedType],from:sq(from),to:sq(to)},
   movedPieceAttacks:attackedSquares.map(sq),
@@ -2290,6 +2329,8 @@ function coachMoveTactics(before,move,previousBefore=null,previousMove=null){
   forkEvidence,
   discoveredAttacks,
   opponentLegalCheckingReplies:checkingReplies,
+  opponentCheckingReplyEvidence,
+  checkLine,
   inCheckAfterMove:checked(after),
   givesCheck:checked(after,-mover),
   note:'Attacked squares are geometric, not a claim that every capture is legal or tactically sound. Exchange evidence identifies legal one-ply responses, potential recaptures, and an immediately preceding same-square exchange when history is available. None proves profit.'
