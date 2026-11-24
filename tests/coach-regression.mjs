@@ -457,7 +457,7 @@ const immortalQueenTrap10={
  coachingGuidance:{focus:'strategic'}
 };
 const immortalQueenTrap12={
- afterFen:'rnb1kb1r/p2p1ppp/8/1p3Nqn/4Pp1P/3P4/PPP5/RNBQ1KR1 b kq h3 0 12',
+ afterFen:'rnb1kb1r/p2p1ppp/5n2/1p3Nq1/4PpPP/3P4/PPP5/RNBQ1KR1 b kq h3 0 12',
  played:{piece:'p',from:'h2',to:'h4',capture:false},tacticalFacts:{},
  coachingGuidance:{focus:'strategic'}
 };
