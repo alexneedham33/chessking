@@ -35,3 +35,4 @@ jobs:
       - run: node tests/coach-ai-regression.mjs --group middlegame --stockfish --depth 12
       - run: node tests/coach-ai-regression.mjs --group balance --stockfish --depth 12
       - run: node tests/coach-game-simulation.mjs --validate-only
+      - run: node tests/coach-game-simulation.mjs --depth 10
