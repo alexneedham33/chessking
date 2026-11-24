@@ -58,13 +58,13 @@ vm.runInContext(
  between(html,'function fenOf(s){','function engineText(')+'\n'+
  between(html,'function coachEngineEvidence(position,analysis){','// Opening context is evidence, not a rule that the learner must follow.')+'\n'+
  between(html,'function playedMoveEvidence(position,move){','async function requestUnifiedMoveCoaching')+
- '\nthis.chess={original,legal,apply,key,fenOf,checked,moveLabel,coachPlainMove,playedMoveEvidence,coachMoveTactics,coachStrategicChanges,coachTeachingPriorities,coachEngineEvidence,coachTacticalContinuation,coachBoardFacts,coachOpponentReplyThreats};',
+ '\nthis.chess={original,legal,apply,key,fenOf,checked,moveLabel,coachPlainMove,playedMoveEvidence,coachMoveTactics,coachStrategicChanges,coachTeachingPriorities,coachEngineEvidence,coachTacticalContinuation,coachBoardFacts,coachOpponentReplyThreats,coachTacticalOpportunities};',
  context,{timeout:5000}
 );
 const chess=context.chess;
 const guards={};vm.createContext(guards);
 vm.runInContext(between(lambda,'const words=text=>','async function generateCoaching(')+
- '\nthis.guards={checkExplanation,coachingBudget};',guards,{timeout:3000});
+ '\nthis.guards={checkExplanation,coachingBudget,verifiedMotifFallback};',guards,{timeout:3000});
 function scenarioPositionFromFen(fen){
  const f=String(fen).split(' '),rows=f[0]?.split('/');
  if(f.length!==6||rows.length!==8||!['w','b'].includes(f[1])||
@@ -159,6 +159,23 @@ function verifyOpponentReplyThreatScan(){
     variations:[{rank:1,moves:[{uci:'not-a-real-engine-move'}]}]
   });
   const found=threats.candidates.find(x=>x.uci===sample.move);
+  const ranked=chess.coachTacticalOpportunities(board,{
+   variations:[{rank:1,moves:[{uci:'not-a-real-engine-move'}]}]
+  });
+  const type=sample.kind==='pin'?'absolute-pin':
+   sample.kind==='fork'?'fork':'discovered-attack';
+  if(!ranked.top.some(item=>item.motifs.some(x=>x.type===type)))
+   throw Error('Missing generic '+type+' evidence: '+sample.name);
+  if(ranked.top.some(item=>item.engineSupported))
+   throw Error('Mistaken engine endorsement of a legal-only candidate');
+  if(sample.kind!=='discovery'){
+   const fallback=guards.guards.verifiedMotifFallback({
+    mover:'Black',played:{side:'Black'},tacticalOpportunities:ranked
+   });
+   if(typeof fallback!=='string'||fallback.length<35)
+    throw Error('Missing tactical fallback for '+sample.name);
+  }
+
   if(!found||!sample.matches(found)||found.status!=='legal-next-move-threat-candidate'||
     found.stockfishFirstReply)
    throw Error('Missing or misclassified '+sample.kind+' reply threat: '+sample.name);
