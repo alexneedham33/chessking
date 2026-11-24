@@ -166,3 +166,21 @@ node tests/coach-ai-regression.mjs --group middlegame --stockfish --depth 14
 The report includes model responses, both raw Stockfish scores and legal PVs, puzzle source attribution, original source continuation and an explicit marker that the source line has **not** been independently proven by Stockfish to be forcing. The engine group remains available separately, without changing its two established checkmate cases.
 
 **No new Lambda code deployment is required for this pack**; it uses the current coach API payload and the local test runner. Its real tactical quality still requires human review of the returned JSON responses.
+
+## Tactical continuation prioritiser (November 24, 2026)
+
+The actual Opening Lab browser coach now generates `tacticalContinuation` from the **post-move Stockfish rank-one principal variation**. The new deterministic `coachTacticalContinuation(position, engineEvidence)` walks up to six legal moves on successive board states and records key events (queen/rook/minor-piece captures, checks, discovered checks from stationary attackers, high-value attacks, recaptures and king moves). It ranks salient events but preserves their original chronological setup; the AI is instructed to teach the main consequence rather than focus on an unimportant first exchange or an invented hypothetical capture.
+
+The Lambda includes the new field in its evidence whitelist and prioritises these board-verified events. Stockfish's PV remains a **forecast**, not a proof every defender response is forced. This does not override higher-confidence tactical or checkmate evidence.
+
+The four real Lichess middlegame tests now verify that live analysed PV moves and extracted events match, and **separately** check the motifs on each published legally validated puzzle continuation. They never assert that Stockfish must choose the same line at different depths, and source puzzle moves are never silently substituted for an engine line. The specific frozen tests include a rook discovered check plus eventual queen capture, a queen recapture after knight checks, a rook taking a bishop, and a bishop move enabling a rook capture.
+
+To retest live after updating your local project and **deploying the updated Lambda separately**:
+
+```bash
+cd ~/chessking
+git pull origin main
+node tests/coach-ai-regression.mjs --live --group middlegame --stockfish --depth 14 --limit 4
+```
+
+This makes four paid coach requests. Compare actual response quality, not just zero automatic warnings.
