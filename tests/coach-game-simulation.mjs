@@ -269,6 +269,24 @@ try{
      throw Error('Invalid verified Immortal 12.h4 queen-capture material accounting');
    }
 
+   // Ground the two observed Immortal failures in the actual production
+   // chess board and the real Lambda validator, not invented stub evidence.
+   if(game.id==='immortal'&&j+1===37){
+    const flawed='Pushing the pawn to e5 does hit the bishop on d6.';
+    if(!payload.tacticalFacts.friendlyPiecesDefendedByMovedPiece.some(x=>
+      x.piece==='bishop'&&x.square==='d6')||
+      !guards.guards.checkExplanation(flawed,payload,
+       guards.guards.coachingBudget(payload)).some(x=>x.startsWith('Friendly target')))
+     throw Error('19.e5 friendly bishop validation regression');
+   }
+   if(game.id==='immortal'&&j+1===40){
+    const flawed='The knight eyes c7 and b4, so watch the checking jump to c7.';
+    if(payload.tacticalFacts.movedPiecePotentialChecks.some(x=>x.to==='c7')||
+      !guards.guards.checkExplanation(flawed,payload,
+       guards.guards.coachingBudget(payload)).some(x=>x.startsWith('Hypothetical check')))
+     throw Error('20...Na6 checking jump validation regression');
+   }
+
    const payloadBytes=Buffer.byteLength(JSON.stringify(payload),'utf8');
    // AWS Lambda rejects a coaching request body over 30,000 characters.
    // Validate the same practical limit before issuing any paid requests.
