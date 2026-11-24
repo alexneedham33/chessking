@@ -174,6 +174,30 @@ function unsupportedPawnHistoryClaims(message,input){
  }
  return [...new Set(issues)];
 }
+// Minimal deterministic teaching fallback for a verified pawn capture.
+// Only used after BOTH AI attempts failed validation. Never invent threats,
+// strategic conclusions or unverified follow-up moves.
+function verifiedPawnCaptureFallback(input){
+ const played=input.played||{},exchange=input.tacticalFacts?.exchangeEvidence;
+ const after=coachPawnBoard(input.afterFen);
+ const before=coachPawnBoard(input.beforeFen);
+ const mover=played.side||input.mover;
+ if(!after||!before||!['White','Black'].includes(mover)||
+    !['p','pawn'].includes(played.piece)||played.capture!==true||
+    !exchange?.captured||!played.from||!played.to||
+    !before[mover].includes(played.from)||!after[mover].includes(played.to))
+  return null;
+ const victim=exchange.captured;
+ if(victim.piece!=='pawn'||victim.square!==played.to)return null;
+ const file=played.to[0],pawnSquares=after[mover].filter(x=>x[0]===file).sort();
+ const recapture=exchange.completedExchange?.sameSquareRecapture===true;
+ const capture=recapture?'recaptures':'captures';
+ const first=mover+' '+capture+' the pawn on '+played.to+'.';
+ const second=pawnSquares.length>=2?
+  ' This leaves '+mover.toLowerCase()+' with doubled pawns on the '+file+'-file ('+
+   pawnSquares.join(' and ')+').':'';
+ return first+second;
+}
 // Only reject explicit material-win language when the provided legal history
 // proves a same-square exchange of equal-value pieces, or when a capture of a
 // minor piece has an immediate legal minor-piece recapture. A legal reply is
@@ -425,6 +449,15 @@ export const handler=async(event)=>{
   // Fail safely. Diagnostic categories contain no model output or source FEN.
   if(issues.length){
    const validationCodes=coachingValidationCodes(issues);
+   // A plain pawn-for-pawn capture can still be explained reliably from FEN
+   // and capture history if the model keeps making unsupported structural claims.
+   const fallback=verifiedPawnCaptureFallback(input);
+   if(fallback&&!checkExplanation(fallback,input,budget).length){
+    console.warn('AI coaching used verified pawn-capture fallback:',validationCodes);
+    return reply(200,{message:fallback,engineGrounded:false,
+     validation:{status:'fallback',repairAttempted,initialCodes:initialValidationCodes,
+      finalCodes:validationCodes,reason:'verified-pawn-capture'}});
+   }
    console.warn('AI coaching failed validation:',issues.join(' '));
    return reply(502,{error:'Coaching explanation could not be verified; please retry',
     validation:{status:'failed',repairAttempted,initialCodes:initialValidationCodes,
