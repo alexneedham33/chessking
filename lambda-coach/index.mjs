@@ -208,8 +208,8 @@ function coachingValidationCodes(issues){
   else if(x.includes('pawn on ')||x.includes('directly defend')||x.includes('directly attack'))codes.add('piece-relation');
   else if(x.includes('bishop')||x.includes('file')||x.includes('central'))codes.add('position-structure');
   else if(x.includes('check')||x.includes('mate')||x.includes('diagonal')||x.includes('h3'))codes.add('check-mechanism');
-  else if(x.includes('material')||x.includes('recapture')||x.includes('exchange')||x.includes('capture')||x.includes('wins'))codes.add('material-exchange');
   else if(x.includes('serious mistake')||x.includes('blunder')||x.includes('three pawns'))codes.add('move-severity');
+  else if(x.includes('material')||x.includes('recapture')||x.includes('exchange')||x.includes('capture')||x.includes('wins'))codes.add('material-exchange');
   else if(x.includes('alternative')||x.includes('recommend'))codes.add('unsupported-alternative');
   else if(x.includes('rook'))codes.add('rook-claim');
   else codes.add('other');
