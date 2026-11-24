@@ -2903,7 +2903,7 @@ async function requestUnifiedMoveCoaching(ply){
   const noteworthyLoss=Number.isFinite(loss)&&loss>=70;
   const majorLoss=Number.isFinite(loss)&&loss>=120;
   const majorGain=Number.isFinite(swing)&&swing>=80;
-  const coachingFocus=majorLoss?'turning-point':noteworthyLoss?'meaningful-mistake':majorGain?'meaningful-improvement':'strategic';
+  const coachingFocus=majorLoss?'turning-point':noteworthyLoss?'missed-opportunity':majorGain?'meaningful-improvement':'strategic';
   // The moving colour determines the speaker perspective. Scripted opening
   // comments may contain "you" or "your", so never feed them unedited when
   // describing an opponent's move.
@@ -2924,12 +2924,13 @@ async function requestUnifiedMoveCoaching(ply){
     :majorLoss
     ?'Explain the main consequence of this major mistake and a better option if helpful.'
     :noteworthyLoss
-    ?'Explain the meaningful downside and a useful alternative if relevant.'
+    ?'Explain the played move fairly, then mention a meaningful verified missed opportunity if it genuinely teaches something. A reasonable move is not automatically a mistake.'
     :'Explain why this improvement matters.',
    evaluationPolicy:'The normalized balance is NOT a win probability. Do not quote exact percentages or centipawns unless explicitly requested. Do not treat the first Stockfish choice as the only good move. If evidence is missing or approximate, avoid confident judgments.',
    languagePolicy:'Explain moves in plain English, e.g. "move the queen to d2" rather than "7.Qd2", and "move the rook to g1" rather than "Rg1". Do not use algebraic move notation, move-number prefixes, or unexplained abbreviations in the coaching message. Give one specific lesson from the current position; avoid repeating broad opening principles. Distinguish opponent and learner moves. Use tacticalFacts for exactly what the moved piece attacks or defends and which immediate legal replies can capture it or give check; geometric attacks are not automatically legal or strong. Do not claim a piece protects pawns not listed as defended. Do not assert a tactical threat or reason for an alternative unless the supplied legal variation and board facts support it. If uncertain, say so. Normal moves: usually 1-2 useful sentences; significant mistakes: up to 4, without filler. Use natural chess language; normally name at most two board squares in a routine explanation. Say along the diagonal, the central files, or toward the king instead of tracing every intermediate square. Keep exact squares when needed to explain an actual capture, check, mating sequence, or precise error.'
   };
-  // Offer an alternative only after a substantial, depth-limited loss.
+  // Offer a retrospective alternative when the verified improvement is meaningful,
+  // even if the played move remains reasonable. Never equate engine difference with a blunder.
   // Validate its LEGAL move and resulting attacks/defences separately.
   const bestMoveForCoaching=prior?.best?legal(before).find(candidate=>key(candidate)===prior.best):null;
   const alternativeEvidence=coachAlternativeEvidence(before,bestMoveForCoaching,move,loss,priorEngine);
