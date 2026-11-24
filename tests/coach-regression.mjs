@@ -131,7 +131,7 @@ const guardEnd=lambdaSource.indexOf('async function generateCoaching(',guardStar
 assert.ok(guardStart>=0&&guardEnd>guardStart,'Lambda guard implementation present');
 const guardContext={};vm.createContext(guardContext);
 vm.runInContext(lambdaSource.slice(guardStart,guardEnd)+
- '\nthis.guard={checkExplanation,coachingBudget,unsupportedDirectClaims,verifiedRelations,unsupportedStructuralClaims,unsupportedExchangeClaims,unsupportedQueenTradeClaims,unsupportedMaterialSequenceClaims,unsupportedPrimaryTacticalClaims,unsupportedHangingMinorClaims,shortenVerifiedExplanation,unsupportedCheckMechanismClaims,unsupportedSevereBlunderClaims,moveQualityContext,coachPawnBoard,unsupportedPawnHistoryClaims,verifiedPawnCaptureFallback,coachingValidationCodes,needlessEngineAttribution};',guardContext);
+ '\nthis.guard={checkExplanation,coachingBudget,unsupportedDirectClaims,verifiedRelations,unsupportedStructuralClaims,unsupportedExchangeClaims,unsupportedQueenTradeClaims,unsupportedMaterialSequenceClaims,unsupportedPrimaryTacticalClaims,unsupportedHangingMinorClaims,shortenVerifiedExplanation,unsupportedCheckMechanismClaims,unsupportedSevereBlunderClaims,moveQualityContext,coachPawnBoard,unsupportedPawnHistoryClaims,verifiedPawnCaptureFallback,verifiedMajorCaptureFallback,coachingGuardFailures,coachingValidationCodes,needlessEngineAttribution};',guardContext);
 const bishopPositionBefore=pos({c8:'b',f8:'b',d7:'.',e7:'p',d5:'p',e2:'P',d4:'P'});
 const bishopPositionAfter=pos({c8:'b',f8:'b',d7:'.',e6:'p',e7:'.',d5:'p',e2:'P',d4:'P'});
 const guardInput={strategicFacts:changes(bishopPositionBefore,bishopPositionAfter),tacticalFacts:{}};
@@ -588,4 +588,39 @@ test('110 severe-blunder first PV guard participates in full explanation validat
  const issues=Array.from(guardContext.guard.checkExplanation(
   bad,immortalBishop18,guardContext.guard.coachingBudget(immortalBishop18)));
  assert.ok(issues.some(x=>x.includes('Primary tactic')));
+});
+
+const realImmortalBishop18={
+ ...immortalBishop18,
+ afterFen:'rnb1k1nr/p2p1ppp/3B4/1pbN1N1P/4P1P1/3P1Q2/PqP5/R4KR1 b kq - 1 18',
+ engine:{depth:12},priorEngine:{depth:12},
+ moveAssessment:{centipawnLoss:395,depth:12,playedIsEngineChoice:false,
+  evaluationBefore:2.21,evaluationAfter:-1.74,approximate:true}
+};
+test('111 real 18.Bd6 recovery describes verified Qxa1+ and nothing speculative',()=>{
+ const fallback=guardContext.guard.verifiedMajorCaptureFallback(realImmortalBishop18);
+ assert.ok(fallback);
+ assert.match(fallback,/18\.\.\. Qxa1\+/);
+ assert.match(fallback,/rook on a1 with check/);
+ assert.deepEqual(Array.from(guardContext.guard.checkExplanation(fallback,
+  realImmortalBishop18,guardContext.guard.coachingBudget(realImmortalBishop18))),[]);
+});
+test('112 major capture fallback refuses an unverified checking move or wrong board',()=>{
+ const base=realImmortalBishop18;
+ assert.equal(guardContext.guard.verifiedMajorCaptureFallback({
+  ...base,tacticalContinuation:{moves:[{...base.tacticalContinuation.moves[0],check:false}]}}),null);
+ assert.equal(guardContext.guard.verifiedMajorCaptureFallback({
+  ...base,afterFen:base.afterFen.replace('PqP5','P1P5')}),null);
+});
+test('113 major capture fallback does not override positions without substantial loss',()=>{
+ assert.equal(guardContext.guard.verifiedMajorCaptureFallback({
+  ...realImmortalBishop18,moveAssessment:{
+   ...realImmortalBishop18.moveAssessment,centipawnLoss:30}}),null);
+});
+test('114 diagnostics expose only exact failing guard names',()=>{
+ const bad='The bishop was simply taken, so the position became worse without any immediate threats.';
+ const guards=Array.from(guardContext.guard.coachingGuardFailures(
+  bad,realImmortalBishop18,guardContext.guard.coachingBudget(realImmortalBishop18)));
+ assert.ok(guards.includes('primary-tactic'));
+ assert.ok(guards.every(x=>/^[a-z-]+$/.test(x)));
 });
