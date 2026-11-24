@@ -9,14 +9,18 @@ import {resolve,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import crypto from 'node:crypto';
 import vm from 'node:vm';
+import {startStockfish} from './stockfish-evidence.mjs';
 
 const root=resolve(fileURLToPath(new URL('../',import.meta.url)));
 const args=process.argv.slice(2);
 const live=args.includes('--live');
+const useStockfish=args.includes('--stockfish');
+const stockfishDepth=Math.max(10,Math.min(20,Number((()=>{const i=args.indexOf('--depth');return i>=0?args[i+1]:14;})())));
 const option=name=>{const i=args.indexOf(name);return i>=0?args[i+1]:undefined;};
 const max=Math.max(1,Math.min(40,Number(option('--limit')||6)));
 const group=option('--group');
-if(group&&!['tactical','historical'].includes(group))throw Error('--group must be tactical or historical');
+if(group&&!['tactical','historical','engine'].includes(group))throw Error('--group must be tactical, historical or engine');
+if(group==='engine'&&!useStockfish)throw Error('--group engine requires --stockfish: never fabricate engine evaluations');
 const endpoint=option('--endpoint')||'http://127.0.0.1:8000/api/coach/move';
 const selected=option('--case');
 const baselineFile=option('--baseline');
@@ -41,7 +45,7 @@ const lambdaValidation=between(lambda,'const words=text=>','async function gener
 const context={dirs:{n:[-33,-31,-18,-14,14,18,31,33],b:[-17,-15,15,17],r:[-16,-1,1,16],k:[-17,-16,-15,-1,1,15,16,17]},routeLine:()=>[]};
 vm.createContext(context);
 vm.runInContext(engine+'\n'+fen+'\n'+analysisCode+'\n'+played+
- '\nthis.chess={original,legal,apply,key,moveLabel,fenOf,coachBoardFacts,coachMoveTactics,coachStrategicChanges,coachTeachingPriorities,playedMoveEvidence,coachPlainMove};',context,{timeout:3000});
+ '\nthis.chess={original,legal,apply,key,moveLabel,fenOf,checked,coachEngineEvidence,coachBoardFacts,coachMoveTactics,coachStrategicChanges,coachTeachingPriorities,playedMoveEvidence,coachPlainMove};',context,{timeout:3000});
 const chess=context.chess;
 const checker={};
 vm.createContext(checker);
@@ -56,7 +60,7 @@ const otherSequences={
 };
 const base=['d2d4','d7d5','g1f3','g8f6','b1c3','e7e6','e2e4','f8b4','a2a3','b4a5','f1d3','a5c3','b2c3'];
 function sequenceFor(item){
- if(item.referenceSequence==='tactical-fen')return item.moves;
+ if(['tactical-fen','engine-fen','engine-line'].includes(item.referenceSequence))return item.moves;
  if(item.referenceSequence==='main-line')return item.moves;
  if(otherSequences[item.id])return [...base,...otherSequences[item.id]];
  return null;
@@ -124,7 +128,7 @@ function makeInput(item,moves){
   engine:null,priorEngine:null,moveAssessment:null,alternativeEvidence:null,positionAssessment:null,
   history:labels,recentCoaching:[],scripted:'Regression case; explain the actual legal move.'
  };
- return {payload,moves,labels};
+ return {payload,moves,labels,before,after};
 }
 
 // Tactics are curated independently of Stockfish. Verify only claims that can
@@ -159,7 +163,9 @@ const fixed=[],skipped=[];
 for(const item of review.cases){
  if(selected&&item.id!==selected)continue;
  if(group==='tactical'&&item.referenceSequence!=='tactical-fen')continue;
- if(group==='historical'&&item.referenceSequence==='tactical-fen')continue;
+ if(group==='historical'&&['tactical-fen','engine-fen','engine-line'].includes(item.referenceSequence))continue;
+ if(group==='engine'&&!item.referenceSequence.startsWith('engine-'))continue;
+ if(item.referenceSequence.startsWith('engine-')&&!useStockfish)continue;
  const moves=sequenceFor(item);
  if(!moves){skipped.push({id:item.id,reason:'No complete legal move sequence / exact FEN recorded'});continue;}
  const fixture=makeInput(item,moves);
@@ -191,6 +197,86 @@ assertExchangeFixture('13-white-b-pawn-takes-c3',facts=>
  facts.completedExchange?.sameSquareRecapture===true&&
  facts.completedExchange?.equalValuePieces===true&&
  facts.completedExchange?.previousCapture?.piece==='knight');
+
+// Genuine engine evaluations are obtained from the included Stockfish WASM,
+// not hard-coded or derived from legal capture geometry. Validate every PV
+// move through the production legal generator before showing it to GPT.
+function legalEngineAnalysis(board,raw){
+ let position=board;
+ const pv=[];
+ for(const uci of raw.pv.slice(0,8)){
+  const m=chess.legal(position).find(x=>chess.key(x)===uci);
+  if(!m)throw Error('Stockfish provided an illegal PV move '+uci);
+  pv.push(uci);position=chess.apply(position,m);
+ }
+ if(!pv.length||pv[0]!==raw.bestmove)
+  throw Error('Stockfish bestmove and PV disagree');
+ const factor=board.t===1?1:-1;
+ const evaluation=raw.scoreType==='cp'?Number((factor*raw.score/100).toFixed(2)):null;
+ const mate=raw.scoreType==='mate'?factor*raw.score:null;
+ const analysis={depth:raw.depth,evaluation,mate,best:raw.bestmove,
+  candidates:[{rank:1,depth:raw.depth,evaluation,mate,pv}]};
+ const evidence=chess.coachEngineEvidence(board,analysis);
+ if(!evidence?.variations?.length||evidence.variations[0].moves[0].uci!==raw.bestmove)
+  throw Error('Production engine evidence failed to represent verified PV');
+ return {analysis,evidence,raw:{version:raw.version,depth:raw.depth,
+  scoreType:raw.scoreType,score:raw.score,scorePerspective:'side-to-move',
+  pv,bestmove:raw.bestmove}};
+}
+function verifyForcedLine(fixture,expected){
+ let p=fixture.after;
+ for(const uci of expected){
+  const m=chess.legal(p).find(x=>chess.key(x)===uci);
+  if(!m)throw Error('Expected forcing continuation is illegal: '+fixture.id+' '+uci);
+  p=chess.apply(p,m);
+ }
+ if(!chess.checked(p)||chess.legal(p).length!==0)
+  throw Error('Expected continuation does not actually end in checkmate: '+fixture.id);
+}
+if(useStockfish){
+ const targets=fixed.filter(x=>x.id.startsWith('29-')||x.id.startsWith('30-'));
+ let sf=null;
+ try{
+  if(targets.length)sf=await startStockfish(root);
+  for(const fixture of targets){
+   const item=review.cases.find(x=>x.id===fixture.id);
+   verifyForcedLine(fixture,item.engineExpectedLine);
+   const before=legalEngineAnalysis(fixture.before,await sf.analyze(fixture.payload.beforeFen,stockfishDepth));
+   const after=legalEngineAnalysis(fixture.after,await sf.analyze(fixture.payload.afterFen,stockfishDepth));
+   if(!after.analysis.mate||Math.sign(after.analysis.mate)!==(item.engineExpectedMateFor==='White'?1:-1))
+    throw Error('Stockfish did not confirm a winning mate for '+item.engineExpectedMateFor+' in '+fixture.id);
+   const expectedFirst=item.engineExpectedLine[0];
+   if(after.raw.bestmove!==expectedFirst)
+    throw Error('Stockfish did not select expected forcing reply '+expectedFirst+' for '+fixture.id+'; got '+after.raw.bestmove);
+   const side=fixture.before.t;
+   const change=before.analysis.evaluation!==null&&after.analysis.evaluation!==null?
+    Math.round(100*(after.analysis.evaluation-before.analysis.evaluation)):null;
+   const first=before.evidence.variations[0]?.moves[0];
+   fixture.payload.engine=after.evidence;
+   fixture.payload.priorEngine=before.evidence;
+   fixture.payload.moveAssessment={
+    manual:true,playedIsEngineChoice:before.raw.bestmove===fixture.payload.played.uci,
+    centipawnLoss:change===null?null:Math.max(0,-side*change),
+    approximate:true,depth:Math.min(before.analysis.depth,after.analysis.depth),
+    suggestedMove:first?.label||null,suggestedMovePlainEnglish:first?.plainEnglish||null,
+    evaluationBefore:before.analysis.evaluation,evaluationAfter:after.analysis.evaluation,
+    evaluationChangeCentipawns:change,
+    evaluationChangeForMoverCentipawns:change===null?null:side*change,
+    expectedContinuation:before.evidence.variations[0]?.moves||[]
+   };
+   fixture.payload.coachingGuidance.focus='tactical';
+   fixture.payload.coachingGuidance.evaluationPolicy=
+    'Actual Stockfish analysis is attached for before and after; mate scores are signed from White perspective. Explain proven checkmates from verified PV without inventing alternatives.';
+   fixture.payload.coachingGuidance.alternativePolicy=
+    'Only recommend alternatives explicitly present in the Stockfish priorEngine PV, and distinguish engine-preferred lines from forced responses.';
+   fixture.payload.scripted='Engine-evaluated regression: teach the verified tactical consequence, including checks and the recorded forcing line. Do not improvise a continuation.';
+   fixture.engineProvenance={engine:after.raw.version,depth:stockfishDepth,
+    before:before.raw,after:after.raw,
+    verifiedCheckmateLine:item.engineExpectedLine};
+   fixture.hash=sha(fixture.payload);
+  }
+ }finally{sf?.stop();}
+}
 
 const results=[];
 const warnings=[];
@@ -224,6 +310,7 @@ for(const fixture of fixed){
   move:fixture.payload.played.uci,expectedLesson:fixture.expectedLesson,redFlag:fixture.redFlag,
   attempted:live&&results.filter(x=>x.attempted).length<allowed,
   response:message,error,objectiveWarnings:checks,
+  ...(fixture.engineProvenance?{engineProvenance:fixture.engineProvenance}:{}),
   // Human-scored dimensions intentionally blank until reviewed.
   review:{accuracy:null,tactical:null,teaching:null,clarity:null,notes:''}});
 }
