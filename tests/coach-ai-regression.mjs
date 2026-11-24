@@ -376,7 +376,7 @@ if(useStockfish){
     if(!e.moves.some(x=>x.uci==='f5d4'&&x.events.some(y=>y.type==='discovered-check'))||
      !e.moves.some(x=>x.uci==='d4e6'&&x.events.some(y=>y.type==='capture'&&y.capturedPiece==='queen'))||
      e.mainEvent?.type!=='capture'||e.mainEvent?.capturedPiece!=='queen')
-     throw Error('Bishop sacrifice must prioritize discovered check and later queen capture.');
+     throw Error('Bishop sacrifice must prioritize discovered check and later queen capture: '+JSON.stringify({moves:e.moves,main:e.mainEvent}));
    }
    if(fixture.id==='32-lichess-00KNK-knight-tactic'){
     const e=fixture.payload.tacticalContinuation;
