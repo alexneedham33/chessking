@@ -131,7 +131,7 @@ const guardEnd=lambdaSource.indexOf('async function generateCoaching(',guardStar
 assert.ok(guardStart>=0&&guardEnd>guardStart,'Lambda guard implementation present');
 const guardContext={};vm.createContext(guardContext);
 vm.runInContext(lambdaSource.slice(guardStart,guardEnd)+
- '\nthis.guard={checkExplanation,coachingBudget,unsupportedDirectClaims,verifiedRelations,unsupportedStructuralClaims,unsupportedExchangeClaims,unsupportedCheckMechanismClaims,unsupportedSevereBlunderClaims,moveQualityContext,coachPawnBoard,unsupportedPawnHistoryClaims,coachingValidationCodes,needlessEngineAttribution};',guardContext);
+ '\nthis.guard={checkExplanation,coachingBudget,unsupportedDirectClaims,verifiedRelations,unsupportedStructuralClaims,unsupportedExchangeClaims,unsupportedCheckMechanismClaims,unsupportedSevereBlunderClaims,moveQualityContext,coachPawnBoard,unsupportedPawnHistoryClaims,verifiedPawnCaptureFallback,coachingValidationCodes,needlessEngineAttribution};',guardContext);
 const bishopPositionBefore=pos({c8:'b',f8:'b',d7:'.',e7:'p',d5:'p',e2:'P',d4:'P'});
 const bishopPositionAfter=pos({c8:'b',f8:'b',d7:'.',e6:'p',e7:'.',d5:'p',e2:'P',d4:'P'});
 const guardInput={strategicFacts:changes(bishopPositionBefore,bishopPositionAfter),tacticalFacts:{}};
@@ -423,4 +423,30 @@ test('90 pawn-structure validator exposes safe failure categories',()=>{
   'Pawn file occupancy: the e-file lacks pawns from both sides.'
  ]));
  assert.deepEqual(codes,['capture-sequence','pawn-structure']);
+});
+
+test('91 verified fallback narrates Immortal pawn capture without false recapture or e-file claims',()=>{
+ const message=guardContext.guard.verifiedPawnCaptureFallback(immortalCapture);
+ assert.equal(message,
+  'Black captures the pawn on f4. This leaves black with doubled pawns on the f-file (f4 and f7).');
+ assert.deepEqual(Array.from(guardContext.guard.checkExplanation(message,immortalCapture,
+  guardContext.guard.coachingBudget(immortalCapture))),[]);
+});
+test('92 verified fallback is disabled without matching legal pawn capture facts',()=>{
+ const invalid={...immortalCapture,played:{...immortalCapture.played,capture:false}};
+ assert.equal(guardContext.guard.verifiedPawnCaptureFallback(invalid),null);
+ const wrongVictim={...immortalCapture,tacticalFacts:{exchangeEvidence:{captured:{
+  piece:'knight',square:'f4'}}}};
+ assert.equal(guardContext.guard.verifiedPawnCaptureFallback(wrongVictim),null);
+});
+test('93 genuine same-square pawn recapture is accurately labelled',()=>{
+ const input={...immortalCapture,tacticalFacts:{exchangeEvidence:{
+  captured:{piece:'pawn',square:'f4'},completedExchange:{sameSquareRecapture:true}}}};
+ assert.match(guardContext.guard.verifiedPawnCaptureFallback(input),/^Black recaptures the pawn on f4/);
+});
+test('94 verified fallback cannot invent chess teaching with unknown board facts',()=>{
+ assert.equal(guardContext.guard.verifiedPawnCaptureFallback({
+  played:{piece:'p',from:'e5',to:'f4',capture:true,side:'Black'},
+  tacticalFacts:{exchangeEvidence:{captured:{piece:'pawn',square:'f4'}}}
+ }),null);
 });
