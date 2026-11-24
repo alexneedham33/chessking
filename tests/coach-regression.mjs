@@ -131,7 +131,7 @@ const guardEnd=lambdaSource.indexOf('async function generateCoaching(',guardStar
 assert.ok(guardStart>=0&&guardEnd>guardStart,'Lambda guard implementation present');
 const guardContext={};vm.createContext(guardContext);
 vm.runInContext(lambdaSource.slice(guardStart,guardEnd)+
- '\nthis.guard={checkExplanation,coachingBudget,unsupportedStructuralClaims,unsupportedExchangeClaims};',guardContext);
+ '\nthis.guard={checkExplanation,coachingBudget,unsupportedStructuralClaims,unsupportedExchangeClaims,unsupportedCheckMechanismClaims};',guardContext);
 const bishopPositionBefore=pos({c8:'b',f8:'b',d7:'.',e7:'p',d5:'p',e2:'P',d4:'P'});
 const bishopPositionAfter=pos({c8:'b',f8:'b',d7:'.',e6:'p',e7:'.',d5:'p',e2:'P',d4:'P'});
 const guardInput={strategicFacts:changes(bishopPositionBefore,bishopPositionAfter),tacticalFacts:{}};
@@ -208,4 +208,23 @@ test('60 flags undefended pawn when a legal recapture exists',()=>{
  const evidence={captured:null,captureOptions:[
   {uci:'f6e4',capturedPiece:'pawn',hasLegalRecapture:true}]};
  assert.ok(exchangeGuard('The e4 pawn is undefended.',evidence).length>0);
+});
+
+const mateGeometry={tacticalFacts:{opponentCheckingReplyEvidence:[{
+ uci:'d8h4',checkLine:{checkmate:true,checkingPieces:[{
+  piece:'queen',from:'h4',king:'e1',clearSquaresBetween:['g3','f2']
+ }]}}]}};
+const checkGuard=message=>Array.from(guardContext.guard.unsupportedCheckMechanismClaims(message,mateGeometry));
+test('61 flags h3 pawn-cover as false causal explanation of Qh4 checkmate',()=>{
+ assert.ok(checkGuard('Black has Qh4 checkmate. The danger is concrete because your g-pawn no longer covers h3, so the queen has a direct mating route.').length>0);
+});
+test('62 accepts correct h4-g3-f2-e1 diagonal mechanism',()=>{
+ assert.equal(checkGuard('Black plays Qh4 checkmate: the queen checks along the open h4-g3-f2-e1 diagonal.').length,0);
+});
+test('63 does not reject true isolated h3 pawn-control observation',()=>{
+ assert.equal(checkGuard('The pawn on g4 no longer controls h3.').length,0);
+});
+test('64 no spurious checking-line warning without a verified Qh4 mate',()=>{
+ assert.equal(guardContext.guard.unsupportedCheckMechanismClaims(
+  'Because the pawn no longer covers h3, Black wins.',{tacticalFacts:{}}).length,0);
 });
