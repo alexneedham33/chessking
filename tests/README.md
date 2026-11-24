@@ -275,3 +275,29 @@ node tests/coach-game-simulation.mjs --live --game opera --depth 12 --limit 12
 The `--limit` flag caps **paid requests per selected game**; it defaults to 8. You can also choose `--game immortal` or `--game evergreen`. Without `--game`, `--live --limit 8` calls the coach **24 times total** (8 in each game), while analysing all 125 positions offline. To send all 125 historical plies to the AI in one invocation, `--live --limit 50` is technically supported but will incur **125 paid requests** and is not recommended until the initial samples pass human review. Repetition, accuracy and teaching quality cannot be established by offline engine checks alone.
 
 The simulation currently exceeds the application's ordinary 24-message-per-game coaching cap for longer games. It is a purpose-built **test harness**, not a claim that the production UI sends a coach request on every move across these whole games. The local proxy must be restarted after source changes; the Lambda remains separately deployed. Never commit report files or API credentials.
+
+## Continuous-game coach refinements: diagnostic categories, lesson relevance and natural language
+
+The Lambda now reports **non-sensitive validation diagnostics** on a failed 502, rather than only a generic error message:
+
+```json
+{"error":"Coaching explanation could not be verified; please retry","validation":{"status":"failed","repairAttempted":true,"initialCodes":["..."],"finalCodes":["..."]}}
+```
+
+Only *category codes* are returned; prompts, raw assistant drafts, board FENs and validator explanation text are **not** returned. Successful responses also include `validation.status` (`passed` or `repaired`), `repairAttempted` and initial diagnostic categories. This does not expose private chain of thought or grant access to AWS logs. The complete-game test runner captures this metadata and counts repairs/failures so we can identify why a coaching response was rejected. The Lambda still performs at most one repair and refuses to deliver a response that fails deterministic checks.
+
+The teaching prompt now orders information by value: checkmate/major error and verified tactical consequences first; relevant direct attacks, recaptures and piece coordination second; quiet development or king safety next; incidental piece geometry last. The AI must **not** describe Black's pieces as "your pieces" when coaching White, and should avoid unnecessary line-by-line Stockfish commentary. For noncritical routine moves, an additional validation check rejects direct engine/Stockfish name-dropping; genuinely important tactical assessments can still mention the engine.
+
+### Continue the Opera Game with prior coaching context
+
+The game simulator can start at a selected ply and **reuse earlier live messages** from a verified prior report. Every reused message is matched against the currently checked move and both before/after FENs, so another game or different move line is not accepted. Earlier failed requests are not fabricated. For the previous 11 successful Opera Game responses, run (with the local server running and the newest AWS Lambda deployed):
+
+```bash
+cd ~/chessking
+git pull origin main
+node tests/coach-game-simulation.mjs --live --game opera --depth 12 --start-ply 13 --limit 12 --resume tests/reports/coach-games-live-2026-11-24T01-02-15-316Z.json
+```
+
+This analyses all 33 moves locally with Stockfish and **sends exactly 12 paid AI coaching requests for plies 13–24**, retaining verified prior coaching messages from the report at earlier plies. It does **not** retry the previously failed ply 12; error category diagnostics for that move will require an explicitly targeted separate call or a later occurrence of that validation issue. To specifically replay ply 12 with some prior context, use `--start-ply 12 --limit 1` with the same `--resume` argument. A previous failure is not treated as previous coaching.
+
+The new `validation` fields are populated by the latest Lambda code. Restarting just `node local-server.mjs` does not update AWS; paste the latest `lambda-coach/index.mjs` into the AWS console and deploy it first. Existing 502 errors from an older Lambda will continue to contain only the generic error string.
