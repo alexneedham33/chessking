@@ -6,6 +6,8 @@ on:
       - lambda-coach/index.mjs
       - tests/coach-regression.mjs
       - tests/coach-ai-regression.mjs
+      - tests/coach-game-simulation.mjs
+      - tests/coach-game-lines.json
       - tests/stockfish-evidence.mjs
       - tests/coach-review-cases.json
       - stockfish-17.1-lite-single-03e3232.js
@@ -32,3 +34,4 @@ jobs:
       - run: node tests/coach-ai-regression.mjs --group engine --stockfish --depth 12
       - run: node tests/coach-ai-regression.mjs --group middlegame --stockfish --depth 12
       - run: node tests/coach-ai-regression.mjs --group balance --stockfish --depth 12
+      - run: node tests/coach-game-simulation.mjs --validate-only
