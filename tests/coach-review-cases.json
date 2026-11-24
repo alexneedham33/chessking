@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Frozen, qualitative AI coach regression rubric. Scores intentionally blank until identical chess positions are evaluated. Distinguish mechanical node tests from model-output tests. Tactical FEN fixtures are curated legal positions without engine evaluations; tactical motifs are geometric, not proof of material gain or forced lines.",
+  "description": "Frozen, qualitative AI coach regression rubric. Scores intentionally blank until identical chess positions are evaluated. Distinguish mechanical node tests from model-output tests. Tactical FEN fixtures are curated legal positions without engine evaluations; tactical motifs are geometric, not proof of material gain or forced lines. Four additional middlegame puzzle snapshots from the public Lichess puzzle database (FEN before setup move, first UCI is setup, second is coached tactic). Analysis is generated locally with Stockfish, not taken on trust from the puzzle label.",
   "scoring": {
     "scale": "0–5 each dimension, 5 best",
     "dimensions": [
@@ -683,6 +683,124 @@
         "notes": ""
       },
       "engineMustBeForced": true
+    },
+    {
+      "id": "31-lichess-0066C-bishop-sacrifice",
+      "category": "middlegame-sacrifice",
+      "beforeFen": "r2q1r1k/2p3p1/pb2Q2p/1p1p1n2/8/1BP5/PP1B1PPP/3RR1K1 w - - 3 20",
+      "moves": [
+        "b3d5",
+        "b6f2"
+      ],
+      "puzzleLine": [
+        "b3d5",
+        "b6f2",
+        "g1f2",
+        "f5d4",
+        "f2g1",
+        "d4e6"
+      ],
+      "puzzleId": "0066C",
+      "puzzleUrl": "https://lichess.org/ZyuTEP3l#38",
+      "expectedLesson": "Explain bishop capture on f2 within a defended middlegame, compare its value against Black's actual Stockfish variation and don't assert forced compensation for an unproven line",
+      "redFlag": "unsupported forced gain following bishop capture",
+      "referenceSequence": "middlegame-puzzle",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "32-lichess-00KNK-knight-tactic",
+      "category": "middlegame-knight-tactic",
+      "beforeFen": "r3r1k1/p1p4p/3b4/4p1qN/8/1P1b1Q2/P2P1PP1/B5KR b - - 2 22",
+      "moves": [
+        "e5e4",
+        "h5f6"
+      ],
+      "puzzleLine": [
+        "e5e4",
+        "h5f6",
+        "g8f8",
+        "f6h7",
+        "f8e7",
+        "a1f6",
+        "g5f6",
+        "f3f6"
+      ],
+      "puzzleId": "00KNK",
+      "puzzleUrl": "https://lichess.org/L8oTZ2cM/black#44",
+      "expectedLesson": "Explain the concrete knight jump and replies shown by Stockfish rather than guessing a fork or a mate",
+      "redFlag": "claims a forced win without proven sequence",
+      "referenceSequence": "middlegame-puzzle",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "33-lichess-00sJ9-rook-infiltration",
+      "category": "middlegame-rook-tactic",
+      "beforeFen": "r3r1k1/p4ppp/2p2n2/1p6/3P1qb1/2NQR3/PPB2PP1/R1B3K1 w - - 5 18",
+      "moves": [
+        "e3g3",
+        "e8e1"
+      ],
+      "puzzleLine": [
+        "e3g3",
+        "e8e1",
+        "g1h2",
+        "e1c1",
+        "a1c1",
+        "f4h6",
+        "h2g1",
+        "h6c1"
+      ],
+      "puzzleId": "00sJ9",
+      "puzzleUrl": "https://lichess.org/gyFeQsOE#35",
+      "expectedLesson": "Explain Black's rook incursion on e1 with a legal continuation and material context, not fabricated forcing claims",
+      "redFlag": "an unsupported guaranteed mate or material win",
+      "referenceSequence": "middlegame-puzzle",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "34-lichess-00sO1-bishop-intermezzo",
+      "category": "middlegame-discovered-attack",
+      "beforeFen": "1k1r4/pp3pp1/2p1p3/4b3/P3n1P1/8/KPP2PN1/3rBR1R b - - 2 31",
+      "moves": [
+        "b8c7",
+        "e1a5"
+      ],
+      "puzzleLine": [
+        "b8c7",
+        "e1a5",
+        "b7b6",
+        "f1d1"
+      ],
+      "puzzleId": "00sO1",
+      "puzzleUrl": "https://lichess.org/vsfFkG0s/black#62",
+      "expectedLesson": "Describe the bishop move's discovered or counterattacking motif accurately, distinguishing engine PV from a puzzle's suggested response",
+      "redFlag": "invented forcing reply or tactical evaluation",
+      "referenceSequence": "middlegame-puzzle",
+      "review": {
+        "accuracy": null,
+        "tactical": null,
+        "teaching": null,
+        "clarity": null,
+        "notes": ""
+      }
     }
   ]
 }
