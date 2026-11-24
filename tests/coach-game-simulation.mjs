@@ -91,6 +91,42 @@ function scenarioPositionFromFen(fen){
  return {b:board,t:f[1]==='w'?1:-1,c,ep:f[3]==='-'?-1:square(f[3]),
   half:Number(f[4]),full:Number(f[5]),i:0};
 }
+// Verify the screenshot's post-Guided queen move and the actual legal
+// bishop-check / pawn-capture reply in the production move generator.
+function assertLooseBishopCheckGuard(){
+ const fen='rnb1kb1r/1p2qppp/p3pn2/2p5/2BP4/2N1PN2/PP2QPPP/R1B1K2R w KQkq - 1 8';
+ const after=scenarioPositionFromFen(fen);
+ const bishop=chess.legal(after).find(x=>chess.key(x)==='c4b5');
+ if(!bishop||!chess.checked(chess.apply(after,bishop)))
+  throw Error('Queen e7 screenshot: bishop to b5 must be legal check');
+ const checkPosition=chess.apply(after,bishop);
+ if(!chess.legal(checkPosition).some(x=>chess.key(x)==='a6b5'))
+  throw Error('Queen e7 screenshot: pawn a6 must legally capture bishop on b5');
+ const before=scenarioPositionFromFen('rnbqkb1r/1p3ppp/p3pn2/2p5/2BP4/2N1PN2/PP2QPPP/R1B1K2R b KQkq - 0 7');
+ const queen=chess.legal(before).find(x=>chess.key(x)==='d8e7');
+ if(!queen||chess.fenOf(chess.apply(before,queen)).split(' ')[0]!==fen.split(' ')[0])
+  throw Error('Queen e7 screenshot: setup move not legal or mismatched');
+ const facts=chess.coachMoveTactics(before,queen);
+ const reply=facts.opponentCheckingReplyEvidence.find(x=>x.uci==='c4b5');
+ if(!reply?.pawnCapturesChecker?.some(x=>x.uci==='a6b5'))
+  throw Error('Queen e7 screenshot: chess evidence missing pawn recapture');
+ const payload={
+  afterFen:fen,
+  player:'Black',mover:'Black',played:{side:'Black',from:'d8',to:'e7',piece:'q'},
+  tacticalFacts:facts,
+  openingContext:{source:'selected-guided',phase:'free-play-after-guided-opening'}
+ };
+ const bad='Moving the queen to e7 is playable, but it lets White answer with bishop to b5 and check the king.';
+ const issues=guards.guards.checkExplanation(bad,payload,guards.guards.coachingBudget(payload));
+ if(!issues.some(x=>x.includes('Checking-piece safety')))
+  throw Error('Queen e7 screenshot: loose checking recommendation not rejected');
+ const good='Black develops the queen toward the centre, but should consider the pressure White can apply to its kingside.';
+ if(issues.length===0||guards.guards.checkExplanation(good,payload,guards.guards.coachingBudget(payload))
+  .some(x=>x.includes('Checking-piece safety')))
+  throw Error('Queen e7 screenshot: loose-check guard misclassifies explanation');
+ console.log('Verified queen e7 post-Guided bishop check: c4b5+ is met by legal a6b5; misleading recommendation rejected.');
+}
+assertLooseBishopCheckGuard();
 function verifyGame(game){
  if(!game.scenario&&(!Array.isArray(game.moves)||game.moves.length<30))
   throw Error('Historical game too short: '+game.id);
