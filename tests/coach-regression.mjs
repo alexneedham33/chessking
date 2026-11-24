@@ -131,7 +131,7 @@ const guardEnd=lambdaSource.indexOf('async function generateCoaching(',guardStar
 assert.ok(guardStart>=0&&guardEnd>guardStart,'Lambda guard implementation present');
 const guardContext={};vm.createContext(guardContext);
 vm.runInContext(lambdaSource.slice(guardStart,guardEnd)+
- '\nthis.guard={checkExplanation,coachingBudget,unsupportedDirectClaims,verifiedRelations,unsupportedStructuralClaims,unsupportedExchangeClaims,unsupportedCheckMechanismClaims,unsupportedSevereBlunderClaims};',guardContext);
+ '\nthis.guard={checkExplanation,coachingBudget,unsupportedDirectClaims,verifiedRelations,unsupportedStructuralClaims,unsupportedExchangeClaims,unsupportedCheckMechanismClaims,unsupportedSevereBlunderClaims,coachingValidationCodes,needlessEngineAttribution};',guardContext);
 const bishopPositionBefore=pos({c8:'b',f8:'b',d7:'.',e7:'p',d5:'p',e2:'P',d4:'P'});
 const bishopPositionAfter=pos({c8:'b',f8:'b',d7:'.',e6:'p',e7:'.',d5:'p',e2:'P',d4:'P'});
 const guardInput={strategicFacts:changes(bishopPositionBefore,bishopPositionAfter),tacticalFacts:{}};
@@ -290,4 +290,30 @@ test('72 accepts the actual accurate Nf3 response using production piece geometr
  const actual='The knight develops to f3, and it directly supports your d4 pawn while also covering h2. It also adds control over e5 and g5, which helps you keep options flexible in the centre.';
  const input={tacticalFacts:knightRelations,coachingGuidance:{focus:'strategic'}};
  assert.equal(guardContext.guard.checkExplanation(actual,input,guardContext.guard.coachingBudget(input)).length,0);
+});
+
+test('73 reports non-sensitive validator issue codes without leaking full text',()=>{
+ const a=guardContext.guard.coachingValidationCodes([
+  'Too long for this move; preserve the most important factual explanation.',
+  'The moved piece does not directly defend the pawn on d4. Remove that claim.'
+ ]);
+ assert.deepEqual([...a].sort(),['length','piece-relation']);
+});
+test('74 engine attribution is disallowed for ordinary opening moves',()=>{
+ const input={engine:{},moveAssessment:{centipawnLoss:5,depth:14},tacticalFacts:{givesCheck:false},played:{check:false},coachingGuidance:{focus:'strategic'}};
+ assert.ok(guardContext.guard.needlessEngineAttribution(
+  "Stockfish's main line develops the bishop.",input).length>0);
+ assert.equal(guardContext.guard.needlessEngineAttribution(
+  'This develops the bishop and prepares castling.',input).length,0);
+});
+test('75 engine mention is allowed for decisive tactical errors',()=>{
+ const input={engine:{},moveAssessment:{centipawnLoss:740,depth:14},tacticalFacts:{givesCheck:false},played:{check:false}};
+ assert.equal(guardContext.guard.needlessEngineAttribution(
+  'Stockfish confirms a major mistake after White captures the queen.',input).length,0);
+});
+test('76 validator rejects routine engine-name recital',()=>{
+ const input={engine:{},moveAssessment:{centipawnLoss:0,depth:12},tacticalFacts:{givesCheck:false},played:{check:false}};
+ const msg="The pawn advances to e4 and Stockfish's main line replies e6.";
+ assert.ok(guardContext.guard.checkExplanation(msg,input,
+  guardContext.guard.coachingBudget(input)).some(x=>x.includes('Stockfish')));
 });
