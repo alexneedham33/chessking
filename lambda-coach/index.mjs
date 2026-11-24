@@ -433,6 +433,25 @@ function checkExplanation(message,input,budget){
  issues.push(...needlessEngineAttribution(message,input));
  return issues;
 }
+// Identify the exact rejecting guard, rather than inferring its identity from
+// its human-readable error text. No text, board state or prompts are exposed.
+function coachingGuardFailures(message,input,budget){
+ const groups={
+  length:words(message)>budget.maxWords||sentences(message)>budget.maxSentences,
+  'direct-relations':unsupportedDirectClaims(message,verifiedRelations(input)).length>0,
+  structure:unsupportedStructuralClaims(message,input).length>0,
+  'pawn-history':unsupportedPawnHistoryClaims(message,input).length>0,
+  exchange:unsupportedExchangeClaims(message,input).length>0,
+  'queen-trade':unsupportedQueenTradeClaims(message,input).length>0,
+  'material-sequence':unsupportedMaterialSequenceClaims(message,input).length>0,
+  'primary-tactic':unsupportedPrimaryTacticalClaims(message,input).length>0,
+  'minor-piece-safety':unsupportedHangingMinorClaims(message,input).length>0,
+  'check-mechanism':unsupportedCheckMechanismClaims(message,input).length>0,
+  'move-severity':unsupportedSevereBlunderClaims(message,input).length>0,
+  'engine-attribution':needlessEngineAttribution(message,input).length>0
+ };
+ return Object.keys(groups).filter(x=>groups[x]);
+}
 // Return non-sensitive diagnostic codes, never previous model wording, prompts,
 // private FENs, or raw validator explanations in an API error response.
 function coachingValidationCodes(issues){
@@ -588,7 +607,7 @@ export const handler=async(event)=>{
     validation:{status:'failed',repairAttempted,initialCodes:initialValidationCodes,
      repairCodes,finalCodes:validationCodes,
      diagnostics:{initialIssueCount:initialIssuesCount,repairIssueCount:repairCodes.length,
-      finalIssueCount:issues.length,finalWordCount:words(message),
+      finalIssueCount:issues.length,guardFailures:coachingGuardFailures(message,input,budget),finalWordCount:words(message),
       allowedWords:budget.maxWords,finalSentenceCount:sentences(message),
       allowedSentences:budget.maxSentences}}});
   }
