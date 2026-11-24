@@ -247,6 +247,33 @@ if(useStockfish){
   for(const fixture of targets){
    const item=review.cases.find(x=>x.id===fixture.id);
    const verifiedLine=verifyForcedLine(fixture,item.engineExpectedLine);
+   // Every genuine checking continuation must be accompanied by board-derived
+   // attack geometry, even if the move being coached did not itself give check.
+   let current=fixture.after;
+   const verifiedCheckLines=[];
+   for(const uci of item.engineExpectedLine){
+    const m=chess.legal(current).find(x=>chess.key(x)===uci);
+    if(!m)throw Error('Illegal verified tactical reply '+uci);
+    const facts=chess.coachMoveTactics(current,m);
+    const next=chess.apply(current,m);
+    if(!facts.givesCheck||!facts.checkLine?.checkingPieces?.length)
+     throw Error('Missing actual checking-piece evidence for '+fixture.id+' '+uci);
+    verifiedCheckLines.push({uci,move:chess.coachPlainMove(current,m),
+     checkLine:facts.checkLine});
+    current=next;
+   }
+   if(fixture.id==='29-blunder-allows-fools-mate'){
+    const mate=verifiedCheckLines.find(x=>x.uci==='d8h4');
+    const q=mate?.checkLine?.checkingPieces?.find(x=>x.piece==='queen'&&x.from==='h4'&&x.king==='e1');
+    if(!q||JSON.stringify(q.clearSquaresBetween)!==JSON.stringify(['g3','f2'])||
+      mate.checkLine.checkmate!==true)
+     throw Error('Fools Mate checker geometry must identify h4-g3-f2-e1.');
+   }
+   if(fixture.id==='30-queen-sacrifice-smothered-mate'){
+    const mate=verifiedCheckLines.find(x=>x.uci==='h6f7');
+    if(!mate?.checkLine?.checkingPieces?.some(x=>x.piece==='knight'&&x.from==='f7'&&x.king==='h8'))
+     throw Error('Smothered mate must identify knight f7 checking king h8');
+   }
    const before=legalEngineAnalysis(fixture.before,await sf.analyze(fixture.payload.beforeFen,stockfishDepth));
    const after=legalEngineAnalysis(fixture.after,await sf.analyze(fixture.payload.afterFen,stockfishDepth));
    if(!after.analysis.mate||Math.sign(after.analysis.mate)!==(item.engineExpectedMateFor==='White'?1:-1))
@@ -264,6 +291,7 @@ if(useStockfish){
    const first=before.evidence.variations[0]?.moves[0];
    fixture.payload.engine=after.evidence;
    fixture.payload.verifiedTacticalContinuation=verifiedLine;
+   fixture.payload.verifiedCheckLines=verifiedCheckLines;
    fixture.payload.priorEngine=before.evidence;
    fixture.payload.moveAssessment={
     manual:true,playedIsEngineChoice:before.raw.bestmove===fixture.payload.played.uci,
