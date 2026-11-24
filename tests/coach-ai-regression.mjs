@@ -14,7 +14,9 @@ const root=resolve(fileURLToPath(new URL('../',import.meta.url)));
 const args=process.argv.slice(2);
 const live=args.includes('--live');
 const option=name=>{const i=args.indexOf(name);return i>=0?args[i+1]:undefined;};
-const max=Math.max(1,Math.min(24,Number(option('--limit')||6)));
+const max=Math.max(1,Math.min(40,Number(option('--limit')||6)));
+const group=option('--group');
+if(group&&!['tactical','historical'].includes(group))throw Error('--group must be tactical or historical');
 const endpoint=option('--endpoint')||'http://127.0.0.1:8000/api/coach/move';
 const selected=option('--case');
 const baselineFile=option('--baseline');
@@ -156,6 +158,8 @@ function assertTacticalFixture(item,fixture){
 const fixed=[],skipped=[];
 for(const item of review.cases){
  if(selected&&item.id!==selected)continue;
+ if(group==='tactical'&&item.referenceSequence!=='tactical-fen')continue;
+ if(group==='historical'&&item.referenceSequence==='tactical-fen')continue;
  const moves=sequenceFor(item);
  if(!moves){skipped.push({id:item.id,reason:'No complete legal move sequence / exact FEN recorded'});continue;}
  const fixture=makeInput(item,moves);
