@@ -164,7 +164,16 @@ try{
   let errors=0,warnings=0;
   const count=Math.min(states.length,maxPly);
   for(let j=0;j<count;j++){
-   const entry=states[j],pre=await get(entry.before),post=await get(entry.after);
+   const entry=states[j],pre=await get(entry.before);
+   // Stockfish has no bestmove/PV from a terminal checkmate position. The
+   // production legal generator already proves mate, so don't demand a PV.
+   const terminal=chess.legal(entry.after).length===0;
+   const post=terminal?{
+    raw:{engine:pre.raw.engine,depth,scoreType:'terminal-checkmate',score:null,
+     scorePerspective:'side-to-move',bestmove:null,pv:[]},
+    analysis:{evaluation:null,mate:entry.before.t===1?1:-1},
+    evidence:null
+   }:await get(entry.after);
    labels.push(entry.label);
    const payload=payloadFor(entry,states[j-1],pre,post,labels,recent,game);
    const current={ply:j+1,moveNumber:entry.before.full,mover:payload.mover,
