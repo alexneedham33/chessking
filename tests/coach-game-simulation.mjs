@@ -13,6 +13,8 @@ const root=resolve(fileURLToPath(new URL('../',import.meta.url)));
 const argv=process.argv.slice(2);
 const opt=name=>{const i=argv.indexOf(name);return i<0?undefined:argv[i+1];};
 const live=argv.includes('--live'),validateOnly=argv.includes('--validate-only');
+const exportBenchmark=argv.includes('--export-benchmark');
+if(exportBenchmark&&(live||validateOnly))throw Error('--export-benchmark cannot be combined with --live or --validate-only');
 if(live&&validateOnly)throw Error('--live and --validate-only cannot be combined.');
 const depth=Number(opt('--depth')||12);
 if(!Number.isInteger(depth)||depth<10||depth>20)throw Error('--depth must be an integer from 10 to 20');
@@ -37,6 +39,7 @@ const releaseFile=JSON.parse(readFileSync(resolve(root,'tests/coach-release-scen
 const chosen=opt('--game');
 const allCases=suite==='release'?releaseFile.scenarios.map(x=>({...x,scenario:true})):gameFile.games;
 const games=allCases.filter(x=>!chosen||x.id===chosen);
+if(exportBenchmark&&(suite!=='release'||chosen))throw Error('--export-benchmark requires the complete --suite release without --game');
 if(!games.length)throw Error('Unknown game/scenario: '+chosen+'; available '+allCases.map(x=>x.id).join(', '));
 const html=readFileSync(resolve(root,'index.html'),'utf8');
 const lambda=readFileSync(resolve(root,'lambda-coach/index.mjs'),'utf8');
@@ -197,6 +200,8 @@ function payloadFor(entry,previous,pre,post,labels,recent,game){
   detail:'adaptive'
  };
 }
+const benchmarkFixtures=[];
+const benchmarkIndices={positional:[1,2,3,4,5],tactical:[1,3,5,9,11],endgame:[1,2,3,5,7]};
 const report={version:1,createdAt:new Date().toISOString(),suite,
  mode:live?'live':'offline',engineDepth:depth,limitPerGame:live?limit:null,startPly,
  resumeSource:resumePath||null,
@@ -287,6 +292,13 @@ try{
      throw Error('20...Na6 checking jump validation regression');
    }
 
+   if(exportBenchmark&&benchmarkIndices[game.id]?.includes(j+1)){
+    // Identical chess evidence and history for all compared model variants.
+    // No model sees explanations produced by a different model.
+    benchmarkFixtures.push({id:game.id+':'+(j+1),scenario:game.id,
+     ply:j+1,label:entry.label,beforeFen:payload.beforeFen,afterFen:payload.afterFen,
+     payload:{...payload,recentCoaching:[]}});
+   }
    const payloadBytes=Buffer.byteLength(JSON.stringify(payload),'utf8');
    // AWS Lambda rejects a coaching request body over 30,000 characters.
    // Validate the same practical limit before issuing any paid requests.
@@ -370,6 +382,20 @@ report.summary={
  repetitionCandidates:report.games.reduce((n,g)=>n+g.summary.repetitionFlags,0),
  reviewStatus:'Human quality scores not yet assigned'
 };
+mkdirSync(resolve(root,'tests/reports'),{recursive:true});
+if(exportBenchmark){
+ if(benchmarkFixtures.length!==15||
+    Object.keys(benchmarkIndices).some(id=>benchmarkFixtures.filter(x=>x.scenario===id).length!==5))
+  throw Error('Benchmark fixtures must contain five positions per scenario');
+ const fixturePath=resolve(root,'tests/reports/coach-model-benchmark-fixtures.json');
+ writeFileSync(fixturePath,JSON.stringify({
+  version:1,suite:'model-benchmark',engineDepth:depth,createdAt:new Date().toISOString(),
+  controls:{sameChessEvidence:true,sameCoachingInstructions:true,independentContext:true,
+   promptIncludesHistory:true,promptIncludesOtherModelMessages:false},
+  fixtures:benchmarkFixtures
+ },null,2)+'\n');
+ console.log('Wrote 15 controlled benchmark positions: '+fixturePath);
+}
 mkdirSync(resolve(root,'tests/reports'),{recursive:true});
 const filename='coach-games-'+(live?'live-':'offline-')+
  new Date().toISOString().replace(/[:.]/g,'-')+'.json';
