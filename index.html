@@ -2414,8 +2414,18 @@ function coachMoveTactics(before,move,previousBefore=null,previousMove=null){
  const opponentCheckingReplyEvidence=opponentReplies.filter(reply=>checked(apply(after,reply)))
   .slice(0,5).map(reply=>{
    const next=apply(after,reply);
+   // Check whether the defender can legally capture the checking piece.
+   // A check is a legal move, not proof of a sound tactical threat.
+   const checkingPieceSquare=reply[1];
+   const checkingPieceName=coachPieceNames[after.b[reply[0]].toLowerCase()];
+   const pawnRecaptures=legal(next).filter(answer=>
+    answer[1]===checkingPieceSquare&&next.b[answer[0]].toLowerCase()==='p'&&
+    (answer[3]==='ep'||next.b[answer[1]]!=='.')
+   ).map(answer=>({uci:key(answer),move:coachPlainMove(next,answer),
+    from:sq(answer[0]),to:sq(answer[1]),capturedPiece:checkingPieceName}));
    return {uci:key(reply),move:coachPlainMove(after,reply),
-    checkLine:coachCheckLineEvidence(next,mover)};
+    checkLine:coachCheckLineEvidence(next,mover),
+    pawnCapturesChecker:pawnRecaptures};
   });
  return {
   movedPiece:{colour:mover===1?'White':'Black',type:coachPieceNames[movedType],from:sq(from),to:sq(to)},
