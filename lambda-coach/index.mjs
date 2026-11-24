@@ -783,7 +783,7 @@ async function generateCoaching(evidence,instructions,extra='',variant=null,usag
    model:variant?.model||'gpt-5.4-mini',
    reasoning_effort:variant?.effort||'low',
    // Includes hidden reasoning tokens as well as the short visible response.
-   max_completion_tokens:900,
+   max_completion_tokens:1800,
    messages:[
     {role:'system',content:instructions},
     {role:'user',content:JSON.stringify(evidence)},
@@ -803,7 +803,11 @@ async function generateCoaching(evidence,instructions,extra='',variant=null,usag
    prompt_tokens_details:{cached_tokens:Number(u.prompt_tokens_details?.cached_tokens)||0}});
  }
  const message=result.choices?.[0]?.message?.content?.trim();
- if(!message||message.length<15)throw Error('Empty AI response');
+ if(!message||message.length<15){
+  console.warn('Empty AI response:',{finishReason:result.choices?.[0]?.finish_reason||'unknown',
+   completionTokens:result.usage?.completion_tokens||0});
+  throw Error('Empty AI response');
+ }
  return message;
 }
 
@@ -931,7 +935,13 @@ export const handler=async(event)=>{
     repairAttempted,shortened,initialCodes:initialValidationCodes,repairCodes,finalCodes:[]}
   });
  }catch(error){
-  console.error('Coach error:',error.message);
-  return reply(502,{error:'AI service unavailable'});
+  console.error('Coach error:',{message:error?.message||'unknown',upstreamStatus:error?.status||null});
+  // Upstream model failure must not leave the lesson with an empty coach.
+  // This fallback makes no tactical assertions not supported by the board.
+  return reply(200,{message:verifiedNeutralFallback(input),engineGrounded:false,
+   validation:{status:'fallback',reason:'ai-service-error',
+    errorCode:error?.status===429?'upstream-rate-limit':
+     error?.status?'upstream-http-error':
+     error?.message==='Empty AI response'?'empty-model-response':'generation-error'}});
  }
 };
