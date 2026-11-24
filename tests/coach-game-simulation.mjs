@@ -300,7 +300,7 @@ try{
      isEngineChoice:payload.moveAssessment.playedIsEngineChoice},
     previousCoaching:recent.slice(-3),response:null,responseTimeMs:null,
     objectiveWarnings:[],repetitionFlags:[],validation:null,error:null,attempted:false,
-    humanReview:{accuracy:null,teaching:null,repetition:null,clarity:null,notes:''}};
+    humanReview:{accuracy:null,teaching:null,repetition:null,clarity:null,majorFactualError:null,notes:''}};
    if(live&&!backendUnavailable&&j+1>=startPly&&j+1<startPly+limit){
     current.attempted=true;
     const started=Date.now();
