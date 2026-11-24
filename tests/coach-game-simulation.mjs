@@ -176,8 +176,14 @@ try{
    }:await get(entry.after);
    labels.push(entry.label);
    const payload=payloadFor(entry,states[j-1],pre,post,labels,recent,game);
+   const payloadBytes=Buffer.byteLength(JSON.stringify(payload),'utf8');
+   // AWS Lambda rejects a coaching request body over 30,000 characters.
+   // Validate the same practical limit before issuing any paid requests.
+   if(payloadBytes>30000)throw Error('Coach payload exceeds AWS 30KB request limit at '+
+    game.id+' ply '+(j+1)+': '+payloadBytes+' bytes');
    const current={ply:j+1,moveNumber:entry.before.full,mover:payload.mover,
     move:entry.uci,label:entry.label,beforeFen:payload.beforeFen,afterFen:payload.afterFen,
+    payloadBytes,
     phase:j<12?'opening':j<26?'development-to-middlegame':'middlegame-or-finish',
     engine:{before:pre.raw,after:post.raw,centipawnLoss:payload.moveAssessment.centipawnLoss,
      isEngineChoice:payload.moveAssessment.playedIsEngineChoice},
