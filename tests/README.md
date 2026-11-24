@@ -214,3 +214,19 @@ node tests/coach-ai-regression.mjs --live --group balance --stockfish --depth 14
 ```
 
 For offline engine-only validation, omit `--live`. The resulting report records the actual coach responses and engine provenance; zero validator warnings are not a human quality score. Review especially whether routine moves receive restrained practical explanations and whether Black's queen-for-rook mistake is described as a **loss**, with legal recapture context.
+
+## Pawn-defence wording and major-blunder guards (November 2026)
+
+The Lambda's deterministic guard now checks both "defends your pawn on d4" and "defends your d4 pawn" against the moved piece's exact geometric defences. The previous mistake ("the knight on f3 directly supports your d4 pawn") is now rejected and retried once. Positive controls permit true direct support for the h2 pawn and general central-control language. This is a conservative validation of explicit piece-to-pawn claims, not full natural-language semantic verification.
+
+For genuine engine-grounded large errors (at least 300 centipawns lost from a same-depth before/after evaluation, analysis depth at least 10, and the played move was not Stockfish's first choice), the coach must explicitly identify a serious mistake or blunder, or describe the major material loss, rather than only describing a plausible tactical exchange. Its correction must use verified legal captures and engine continuations without assuming every reply is forced. This does not label a quiet move or a minor engine disagreement a mistake.
+
+The regression includes **72 deterministic tests**, including the two exact offending live responses. GitHub CI additionally evaluates the real Stockfish engine fixtures. To see whether the generated wording has improved, deploy the latest `lambda-coach/index.mjs` in AWS; pull the latest GitHub main branch and restart the local proxy, then:
+
+```bash
+cd ~/chessking
+node tests/coach-ai-regression.mjs --live --group balance --stockfish --depth 14 --case 36-routine-knight-development
+node tests/coach-ai-regression.mjs --live --group balance --stockfish --depth 14 --case 38-middlegame-queen-grabs-defended-rook
+```
+
+These are two paid AI calls in total and produce separate JSON reports. A passing deterministic test does not by itself prove the new live language is good.
