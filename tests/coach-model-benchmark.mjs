@@ -1,11 +1,9 @@
 #!/usr/bin/env node
-// Controlled, paid A/B benchmark: exact production Lambda instructions,
-// validation, model completion cap and evidence, with NO AWS deployment.
-// Node 22+. --self-test is free. --live makes paid OpenAI API requests.
+// Controlled model A/B benchmark through existing authenticated AWS Lambda.
+// Node 22+. --self-test is free. --live makes paid requests through local proxy.
 import {readFileSync,writeFileSync,mkdirSync,existsSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {handler} from '../lambda-coach/index.mjs';
 
 const root=resolve(fileURLToPath(new URL('../',import.meta.url)));
 const args=process.argv.slice(2);
@@ -91,7 +89,12 @@ if(args.includes('--compare')){
  console.log(JSON.stringify(summary(report),null,2));process.exit(0);
 }
 if(!args.includes('--live'))throw Error('Use --self-test (free), --compare <report>, or --live (paid).');
-if(!process.env.OPENAI_API_KEY)throw Error('OPENAI_API_KEY must be set locally before --live; never commit the key.');
+const benchmarkToken=process.env.CHESSKING_BENCHMARK_TOKEN;
+if(typeof benchmarkToken!=='string'||benchmarkToken.length<32)
+ throw Error('Set CHESSKING_BENCHMARK_TOKEN to the same 32+ character secret as the Lambda environment variable. Do not paste secrets into source files.');
+const endpoint=opt('--endpoint')||'http://127.0.0.1:8000/api/coach/benchmark';
+if(!/^http:\/\/(?:127\.0\.0\.1|localhost):\d+\/api\/coach\/benchmark$/.test(endpoint))
+ throw Error('Benchmark endpoint must be the loopback proxy /api/coach/benchmark');
 const fixturePath=opt('--fixtures')||'tests/reports/coach-model-benchmark-fixtures.json';
 const fixtures=verifyFixtures(JSON.parse(readFileSync(resolve(process.cwd(),fixturePath),'utf8')));
 const cap=Number(opt('--max-cost-usd')||15);
@@ -107,7 +110,7 @@ const report=existsSync(path)?JSON.parse(readFileSync(path,'utf8')):{
  evidenceSource:fixturePath,fixtures:selected.map(x=>({
   id:x.id,scenario:x.scenario,label:x.label,afterFen:x.afterFen
  })),variants:variants.map(x=>({id:x.id,model:x.model,effort:x.effort,pricingPerMillion:x.prices})),
- notes:'Identical production system instructions and chess evidence. Only model and reasoning effort vary. Independent prompts: no model-generated preceding coaching. Reviewer scores must be assigned manually.',
+ notes:'Identical AWS Lambda coaching system instructions and chess evidence. Only authenticated model/effort variant differs. Independent prompts; no cross-variant coaching messages. Reviewer scores must be assigned manually.',
  results:[]
 };
 const keys=new Set(report.results.map(x=>x.variant+':'+x.id));
@@ -121,24 +124,6 @@ function save(){
  report.summary=summary(report);
  writeFileSync(path,JSON.stringify(report,null,2)+'\n');
 }
-const originalFetch=globalThis.fetch;
-let activeVariant=null,usages=[];
-globalThis.fetch=async(url,init={})=>{
- if(String(url)!=='https://api.openai.com/v1/chat/completions')
-  throw Error('Benchmark forbids outgoing requests to unexpected endpoint');
- if(!activeVariant)throw Error('Benchmark model not selected');
- const current=JSON.parse(init.body);
- // Only these two fields differ from production. Never mutate instructions,
- // evidence, token limits, validator code or API endpoint.
- const body=JSON.stringify({...current,model:activeVariant.model,
-  reasoning_effort:activeVariant.effort});
- const response=await originalFetch(url,{...init,body,signal:AbortSignal.timeout(45000)});
- try{
-  const copied=await response.clone().json();
-  if(copied?.usage)usages.push(copied.usage);
- }catch{}
- return response;
-};
 try{
  for(let i=0;i<selected.length;i++){
   const fixture=selected[i];
@@ -150,36 +135,44 @@ try{
    if(spent>=cap){
     console.warn('Spend cap reached. Existing results saved.');save();process.exit(0);
    }
-   activeVariant=variant;usages=[];
    const started=Date.now();
    let response;
    try{
-    const event={requestContext:{http:{method:'POST'}},body:JSON.stringify(fixture.payload)};
-    const result=await handler(event);
-    const parsed=JSON.parse(result.body);
+    const upstream=await fetch(endpoint,{
+     method:'POST',
+     headers:{'Content-Type':'application/json',
+      'x-chessking-benchmark-token':benchmarkToken},
+     body:JSON.stringify({...fixture.payload,benchmarkVariant:variant.id}),
+     signal:AbortSignal.timeout(120000)
+    });
+    const parsed=await upstream.json();
+    if(parsed.benchmark&&parsed.benchmark.variant!==variant.id)
+     throw Error('Benchmark variant mismatch returned by AWS');
+    if(upstream.ok&&!parsed.benchmark)
+     throw Error('AWS has not deployed authenticated benchmark support');
     response={
-     statusCode:result.statusCode,message:parsed.message||null,
-     error:parsed.error||null,validation:parsed.validation||null
+     statusCode:upstream.status,message:parsed.message||null,
+     error:parsed.error||null,validation:parsed.validation||null,
+     usages:parsed.benchmark?.usage||[]
     };
-   }catch(err){response={statusCode:0,message:null,error:String(err.message||err).slice(0,250),validation:null};}
+   }catch(err){response={statusCode:0,message:null,error:String(err.message||err).slice(0,250),validation:null,usages:[]};}
    const entry={id:fixture.id,scenario:fixture.scenario,label:fixture.label,
     variant:variant.id,statusCode:response.statusCode,message:response.message,
     error:response.error,validation:response.validation,latencyMs:Date.now()-started,
-    usages,costUSD:Number(dollarCost(usages,variant.prices).toFixed(7)),
+    usages:response.usages,costUSD:Number(dollarCost(response.usages,variant.prices).toFixed(7)),
     humanReview:{accuracy:null,teaching:null,majorFactualError:null,notes:''}};
    report.results.push(entry);keys.add(key);save();
    console.log(variant.id+' / '+fixture.id+': HTTP '+entry.statusCode+
     ', '+entry.latencyMs+'ms, $'+entry.costUSD.toFixed(4)+
     ', '+(entry.validation?.status||'no validation'));
-   if(entry.statusCode===0||entry.statusCode===429||entry.statusCode>=500&&
-      entry.error==='AI service unavailable'){
+   if(entry.statusCode===0||entry.statusCode===401||entry.statusCode===403||entry.statusCode===429||entry.statusCode===503){
     console.warn('Stopping after infrastructure/API failure. Resume later with --resume.');
     save();process.exit(1);
    }
   }
  }
 }finally{
- globalThis.fetch=originalFetch;
+ save();
 }
 save();
 console.log('Benchmark complete. Results: '+path);
