@@ -184,3 +184,33 @@ node tests/coach-ai-regression.mjs --live --group middlegame --stockfish --depth
 ```
 
 This makes four paid coach requests. Compare actual response quality, not just zero automatic warnings.
+
+## Balanced coaching regression: everyday play versus tactical mistakes
+
+Four additional positions are available with `--group balance --stockfish`. The purpose is to check that the coach does **not** treat every move as a combination merely because a Stockfish continuation exists.
+
+| ID | Situation | Review criterion |
+| --- | --- | --- |
+| 35-routine-opening-d4 | Normal first-move central pawn push | Teach centre control without invented forced threats |
+| 36-routine-knight-development | Nf3 after d4/d5 | Teach development without inventing direct pawn defence |
+| 37-quiet-kingside-castling | O-O in a developed position | Teach king safety and rook activation without a fake tactic |
+| 38-middlegame-queen-grabs-defended-rook | Black captures a rook on g3 with a queen in a real game-derived middlegame | Explain why White's queen can recapture and why Stockfish penalises the move; do not call the rook free |
+
+Each input is reconstructed using the live application's **legal move generator**, not merely accepted from a stored FEN. Both pre-move and post-move positions receive genuine Stockfish searches. At CI depth 12, the first three moves had small evaluation losses (14, 3 and 22 centipawns), and the final queen capture lost approximately 648 centipawns. The test fails if the supposedly routine moves exceed 90 centipawns of loss or the blunder fails to lose at least 150 centipawns. These are approximate search-depth-dependent measurements, not fixed theoretical valuations. The blunder also requires a legal Qxg3 recapture by White.
+
+The tests use the existing Lambda evidence format: **no Lambda redeployment is required**. On the first terminal, run or restart the local server after updating `main`:
+
+```bash
+cd ~/chessking
+git pull origin main
+node local-server.mjs
+```
+
+In the second terminal, run the four live AI calls:
+
+```bash
+cd ~/chessking
+node tests/coach-ai-regression.mjs --live --group balance --stockfish --depth 14 --limit 4
+```
+
+For offline engine-only validation, omit `--live`. The resulting report records the actual coach responses and engine provenance; zero validator warnings are not a human quality score. Review especially whether routine moves receive restrained practical explanations and whether Black's queen-for-rook mistake is described as a **loss**, with legal recapture context.
