@@ -256,10 +256,14 @@ if(useStockfish){
     if(!m)throw Error('Illegal verified tactical reply '+uci);
     const facts=chess.coachMoveTactics(current,m);
     const next=chess.apply(current,m);
-    if(!facts.givesCheck||!facts.checkLine?.checkingPieces?.length)
-     throw Error('Missing actual checking-piece evidence for '+fixture.id+' '+uci);
-    verifiedCheckLines.push({uci,move:chess.coachPlainMove(current,m),
-     checkLine:facts.checkLine});
+    if(facts.givesCheck){
+     if(!facts.checkLine?.checkingPieces?.length)
+      throw Error('Missing actual checking-piece evidence for '+fixture.id+' '+uci);
+     verifiedCheckLines.push({uci,move:chess.coachPlainMove(current,m),
+      checkLine:facts.checkLine});
+    }else if(facts.checkLine){
+     throw Error('Nonchecking move must not claim checking-piece evidence: '+fixture.id+' '+uci);
+    }
     current=next;
    }
    if(fixture.id==='29-blunder-allows-fools-mate'){
