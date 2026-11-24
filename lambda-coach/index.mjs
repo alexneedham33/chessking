@@ -202,34 +202,6 @@ function verifiedPawnCaptureFallback(input){
    pawnSquares.join(' and ')+').':'';
  return first+second;
 }
-// Teach a VERIFIED pin risk from the client's legal one-ply threat scan.
-// This does not recommend the next move or claim the queen is inevitably lost.
-function verifiedImminentPinFallback(input){
- const played=input.played||{};
- const movedSide=input.mover||played.side;
- const queenSquare=played.to;
- if(!['White','Black'].includes(movedSide)||
-   !/^[a-h][1-8]$/.test(queenSquare||'')||
-   !['q','queen'].includes(String(played.piece||'').toLowerCase()))return null;
- const actual=coachPieceAtFen(input.afterFen,queenSquare);
- if(actual!==(movedSide==='White'?'Q':'q'))return null;
- const enemy=movedSide==='White'?'Black':'White';
- for(const candidate of input.opponentReplyThreats?.candidates||[]){
-  if(candidate?.side!==enemy||candidate?.status!=='legal-next-move-threat-candidate')continue;
-  const pin=candidate.newAbsolutePins?.find(p=>p.kind==='absolute'&&
-   p.pinnedPiece==='queen'&&p.pinnedSide===movedSide&&
-   p.pinnedSquare===queenSquare&&p.pinnerPiece===candidate.piece&&
-   p.pinnerSquare===candidate.to);
-  if(!pin||!['bishop','rook','queen'].includes(pin.pinnerPiece))continue;
-  const king=coachPieceAtFen(input.afterFen,pin.kingSquare);
-  if(king!==(movedSide==='White'?'K':'k'))continue;
-  return movedSide+"'s queen on "+queenSquare+
-   ' is exposed to a possible absolute pin against its king by '+enemy+
-   "'s "+pin.pinnerPiece+". This is a real tactical danger to assess, "+
-   'though the available move is not proof that the queen must be lost.';
- }
- return null;
-}
 // General motif fallback from legal continuations, independent of opening,
 // piece location or a particular screenshot. It is explicitly a possibility.
 function verifiedMotifFallback(input){
@@ -277,9 +249,9 @@ function verifiedNeutralFallback(input){
   const actual=coachPieceAtFen(input.afterFen,square);
   const expected={pawn:'p',knight:'n',bishop:'b',rook:'r',queen:'q',king:'k'}[name];
   if(actual===(side==='White'?expected.toUpperCase():expected))
-   return side+' has moved the '+name+' to '+square+". This changes the current position; review the move's consequences.";
+   return side+' has moved the '+name+' to '+square+'. No verified coaching explanation is available for this move.';
  }
- return 'The move is complete; its consequences should be evaluated from the resulting position.';
+ return 'A verified explanation is unavailable for this move; no tactical conclusion has been established.';
 }
 // No extra AI request if a genuine capture plus legally available opponent
 // recapture has already been proved. This is deliberately modest coaching:
@@ -953,7 +925,7 @@ export const handler=async(event)=>{
    "An ordinary move can need just one or two sentences; important threats, missed opportunities or mistakes can take more. Ceiling: "+
     budget.maxWords+" words and "+budget.maxSentences+" sentences. This is not a target.",
    "Return only the natural-language coaching explanation."
-  ].join("\\n");
+  ].join("\n");
 
   let message=await generateCoaching(evidence,instructions,'',variant,benchmarkUsages);
   let perspective=correctCoachPerspective(message,input);
