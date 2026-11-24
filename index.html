@@ -2952,7 +2952,7 @@ async function requestUnifiedMoveCoaching(ply){
   const tacticalContinuation=coachTacticalContinuation(after,engine);
   const recentCoaching=[...coachMoveMessages.entries()]
    .filter(([at,item])=>at<ply&&!item.pending&&item.message).slice(-3).map(([,item])=>item.message);
-  const response=await fetch('/api/coach/move',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+  const coachPayload={
    beforeFen:fenOf(before),afterFen:fenOf(after),
    opening:openings[openingAtRequest].name,player:playerColour,
    mover:moverColour,isOpponentMove:opponentMove,played:playedMoveEvidence(before,move),
@@ -2981,7 +2981,26 @@ async function requestUnifiedMoveCoaching(ply){
    playedPlainEnglish:coachPlainMove(before,move),
    moveOrigin:note.manual?'player':note.engineSelected?'engine':note.inPreparedLine?'prepared':'automatic',
    priorEngine:priorEngine|| (prior?{evaluation:prior.evaluation,depth:prior.depth}:null)
-  })});
+  };
+  // Keep the board, actual tactical facts and one-ply threat scan intact.
+  // Earlier chat, duplicate snapshots and extra PVs may be dropped if large.
+  let coachRequest=JSON.stringify(coachPayload);
+  if(coachRequest.length>75000){
+   coachPayload.history=coachPayload.history?.slice(-4)||[];
+   coachPayload.recentCoaching=coachPayload.recentCoaching?.slice(-1)||[];
+   if(coachPayload.engine?.variations)coachPayload.engine.variations=coachPayload.engine.variations.slice(0,1);
+   if(coachPayload.priorEngine?.variations)coachPayload.priorEngine.variations=coachPayload.priorEngine.variations.slice(0,1);
+   coachRequest=JSON.stringify(coachPayload);
+  }
+  if(coachRequest.length>95000){
+   coachPayload.boardFacts={after:coachPayload.boardFacts?.after};
+   coachPayload.tacticalFacts={...coachPayload.tacticalFacts,
+    opponentCheckingReplyEvidence:coachPayload.tacticalFacts?.opponentCheckingReplyEvidence?.slice(0,3),
+    opponentLegalCheckingReplies:coachPayload.tacticalFacts?.opponentLegalCheckingReplies?.slice(0,3)};
+   coachRequest=JSON.stringify(coachPayload);
+  }
+  const response=await fetch('/api/coach/move',{method:'POST',
+   headers:{'Content-Type':'application/json'},body:coachRequest});
   if(!response.ok){const details=await response.json().catch(()=>({}));const error=new Error(details.error||'AI request failed');error.httpStatus=response.status;throw error;}
   const result=await response.json();
   if(nonce!==strategicAiNonce||h[ply]!==after||coachMoveMessages.get(ply)!==record||selected!==openingAtRequest)return;
