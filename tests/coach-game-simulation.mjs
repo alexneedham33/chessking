@@ -169,6 +169,7 @@ try{
   const output={id:game.id,title:game.title,attribution:game.attribution,focus:game.focus,
    totalPlies:states.length,terminal:'checkmate',entries:[]};
   const labels=[],recent=[],responses=[];
+  let backendUnavailable=false;
   const resumed=resumeReport?.games.find(x=>x.id===game.id);
   if(resumeReport&&!resumed)throw Error('Resume report does not contain selected game '+game.id);
   if(resumed&&resumed.totalPlies!==states.length)
@@ -222,7 +223,7 @@ try{
     previousCoaching:recent.slice(-3),response:null,responseTimeMs:null,
     objectiveWarnings:[],repetitionFlags:[],validation:null,error:null,attempted:false,
     humanReview:{accuracy:null,teaching:null,repetition:null,clarity:null,notes:''}};
-   if(live&&j+1>=startPly&&j+1<startPly+limit){
+   if(live&&!backendUnavailable&&j+1>=startPly&&j+1<startPly+limit){
     current.attempted=true;
     const started=Date.now();
     try{
@@ -230,9 +231,11 @@ try{
       body:JSON.stringify(payload),signal:AbortSignal.timeout(45000)});
      const body=await reply.json();
      current.validation=body.validation||null;
-     if(!reply.ok||typeof body.message!=='string')
-      throw Error('HTTP '+reply.status+': '+String(body.error||'Missing message')+
+     if(!reply.ok||typeof body.message!=='string'){
+      const reason=String(body.error||body.message||'No error details').slice(0,180);
+      throw Error('HTTP '+reply.status+': '+reason+
        (body.validation?.finalCodes?.length?' ['+body.validation.finalCodes.join(', ')+']':''));
+     }
 
      current.response=body.message.trim();current.responseTimeMs=Date.now()-started;
      current.objectiveWarnings=Array.from(guards.guards.checkExplanation(current.response,payload,
@@ -246,9 +249,19 @@ try{
      current.error=error.message;
      current.responseTimeMs=Date.now()-started;
      errors++;
+     // Server-side failures are not chess-quality feedback. Halt this game's
+     // paid requests instead of repeatedly calling an unhealthy backend.
+     if(/^(?:HTTP 5\\d\\d|fetch failed|The operation was aborted)/i.test(current.error))
+      backendUnavailable=true;
     }
    }
    output.entries.push(current);
+   if(backendUnavailable){
+    console.error('Aborted live calls for '+game.id+' after '+current.error+
+     '; remaining plies will not trigger more API requests.');
+    // Preserve complete offline analysis of the rest of the game, but do not
+    // issue further live calls while the backend is unhealthy.
+   }
   }
   output.summary={analyzedPlies:count,liveAttempted:output.entries.filter(x=>x.attempted).length,
    liveCompleted:output.entries.filter(x=>x.response).length,errors,warnings,
