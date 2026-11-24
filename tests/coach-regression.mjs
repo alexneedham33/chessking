@@ -229,22 +229,42 @@ test('64 no spurious checking-line warning without a verified Qh4 mate',()=>{
   'Because the pawn no longer covers h3, Black wins.',{tacticalFacts:{}}).length,0);
 });
 
-const knightRelations={movedPiece:{type:'knight',from:'g1',to:'f3'},
- movedPieceAttacks:['d2','e1','e5','g5','h4','h2'],
- friendlyPiecesDefendedByMovedPiece:[{piece:'pawn',square:'h2'}],
- enemyPiecesAttackedByMovedPiece:[]};
-const directGuard=text=>Array.from(guardContext.guard.unsupportedDirectClaims(text,
- guardContext.guard.verifiedRelations({tacticalFacts:knightRelations})));
-test('65 catches the actual false supports your d4 pawn response',()=>{
- assert.ok(directGuard('The knight develops to f3, and it directly supports your d4 pawn while also covering h2.').some(x=>x.includes('d4')));
+// Derive both positive and negative pawn-defence assertions from the
+// production attack-square routine, never from hand-written claimed targets.
+const attackFrom=html.indexOf('function coachPieceAttackSquares(position,from){');
+const attackTo=html.indexOf('// Explain the *mechanism*',attackFrom);
+assert.ok(attackFrom>=0&&attackTo>attackFrom,'Production attack routine exists');
+const attacksContext={on,side,dirs:{n:[-33,-31,-18,-14,14,18,31,33],
+ b:[-17,-15,15,17],r:[-16,-1,1,16],k:[-17,-16,-15,-1,1,15,16,17]}};
+vm.runInNewContext(html.slice(attackFrom,attackTo)+
+ '\\nthis.attacks=coachPieceAttackSquares;',attacksContext);
+const squareIndex=square=>(8-Number(square[1]))*16+'abcdefgh'.indexOf(square[0]);
+function knightRelationsAt(from,pawns){
+ const b=pos({...Object.fromEntries(pawns.map(square=>[square,'P'])),[from]:'N'});
+ const defended=Array.from(attacksContext.attacks(b,squareIndex(from)))
+   .map(sq).filter(square=>pawns.includes(square));
+ return {movedPiece:{type:'knight',to:from},
+  movedPieceAttacks:Array.from(attacksContext.attacks(b,squareIndex(from))).map(sq),
+  friendlyPiecesDefendedByMovedPiece:defended.map(square=>({piece:'pawn',square})),
+  enemyPiecesAttackedByMovedPiece:[]};
+}
+const knightRelations=knightRelationsAt('f3',['d4','h2']);
+const directGuard=(text,relations=knightRelations)=>Array.from(guardContext.guard.unsupportedDirectClaims(text,
+ guardContext.guard.verifiedRelations({tacticalFacts:relations})));
+test('65 verifies a real knight on f3 directly protects both d4 and h2',()=>{
+ assert.ok(knightRelations.movedPieceAttacks.includes('d4'));
+ assert.ok(knightRelations.friendlyPiecesDefendedByMovedPiece.some(x=>x.square==='d4'));
+ assert.equal(directGuard('The knight directly supports your d4 pawn and your pawn on h2.').length,0);
 });
-test('66 catches pawn on d4 and synonym phrasing',()=>{
- assert.ok(directGuard('The knight protects your pawn on d4.').some(x=>x.includes('d4')));
- assert.ok(directGuard('This piece defends the white d4 pawn.').some(x=>x.includes('d4')));
+test('66 catches false support for d4 by a knight actually on c3',()=>{
+ const c3=knightRelationsAt('c3',['d4','e4']);
+ assert.ok(!c3.movedPieceAttacks.includes('d4'));
+ assert.ok(directGuard('The knight protects your pawn on d4.',c3).some(x=>x.includes('d4')));
+ assert.ok(directGuard('This piece defends the white d4 pawn.',c3).some(x=>x.includes('d4')));
 });
-test('67 retains actually defended pawn and square-control language',()=>{
- assert.equal(directGuard('The knight supports your h2 pawn and controls e5.').length,0);
- assert.equal(directGuard('The knight supports the centre and increases control of d4.').length,0);
+test('67 permits true direct support and general square-control language',()=>{
+ assert.equal(directGuard('The knight supports your h2 pawn and protects your d4 pawn.').length,0);
+ assert.equal(directGuard('The knight supports the centre and controls e5.').length,0);
 });
 const severeInput={engine:{variations:[{moves:[]}]},priorEngine:{variations:[{moves:[]}]},
  moveAssessment:{centipawnLoss:740,depth:14,playedIsEngineChoice:false}};
@@ -266,8 +286,8 @@ test('71 previously observed weak rook-grab response is flagged as underplaying 
  const prior='Black wins the rook on g3, but the queen on g3 is immediately capturable by your queen or by the f-pawn, so it is not a free piece. Stockfish’s main line shows that if you recapture with the queen, Black can answer with a rook check on e1, so the practical point is the tactical sequence, not the rook grab alone.';
  assert.ok(guardContext.guard.unsupportedSevereBlunderClaims(prior,severeInput).length>0);
 });
-test('72 previous inaccurate Nf3 explanation is caught by the public validator',()=>{
+test('72 accepts the actual accurate Nf3 response using production piece geometry',()=>{
  const actual='The knight develops to f3, and it directly supports your d4 pawn while also covering h2. It also adds control over e5 and g5, which helps you keep options flexible in the centre.';
  const input={tacticalFacts:knightRelations,coachingGuidance:{focus:'strategic'}};
- assert.ok(guardContext.guard.checkExplanation(actual,input,guardContext.guard.coachingBudget(input)).some(x=>x.includes('d4')));
+ assert.equal(guardContext.guard.checkExplanation(actual,input,guardContext.guard.coachingBudget(input)).length,0);
 });
