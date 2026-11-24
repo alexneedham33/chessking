@@ -45,7 +45,7 @@ const lambdaValidation=between(lambda,'const words=text=>','async function gener
 const context={dirs:{n:[-33,-31,-18,-14,14,18,31,33],b:[-17,-15,15,17],r:[-16,-1,1,16],k:[-17,-16,-15,-1,1,15,16,17]},routeLine:()=>[]};
 vm.createContext(context);
 vm.runInContext(engine+'\n'+fen+'\n'+analysisCode+'\n'+played+
- '\nthis.chess={original,legal,apply,key,moveLabel,fenOf,checked,coachEngineEvidence,coachBoardFacts,coachMoveTactics,coachStrategicChanges,coachTeachingPriorities,playedMoveEvidence,coachPlainMove};',context,{timeout:3000});
+ '\nthis.chess={original,legal,apply,key,moveLabel,fenOf,checked,coachEngineEvidence,coachTacticalContinuation,coachBoardFacts,coachMoveTactics,coachStrategicChanges,coachTeachingPriorities,playedMoveEvidence,coachPlainMove};',context,{timeout:3000});
 const chess=context.chess;
 const checker={};
 vm.createContext(checker);
@@ -296,6 +296,7 @@ if(useStockfish){
     Math.round(100*(after.analysis.evaluation-before.analysis.evaluation)):null;
    const first=before.evidence.variations[0]?.moves[0];
    fixture.payload.engine=after.evidence;
+   fixture.payload.tacticalContinuation=chess.coachTacticalContinuation(fixture.after,after.evidence);
    fixture.payload.verifiedTacticalContinuation=verifiedLine;
    fixture.payload.verifiedCheckLines=verifiedCheckLines;
    fixture.payload.priorEngine=before.evidence;
@@ -349,6 +350,7 @@ if(useStockfish){
    const change=before.analysis.evaluation!==null&&after.analysis.evaluation!==null?
     Math.round((after.analysis.evaluation-before.analysis.evaluation)*100):null;
    fixture.payload.engine=after.evidence;
+   fixture.payload.tacticalContinuation=chess.coachTacticalContinuation(fixture.after,after.evidence);
    fixture.payload.priorEngine=before.evidence;
    fixture.payload.moveAssessment={
     manual:true,playedIsEngineChoice:before.raw.bestmove===fixture.payload.played.uci,
@@ -367,6 +369,29 @@ if(useStockfish){
    fixture.payload.coachingGuidance.evaluationPolicy=
     'Stockfish analysis of both sides is attached. Use actual before/after evaluations and legal engine variations. Principal variations are best-play forecasts, not forced moves unless the defender has only one legal reply. Scores may be mate or centipawns.';
    fixture.payload.scripted='Real-world middlegame puzzle snapshot: teach the concrete tactical consequences of the actual played move and the Stockfish line; do not invent replies, mate, a material gain, or claim puzzle solution line is forced.';
+   if(!fixture.payload.tacticalContinuation?.moves.length)
+    throw Error('Missing prioritized engine continuation for '+fixture.id);
+   if(fixture.id==='31-lichess-0066C-bishop-sacrifice'){
+    const e=fixture.payload.tacticalContinuation;
+    if(!e.moves.some(x=>x.uci==='f5d4'&&x.events.some(y=>y.type==='discovered-check'))||
+     !e.moves.some(x=>x.uci==='d4e6'&&x.events.some(y=>y.type==='capture'&&y.capturedPiece==='queen'))||
+     e.mainEvent?.type!=='capture'||e.mainEvent?.capturedPiece!=='queen')
+     throw Error('Bishop sacrifice must prioritize discovered check and later queen capture.');
+   }
+   if(fixture.id==='32-lichess-00KNK-knight-tactic'){
+    const e=fixture.payload.tacticalContinuation;
+    if(!e.moves.some(x=>x.uci==='a1f6'&&x.check)||
+       !e.moves.some(x=>x.uci==='f3f6'&&x.events.some(y=>y.type==='capture'&&y.capturedPiece==='queen')))
+     throw Error('Knight tactic must retain checking sequence and queen recapture.');
+   }
+   if(fixture.id==='33-lichess-00sJ9-rook-infiltration'){
+    if(!fixture.payload.tacticalContinuation.moves.some(x=>x.uci==='e1c1'&&x.capturedPiece==='bishop'))
+     throw Error('Rook infiltration must retain bishop capture.');
+   }
+   if(fixture.id==='34-lichess-00sO1-bishop-intermezzo'){
+    if(!fixture.payload.tacticalContinuation.moves.some(x=>x.uci==='f1d1'&&x.capturedPiece==='rook'))
+     throw Error('Bishop tactic must retain rook capture.');
+   }
    fixture.source={puzzleId:item.puzzleId,puzzleUrl:item.puzzleUrl,
     attribution:'Lichess public puzzle record, FEN before opponent setup move',
     sourceUciLine:item.puzzleLine,
