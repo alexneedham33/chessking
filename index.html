@@ -2860,6 +2860,10 @@ async function requestUnifiedMoveCoaching(ply){
    tacticalContinuation,
    alternativeEvidence,
    openingContext:coachOpeningContext(ply),
+   // The exact, author-written explanation for this verified guided move.
+   // It is lesson context only; the backend still checks the actual board.
+   preparedMovePurpose:trainingMode==='learn'&&learnOpponent==='guided'&&
+    note.inPreparedLine&&typeof note.reason==='string'?note.reason:null,
    coachingLevel:coachExplanationLevel(),
    // Move descriptions are generated from legal moves, not guessed by the AI.
    playedPlainEnglish:coachPlainMove(before,move),
