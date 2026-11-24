@@ -231,7 +231,7 @@ function verifiedCaptureWithReplyFallback(input){
  if(!capturesText)return null;
  return mover+"'s "+reply.capturedPiece+" captures a "+victim.piece+" on "+played.to+
   ". The opponent can respond by capturing that "+reply.capturedPiece+
-  " on "+played.to+". This is a possible exchange, not a free piece win.";
+  " on "+played.to+". This is a possible exchange; the initial capture does not secure an uncontested material gain.";
 }
 // Only reject explicit material-win language when the provided legal history
 // proves a same-square exchange of equal-value pieces, or when a capture of a
