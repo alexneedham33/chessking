@@ -301,3 +301,18 @@ node tests/coach-game-simulation.mjs --live --game opera --depth 12 --start-ply 
 This analyses all 33 moves locally with Stockfish and **sends exactly 12 paid AI coaching requests for plies 13–24**, retaining verified prior coaching messages from the report at earlier plies. It does **not** retry the previously failed ply 12; error category diagnostics for that move will require an explicitly targeted separate call or a later occurrence of that validation issue. To specifically replay ply 12 with some prior context, use `--start-ply 12 --limit 1` with the same `--resume` argument. A previous failure is not treated as previous coaching.
 
 The new `validation` fields are populated by the latest Lambda code. Restarting just `node local-server.mjs` does not update AWS; paste the latest `lambda-coach/index.mjs` into the AWS console and deploy it first. Existing 502 errors from an older Lambda will continue to contain only the generic error string.
+
+## Outcome-aware move-quality grading (Opera 15.Bxd7+)
+
+The Lambda no longer turns a raw centipawn loss into an automatic "blunder." It calculates `moveQuality` using the **moving side's perspective**: the reported before/after Stockfish evaluations remain White-relative, so Black's scores must be sign-flipped. Move-quality classification requires both engine samples, finite evaluations, depth >= 10, and a genuine measured loss. A low-quality or incomplete assessment is left **ungraded** rather than assigned a dramatic label.
+
+At a 300+ centipawn deterioration, the coach distinguishes **missed stronger win** (the player remains clearly winning, >= +1.5 pawns from the mover's perspective), **already losing** (was and remains <= -1.5), **squandered winning advantage**, **serious deterioration** (the move turns a non-losing position into <= -1.5), and a remaining **large evaluation drop**. These numerical boundaries are conservative teaching heuristics, not proof of a forced win at engine depth 12. The AI must never automatically label a move a blunder when it remains clearly winning or was already lost. Specific line recommendations still require verified alternative evidence.
+
+Concrete regression fixtures:
+- Opera Game **15.Bxd7+**: White's evaluation falls from approximately **+5.85 to +2.01**, a **384 cp** drop, but White remains clearly winning. The validator rejects "serious mistake" and accepts a factual explanation of the capture without exaggerated severity.
+- Middlegame **...Qxg3**: Black goes from approximately **+2.91 to -4.49 from Black's perspective**, a **740 cp** loss. An explanation that neutralizes this genuine reversal is rejected; a clear serious-mistake explanation is accepted.
+- An already-lost position worsening, and insufficient-depth evidence, are tested separately.
+
+Run `node --test tests/coach-regression.mjs` to check move-quality rules. Deploy the latest `lambda-coach/index.mjs` to AWS Lambda to change live responses. GitHub CI cannot perform paid live Lambda testing.
+
+After deploying, a focused live replay of the Opera position can be performed using the full-game simulator with `--start-ply 29 --limit 1` and a `--resume` report from the earlier batches; note that a resumed report must contain the matching earlier messages, and the original final batch begins at ply 25.
