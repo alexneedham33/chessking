@@ -570,13 +570,33 @@ function needlessEngineAttribution(message,input){
   return [];
  return ['For an ordinary move, teach the concrete chess idea directly. Remove references to Stockfish or the engine and avoid listing speculative principal-variation moves.'];
 }
-async function generateCoaching(evidence,instructions,extra=''){
+const benchmarkVariants=Object.freeze({
+ 'mini-low':{model:'gpt-5.4-mini',effort:'low'},
+ 'mini-medium':{model:'gpt-5.4-mini',effort:'medium'},
+ 'full-medium':{model:'gpt-5.4',effort:'medium'}
+});
+const safeEqual=(a,b)=>{
+ if(typeof a!=='string'||typeof b!=='string'||a.length<32||b.length<32)return false;
+ // Constant-time string comparison without requiring external dependencies.
+ const ab=new TextEncoder().encode(a),bb=new TextEncoder().encode(b);
+ if(ab.length!==bb.length)return false;
+ let difference=0;
+ for(let i=0;i<ab.length;i++)difference|=ab[i]^bb[i];
+ return difference===0;
+};
+function benchmarkAuthorization(event){
+ const headers=event.headers||{};
+ const sent=Object.entries(headers).find(([key])=>key.toLowerCase()==='x-chessking-benchmark-token')?.[1];
+ return process.env.CHESSKING_BENCHMARK_ENABLED==='true'&&
+  safeEqual(sent,process.env.CHESSKING_BENCHMARK_TOKEN);
+}
+async function generateCoaching(evidence,instructions,extra='',variant=null,usageLog=null){
  const response=await fetch('https://api.openai.com/v1/chat/completions',{
   method:'POST',
   headers:{Authorization:`Bearer ${process.env.OPENAI_API_KEY}`,'Content-Type':'application/json'},
   body:JSON.stringify({
-   model:'gpt-5.4-mini',
-   reasoning_effort:'low',
+   model:variant?.model||'gpt-5.4-mini',
+   reasoning_effort:variant?.effort||'low',
    // Includes hidden reasoning tokens as well as the short visible response.
    max_completion_tokens:900,
    messages:[
@@ -591,6 +611,12 @@ async function generateCoaching(evidence,instructions,extra=''){
   const error=new Error('AI coaching request failed');error.status=response.status;throw error;
  }
  const result=await response.json();
+ if(usageLog&&result.usage){
+  const u=result.usage;
+  usageLog.push({prompt_tokens:Number(u.prompt_tokens)||0,
+   completion_tokens:Number(u.completion_tokens)||0,
+   prompt_tokens_details:{cached_tokens:Number(u.prompt_tokens_details?.cached_tokens)||0}});
+ }
  const message=result.choices?.[0]?.message?.content?.trim();
  if(!message||message.length<15)throw Error('Empty AI response');
  return message;
@@ -608,6 +634,14 @@ export const handler=async(event)=>{
  }catch{
   return reply(400,{error:'Invalid JSON'});
  }
+ const benchmarkRequested=Object.hasOwn(input,'benchmarkVariant');
+ // Public requests cannot choose model variants or obtain token usage.
+ // A long secret and an explicit Lambda deployment opt-in are both required.
+ if(benchmarkRequested&&!benchmarkAuthorization(event))
+  return reply(403,{error:'Benchmark not authorized'});
+ const variant=benchmarkRequested?benchmarkVariants[input.benchmarkVariant]:null;
+ if(benchmarkRequested&&!variant)return reply(400,{error:'Unknown benchmark variant'});
+ const benchmarkUsages=benchmarkRequested?[]:null;
  if(typeof input.beforeFen!=='string'||typeof input.afterFen!=='string')
   return reply(400,{error:'Missing chess position'});
  const evidence={
@@ -649,7 +683,7 @@ export const handler=async(event)=>{
    '\\nResponse budget for this particular move: '+budget.type+
    '. Maximum '+budget.maxWords+' words and '+budget.maxSentences+
    ' sentences. This is a ceiling, not a target: be shorter when one clear idea is enough. For major tactical errors, prioritize the actual loss and legal response over generic development advice.';
-  let message=await generateCoaching(evidence,instructions);
+  let message=await generateCoaching(evidence,instructions,'',variant,benchmarkUsages);
   let issues=checkExplanation(message,input,budget);
   const initialValidationCodes=coachingValidationCodes(issues);
   const initialIssuesCount=issues.length;
@@ -662,7 +696,7 @@ export const handler=async(event)=>{
    message=await generateCoaching(evidence,instructions,
     'Rewrite the explanation from scratch. Fix ALL these issues: '+issues.join(' ')+
     ' The prior output was: '+JSON.stringify(message)+
-    '. Return only the revised, position-verified explanation. Do not add generic filler.');
+    '. Return only the revised, position-verified explanation. Do not add generic filler.',variant,benchmarkUsages);
    issues=checkExplanation(message,input,budget);
    repairCodes=coachingValidationCodes(issues);
   }
@@ -682,11 +716,13 @@ export const handler=async(event)=>{
    if(fallback&&!checkExplanation(fallback,input,budget).length){
     console.warn('AI coaching used verified capture fallback:',validationCodes);
     return reply(200,{message:fallback,engineGrounded:false,
+     ...(benchmarkRequested?{benchmark:{variant:input.benchmarkVariant,usage:benchmarkUsages}}:{}),
      validation:{status:'fallback',repairAttempted,initialCodes:initialValidationCodes,
       finalCodes:validationCodes,reason:fallback===verifiedMajorCaptureFallback(input)?'verified-major-capture':fallback===verifiedPawnCaptureFallback(input)?'verified-pawn-capture':'verified-exchange'}});
    }
    console.warn('AI coaching failed validation:',issues.join(' '));
    return reply(502,{error:'Coaching explanation could not be verified; please retry',
+    ...(benchmarkRequested?{benchmark:{variant:input.benchmarkVariant,usage:benchmarkUsages}}:{}),
     validation:{status:'failed',repairAttempted,initialCodes:initialValidationCodes,
      repairCodes,finalCodes:validationCodes,
      diagnostics:{initialIssueCount:initialIssuesCount,repairIssueCount:repairCodes.length,
@@ -696,6 +732,7 @@ export const handler=async(event)=>{
   }
   return reply(200,{
    message,
+   ...(benchmarkRequested?{benchmark:{variant:input.benchmarkVariant,usage:benchmarkUsages}}:{}),
    engineGrounded:Boolean(input.engine||input.moveAssessment),
    validation:{status:shortened?'shortened':repairAttempted?'repaired':'passed',
     repairAttempted,shortened,initialCodes:initialValidationCodes,repairCodes,finalCodes:[]}
