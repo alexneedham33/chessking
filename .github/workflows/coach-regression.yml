@@ -10,6 +10,7 @@ on:
       - tests/coach-game-lines.json
       - tests/coach-release-scenarios.json
       - tests/coach-release-readiness.mjs
+      - tests/coach-model-benchmark.mjs
       - tests/stockfish-evidence.mjs
       - tests/coach-review-cases.json
       - stockfish-17.1-lite-single-03e3232.js
@@ -23,6 +24,7 @@ on:
       - tests/coach-game-simulation.mjs
       - tests/coach-release-scenarios.json
       - tests/coach-release-readiness.mjs
+      - tests/coach-model-benchmark.mjs
       - .github/workflows/coach-regression.yml
 jobs:
   deterministic-chess-checks:
@@ -45,3 +47,4 @@ jobs:
       - run: node tests/coach-game-simulation.mjs --suite release --validate-only
       - run: node tests/coach-game-simulation.mjs --suite release --depth 10
       - run: node tests/coach-release-readiness.mjs --self-test
+      - run: node tests/coach-model-benchmark.mjs --self-test
