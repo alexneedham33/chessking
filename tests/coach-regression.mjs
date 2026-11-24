@@ -261,3 +261,13 @@ test('70 quiet moves and unverified scores do not trigger severity guard',()=>{
  assert.equal(guardContext.guard.unsupportedSevereBlunderClaims('This improves king safety.',routine).length,0);
  assert.equal(guardContext.guard.unsupportedSevereBlunderClaims('This loses material.',{...severeInput,engine:null}).length,0);
 });
+
+test('71 previously observed weak rook-grab response is flagged as underplaying a blunder',()=>{
+ const prior='Black wins the rook on g3, but the queen on g3 is immediately capturable by your queen or by the f-pawn, so it is not a free piece. Stockfish’s main line shows that if you recapture with the queen, Black can answer with a rook check on e1, so the practical point is the tactical sequence, not the rook grab alone.';
+ assert.ok(guardContext.guard.unsupportedSevereBlunderClaims(prior,severeInput).length>0);
+});
+test('72 previous inaccurate Nf3 explanation is caught by the public validator',()=>{
+ const actual='The knight develops to f3, and it directly supports your d4 pawn while also covering h2. It also adds control over e5 and g5, which helps you keep options flexible in the centre.';
+ const input={tacticalFacts:knightRelations,coachingGuidance:{focus:'strategic'}};
+ assert.ok(guardContext.guard.checkExplanation(actual,input,guardContext.guard.coachingBudget(input)).some(x=>x.includes('d4')));
+});
