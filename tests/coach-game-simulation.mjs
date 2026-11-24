@@ -212,7 +212,7 @@ try{
  };
  for(const {game,states} of prepared){
   const output={id:game.id,title:game.title,attribution:game.attribution,focus:game.focus,scenario:!!game.scenario,
-   totalPlies:states.length,terminal:'checkmate',entries:[]};
+   totalPlies:states.length,terminal:chess.checked(states.at(-1).after)&&chess.legal(states.at(-1).after).length===0?'checkmate':'ongoing',entries:[]};
   const labels=[...(game.prefixLabels||[])],recent=[],responses=[];
   let backendUnavailable=false;
   const resumed=resumeReport?.games.find(x=>x.id===game.id);
@@ -343,7 +343,7 @@ try{
   }
   output.summary={analyzedPlies:count,liveAttempted:output.entries.filter(x=>x.attempted).length,
    liveCompleted:output.entries.filter(x=>x.response).length,errors,warnings,
-   repaired:output.entries.filter(x=>x.validation?.status==='repaired').length,
+   repaired:output.entries.filter(x=>x.validation?.repairAttempted===true).length,
    verifiedFallbacks:output.entries.filter(x=>x.validation?.status==='fallback').length,
    failedValidation:output.entries.filter(x=>x.validation?.status==='failed').length,
    repetitionFlags:output.entries.reduce((n,x)=>n+x.repetitionFlags.length,0),
