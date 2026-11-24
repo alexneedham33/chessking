@@ -281,6 +281,9 @@ if(useStockfish){
    fixture.payload.coachingGuidance.alternativePolicy=
     'Only recommend alternatives explicitly present in the Stockfish priorEngine PV, and distinguish engine-preferred lines from forced responses.';
    fixture.payload.scripted='Engine-evaluated regression: teach the verified tactical consequence, including checks and the recorded forcing line. Do not improvise a continuation.';
+   console.log('Stockfish verified '+fixture.id+': before '+before.raw.scoreType+' '+before.raw.score+
+    ', after '+after.raw.scoreType+' '+after.raw.score+', best reply '+after.raw.bestmove+
+    ', forced-mate line '+item.engineExpectedLine.join(' '));
    fixture.engineProvenance={engine:after.raw.version,depth:stockfishDepth,
     before:before.raw,after:after.raw,
     verifiedCheckmateLine:item.engineExpectedLine,
