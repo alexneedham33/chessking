@@ -355,17 +355,16 @@ function unsupportedHypotheticalCheckClaims(message,input){
  if(!Array.isArray(potential))return [];
  const valid=new Set(potential.map(x=>x.to));
  const issues=[];
- const clauses=String(message).split(/(?<=[.!?])\s+|[;:]/);
- for(const clause of clauses){
-  if(!/\b(?:check|checking)\b/i.test(clause))continue;
-  const mention=/\b(?:knight|jump|hop|leap)\b/i.test(clause);
-  if(!mention)continue;
-  const named=[...clause.matchAll(/\b(?:to|on|at)\s+([a-h][1-8])\b/gi)].map(x=>x[1]);
-  for(const square of named){
-   if(!valid.has(square)&&/\b(?:knight|jump|hop|leap)\b[^.!?]{0,90}\b(?:check|checking)\b/i.test(clause))
-    issues.push('Hypothetical check: the knight moving to '+square+
-     ' does not give a legal check in the current position. Do not call this a checking jump.');
-  }
+ for(const clause of String(message).split(/(?<=[.!?])\s+|[;:]/)){
+  // Only exact square-linked check claims; otherwise ordinary knight mobility
+  // and generic "check" discussion can be valid and must not be suppressed.
+  const claimed=[
+   ...[...clause.matchAll(/\bchecking\s+(?:knight\s+)?(?:jump|hop|leap)\s+(?:to|on|at)\s+([a-h][1-8])/gi)].map(m=>m[1]),
+   ...[...clause.matchAll(/\b(?:knight|jump|hop|leap)\b[^.!?]{0,40}?\b(?:to|on|at)\s+([a-h][1-8])[^.!?]{0,35}?\b(?:with check|gives check|checking)\b/gi)].map(m=>m[1])
+  ];
+  for(const square of claimed)if(!valid.has(square))
+   issues.push('Hypothetical check: the knight moving to '+square+
+    ' does not give a legal check in the current position. Do not call this a checking jump.');
  }
  return [...new Set(issues)];
 }
