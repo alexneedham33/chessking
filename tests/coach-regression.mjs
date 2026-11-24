@@ -131,7 +131,7 @@ const guardEnd=lambdaSource.indexOf('async function generateCoaching(',guardStar
 assert.ok(guardStart>=0&&guardEnd>guardStart,'Lambda guard implementation present');
 const guardContext={};vm.createContext(guardContext);
 vm.runInContext(lambdaSource.slice(guardStart,guardEnd)+
- '\nthis.guard={checkExplanation,coachingBudget,unsupportedDirectClaims,verifiedRelations,unsupportedStructuralClaims,unsupportedExchangeClaims,unsupportedQueenTradeClaims,unsupportedMaterialSequenceClaims,unsupportedPrimaryTacticalClaims,unsupportedHangingMinorClaims,unsupportedFriendlyTargetClaims,unsupportedHypotheticalCheckClaims,shortenVerifiedExplanation,unsupportedCheckMechanismClaims,unsupportedSevereBlunderClaims,moveQualityContext,coachPawnBoard,unsupportedPawnHistoryClaims,verifiedPawnCaptureFallback,verifiedMajorCaptureFallback,coachingGuardFailures,coachingValidationCodes,needlessEngineAttribution};',guardContext);
+ '\nthis.guard={checkExplanation,coachingBudget,unsupportedDirectClaims,verifiedRelations,unsupportedStructuralClaims,unsupportedExchangeClaims,unsupportedQueenTradeClaims,unsupportedMaterialSequenceClaims,unsupportedPrimaryTacticalClaims,unsupportedHangingMinorClaims,unsupportedFriendlyTargetClaims,unsupportedHypotheticalCheckClaims,shortenVerifiedExplanation,unsupportedCheckMechanismClaims,unsupportedSevereBlunderClaims,moveQualityContext,coachPawnBoard,unsupportedPawnHistoryClaims,verifiedPawnCaptureFallback,verifiedCaptureWithReplyFallback,verifiedMajorCaptureFallback,coachingGuardFailures,coachingValidationCodes,needlessEngineAttribution};',guardContext);
 const bishopPositionBefore=pos({c8:'b',f8:'b',d7:'.',e7:'p',d5:'p',e2:'P',d4:'P'});
 const bishopPositionAfter=pos({c8:'b',f8:'b',d7:'.',e6:'p',e7:'.',d5:'p',e2:'P',d4:'P'});
 const guardInput={strategicFacts:changes(bishopPositionBefore,bishopPositionAfter),tacticalFacts:{}};
@@ -677,4 +677,32 @@ test('121 both guards are active in complete response validation',()=>{
   guardContext.guard.coachingBudget(friendlyBishopE5))).some(x=>x.includes('Friendly target')));
  assert.ok(Array.from(guardContext.guard.checkExplanation(bad2,knightNa6,
   guardContext.guard.coachingBudget(knightNa6))).some(x=>x.includes('Hypothetical check')));
+});
+
+const operaRxd7={
+ mover:'White',
+ beforeFen:'3rkb1r/p2nqppp/5n2/1B2p1B1/4P3/1Q6/PPP2PPP/2KR3R w k - 3 13',
+ afterFen:'3rkb1r/p2Rqppp/5n2/1B2p1B1/4P3/1Q6/PPP2PPP/2K4R b k - 0 13',
+ played:{piece:'r',side:'White',from:'d1',to:'d7',capture:true},
+ tacticalFacts:{movedPiece:{type:'rook'},exchangeEvidence:{
+  captured:{piece:'knight',square:'d7',value:3},
+  captureOptions:[{uci:'f6d7',move:'knight captures rook on d7',
+   capturedPiece:'rook',withPiece:'knight',capturedValue:5,hasLegalRecapture:false}]
+ }}
+};
+test('122 Opera 13.Rxd7 fallback explains verified capture and legal reply',()=>{
+ const msg=guardContext.guard.verifiedCaptureWithReplyFallback(operaRxd7);
+ assert.match(msg,/rook captures a knight on d7/);
+ assert.match(msg,/capturing that rook on d7/);
+ assert.deepEqual(Array.from(guardContext.guard.checkExplanation(msg,operaRxd7,
+  guardContext.guard.coachingBudget(operaRxd7))),[]);
+});
+test('123 cannot invent exchange fallback if board no longer has capturing rook',()=>{
+ const input={...operaRxd7,afterFen:operaRxd7.afterFen.replace('2R','3')};
+ assert.equal(guardContext.guard.verifiedCaptureWithReplyFallback(input),null);
+});
+test('124 cannot invent exchange fallback without exact legal recapture evidence',()=>{
+ const input={...operaRxd7,tacticalFacts:{...operaRxd7.tacticalFacts,
+  exchangeEvidence:{...operaRxd7.tacticalFacts.exchangeEvidence,captureOptions:[]}}};
+ assert.equal(guardContext.guard.verifiedCaptureWithReplyFallback(input),null);
 });
