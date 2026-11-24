@@ -2423,8 +2423,18 @@ function coachOpponentReplyThreats(position,engineEvidence=null){
   if(!newPins.length&&!forks.length&&!discoveries.length)continue;
   const defensiveCaptures=legal(next).filter(answer=>answer[1]===to&&
    (next.b[answer[1]]!=='.'||answer[3]==='ep'))
-   .map(answer=>({uci:key(answer),label:moveLabel(next,answer),
-    capturer:coachPieceNames[next.b[answer[0]].toLowerCase()]}));
+   .map(answer=>{
+    const replyPosition=apply(next,answer);
+    const followUp=legal(replyPosition).filter(response=>
+     response[1]===to&&
+     (replyPosition.b[response[1]]!=='.'||response[3]==='ep')
+    ).map(response=>({uci:key(response),label:moveLabel(replyPosition,response),
+     capturedPiece:coachPieceNames[replyPosition.b[to].toLowerCase()],
+     capturingPiece:coachPieceNames[replyPosition.b[response[0]].toLowerCase()]}));
+    return {uci:key(answer),label:moveLabel(next,answer),
+     capturer:coachPieceNames[next.b[answer[0]].toLowerCase()],
+     immediatelyRecaptured:followUp.slice(0,3)};
+   });
   const promotedPin=newPins.some(p=>p.pinnedPiece==='queen');
   const pinOnRook=newPins.some(p=>p.pinnedPiece==='rook');
   const matchesPv=key(reply)===mainUci;
@@ -2445,7 +2455,7 @@ function coachOpponentReplyThreats(position,engineEvidence=null){
  return {
   candidates:candidates.slice(0,5),
   totalCandidates:candidates.length,
-  note:'These are immediate legal opponent moves that CREATE tactical features. A threat can demand attention even if perfect defence exists. Not all candidates are sound or forced. Use the engine evaluation and concrete replies to qualify danger; do not claim a guaranteed material loss merely because a pin or fork can be created.'
+  note:'These are immediate legal opponent moves that CREATE tactical features. A threat can demand attention even if perfect defence exists. Defender captures and subsequent recaptures are legal two-ply options, not forced continuations or proof of net gain. Not all candidates are sound or forced. Use the engine evaluation and concrete replies to qualify danger; do not claim a guaranteed material loss merely because a pin or fork can be created.'
  };
 }
 function coachMoveTactics(before,move,previousBefore=null,previousMove=null){
