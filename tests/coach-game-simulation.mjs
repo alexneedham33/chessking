@@ -31,9 +31,13 @@ const endpoint=opt('--endpoint')||'http://127.0.0.1:8000/api/coach/move';
 if(live&&!/^http:\/\/(?:127\.0\.0\.1|localhost):\d+\/api\/coach\/move$/.test(endpoint))
  throw Error('Live test requires a loopback coaching proxy, e.g. http://127.0.0.1:8000/api/coach/move');
 const gameFile=JSON.parse(readFileSync(resolve(root,'tests/coach-game-lines.json'),'utf8'));
+const suite=opt('--suite')||'historical';
+if(!['historical','release'].includes(suite))throw Error('--suite must be historical or release');
+const releaseFile=JSON.parse(readFileSync(resolve(root,'tests/coach-release-scenarios.json'),'utf8'));
 const chosen=opt('--game');
-const games=gameFile.games.filter(x=>!chosen||x.id===chosen);
-if(!games.length)throw Error('Unknown game: '+chosen+' (available: '+gameFile.games.map(x=>x.id).join(', ')+')');
+const allCases=suite==='release'?releaseFile.scenarios.map(x=>({...x,scenario:true})):gameFile.games;
+const games=allCases.filter(x=>!chosen||x.id===chosen);
+if(!games.length)throw Error('Unknown game/scenario: '+chosen+'; available '+allCases.map(x=>x.id).join(', '));
 const html=readFileSync(resolve(root,'index.html'),'utf8');
 const lambda=readFileSync(resolve(root,'lambda-coach/index.mjs'),'utf8');
 function between(t,start,end){
@@ -58,25 +62,66 @@ const chess=context.chess;
 const guards={};vm.createContext(guards);
 vm.runInContext(between(lambda,'const words=text=>','async function generateCoaching(')+
  '\nthis.guards={checkExplanation,coachingBudget};',guards,{timeout:3000});
-function verifyGame(game){
- if(!Array.isArray(game.moves)||game.moves.length<30)throw Error('Game too short: '+game.id);
- let state=chess.original(),history=[],states=[];
- for(const uci of game.moves){
-  const m=chess.legal(state).find(x=>chess.key(x)===uci);
-  if(!m)throw Error('Illegal game '+game.id+' at ply '+(states.length+1)+': '+uci+
-   ' after '+history.slice(-5).join(' '));
-  const next=chess.apply(state,m);
-  states.push({before:state,after:next,move:m,uci,label:chess.moveLabel(state,m)});
-  history.push(chess.moveLabel(state,m));state=next;
+function scenarioPositionFromFen(fen){
+ const f=String(fen).split(' '),rows=f[0]?.split('/');
+ if(f.length!==6||rows.length!==8||!['w','b'].includes(f[1])||
+    !/^(?:-|[KQkq]{1,4})$/.test(f[2])||
+    !/^(?:-|[a-h][36])$/.test(f[3])||
+    !/^\d+$/.test(f[4])||!/^\d+$/.test(f[5])||Number(f[5])<1)
+  throw Error('Invalid scenario FEN');
+ const board=Array(128).fill('.');
+ for(let r=0;r<8;r++){
+  let col=0;
+  for(const p of rows[r]){
+   if(/[1-8]/.test(p))col+=Number(p);
+   else if(/[pnbrqkPNBRQK]/.test(p)){
+    if(col>=8)throw Error('Invalid scenario rank');
+    board[r*16+col++]=p;
+   }else throw Error('Invalid scenario FEN symbol');
+  }
+  if(col!==8)throw Error('Invalid scenario rank width');
  }
- const last=states.at(-1).after;
- if(!chess.checked(last)||chess.legal(last).length)
-  throw Error('Claimed full-game historical example does not actually end in checkmate: '+game.id);
+ if(board.filter(x=>x==='K').length!==1||board.filter(x=>x==='k').length!==1)
+  throw Error('Scenario needs exactly two kings');
+ const square=x=>(8-Number(x[1]))*16+'abcdefgh'.indexOf(x[0]);
+ const c=[['K',1],['Q',2],['k',4],['q',8]].reduce((n,[ch,flag])=>n+(f[2].includes(ch)?flag:0),0);
+ return {b:board,t:f[1]==='w'?1:-1,c,ep:f[3]==='-'?-1:square(f[3]),
+  half:Number(f[4]),full:Number(f[5]),i:0};
+}
+function verifyGame(game){
+ if(!game.scenario&&(!Array.isArray(game.moves)||game.moves.length<30))
+  throw Error('Historical game too short: '+game.id);
+ let board=game.startFen?scenarioPositionFromFen(game.startFen):chess.original();
+ const states=[],history=[];
+ const play=(uci,record)=>{
+  const m=chess.legal(board).find(x=>chess.key(x)===uci);
+  if(!m)throw Error('Illegal move in '+game.id+' at '+(history.length+1)+': '+uci);
+  const after=chess.apply(board,m),label=chess.moveLabel(board,m);
+  if(record)states.push({before:board,after,move:m,uci,label});
+  history.push(label);board=after;
+ };
+ if(game.sourceGame){
+  const source=gameFile.games.find(x=>x.id===game.sourceGame);
+  if(!source||!Number.isInteger(game.startPly)||!Number.isInteger(game.endPly)||
+     game.startPly<1||game.endPly>source.moves.length||game.endPly<game.startPly)
+   throw Error('Invalid historical segment '+game.id);
+  for(let i=0;i<game.endPly;i++)play(source.moves[i],i+1>=game.startPly);
+ }else{
+  for(const uci of game.setupMoves||[])play(uci,false);
+  for(const uci of game.moves||[])play(uci,true);
+ }
+ if(!states.length)throw Error('No coached moves for '+game.id);
+ if(!game.scenario&&(!chess.checked(board)||chess.legal(board).length))
+  throw Error('Historical complete game is not checkmate: '+game.id);
+ game.prefixLabels=history.slice(0,history.length-states.length);
  return states;
 }
 const prepared=games.map(game=>({game,states:verifyGame(game)}));
 for(const {game,states} of prepared)
- console.log('Verified complete game '+game.id+': '+states.length+' plies / '+
+ console.log(game.scenario?
+  'Verified release scenario '+game.id+': '+states.length+' legal coached plies; '+
+  game.prefixLabels.length+' setup plies; final position '+chess.fenOf(states.at(-1).after):
+  'Verified complete game '+game.id+': '+states.length+' plies / '+
   Math.ceil(states.length/2)+' numbered moves; final position checkmate.');
 if(validateOnly)process.exit(0);
 
@@ -152,10 +197,10 @@ function payloadFor(entry,previous,pre,post,labels,recent,game){
   detail:'adaptive'
  };
 }
-const report={version:1,createdAt:new Date().toISOString(),
+const report={version:1,createdAt:new Date().toISOString(),suite,
  mode:live?'live':'offline',engineDepth:depth,limitPerGame:live?limit:null,startPly,
  resumeSource:resumePath||null,
- note:'A complete-game chess simulation uses all plies and real engine analysis. Live calls are deliberately capped by --limit per game. These are illustrative historical sequences, not user game records.',
+ note:suite==='release'?'Three distinct legally replayed test scenarios (NOT three complete historical games). Live requests capped by --limit per scenario.':'A complete-game chess simulation uses all plies and real engine analysis. Live calls are deliberately capped by --limit per game. These are illustrative historical sequences, not user game records.',
  games:[],summary:{}};
 let sf;const cache=new Map();
 try{
@@ -166,9 +211,9 @@ try{
   return cache.get(k);
  };
  for(const {game,states} of prepared){
-  const output={id:game.id,title:game.title,attribution:game.attribution,focus:game.focus,
+  const output={id:game.id,title:game.title,attribution:game.attribution,focus:game.focus,scenario:!!game.scenario,
    totalPlies:states.length,terminal:'checkmate',entries:[]};
-  const labels=[],recent=[],responses=[];
+  const labels=[...(game.prefixLabels||[])],recent=[],responses=[];
   let backendUnavailable=false;
   const resumed=resumeReport?.games.find(x=>x.id===game.id);
   if(resumeReport&&!resumed)throw Error('Resume report does not contain selected game '+game.id);
@@ -232,7 +277,7 @@ try{
    const current={ply:j+1,moveNumber:entry.before.full,mover:payload.mover,
     move:entry.uci,label:entry.label,beforeFen:payload.beforeFen,afterFen:payload.afterFen,
     payloadBytes,
-    phase:j<12?'opening':j<26?'development-to-middlegame':'middlegame-or-finish',
+    phase:game.scenario?(game.id==='endgame'?'endgame':game.id==='positional'?'positional':'tactical-middlegame'):j<12?'opening':j<26?'development-to-middlegame':'middlegame-or-finish',
     engine:{before:pre.raw,after:post.raw,centipawnLoss:payload.moveAssessment.centipawnLoss,
      isEngineChoice:payload.moveAssessment.playedIsEngineChoice},
     previousCoaching:recent.slice(-3),response:null,responseTimeMs:null,
