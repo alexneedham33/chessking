@@ -2478,7 +2478,8 @@ function coachTacticalOpportunities(position,engineEvidence=null){
   if(!motifs.length)continue;
   const major=motifs.some(x=>x.type==='absolute-pin'&&x.atRisk==='queen')?140:
    motifs.some(x=>x.type==='fork'&&x.targets.some(t=>t.piece==='queen'))?105:
-   motifs.some(x=>x.type==='absolute-pin')?85:55;
+   motifs.some(x=>x.type==='absolute-pin')?85:
+   motifs.some(x=>x.type==='discovered-attack'&&x.target==='queen')?95:55;
   const canCaptureAttacker=captures.length>0;
   const canRecapture=captures.some(x=>x.immediatelyRecaptured?.length>0);
   opportunities.push({motifs,priority:major+(reply.stockfishFirstReply?40:0)-
