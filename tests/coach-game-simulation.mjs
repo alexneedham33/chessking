@@ -58,7 +58,7 @@ vm.runInContext(
  between(html,'function fenOf(s){','function engineText(')+'\n'+
  between(html,'function coachEngineEvidence(position,analysis){','// Opening context is evidence, not a rule that the learner must follow.')+'\n'+
  between(html,'function playedMoveEvidence(position,move){','async function requestUnifiedMoveCoaching')+
- '\nthis.chess={original,legal,apply,key,fenOf,checked,moveLabel,coachPlainMove,playedMoveEvidence,coachMoveTactics,coachStrategicChanges,coachTeachingPriorities,coachEngineEvidence,coachTacticalContinuation,coachBoardFacts};',
+ '\nthis.chess={original,legal,apply,key,fenOf,checked,moveLabel,coachPlainMove,playedMoveEvidence,coachMoveTactics,coachStrategicChanges,coachTeachingPriorities,coachEngineEvidence,coachTacticalContinuation,coachBoardFacts,coachOpponentReplyThreats};',
  context,{timeout:5000}
 );
 const chess=context.chess;
@@ -127,6 +127,45 @@ function assertLooseBishopCheckGuard(){
  console.log('Verified queen e7 post-Guided bishop check: c4b5+ is met by legal a6b5; misleading recommendation rejected.');
 }
 assertLooseBishopCheckGuard();
+// Confirm potential future threats are found even when not in Stockfish's
+// recommended continuation. These are tactical hazards, not forced losses.
+function verifyOpponentReplyThreatScan(){
+ const cases=[
+  {
+   name:'queen on d7 exposed to a bishop pin on b5',
+   fen:'rnb1kb1r/pp1q1p1p/4pnp1/2p5/2BP4/2N1PN2/PP2QPPP/R1B1K2R w KQkq - 2 8',
+   move:'c4b5',kind:'pin',
+   matches:x=>x.newAbsolutePins.some(p=>p.pinnedPiece==='queen'&&p.pinnedSquare==='d7'&&p.kingSquare==='e8')
+  },
+  {
+   name:'knight creates a queen/rook fork',
+   fen:'3q1r1k/8/8/8/3N4/8/8/K7 w - - 0 1',
+   move:'d4e6',kind:'fork',
+   matches:x=>x.forkTargets.some(t=>t.piece==='queen'&&t.square==='d8')&&
+     x.forkTargets.some(t=>t.piece==='rook'&&t.square==='f8')
+  },
+  {
+   name:'bishop move uncovers rook attack on queen',
+   fen:'q6k/8/8/8/B7/8/8/R3K3 w - - 0 1',
+   move:'a4b5',kind:'discovery',
+   matches:x=>x.discoveredAttacks.some(d=>d.attacker==='rook'&&d.target==='queen'&&d.targetSquare==='a8')
+  }
+ ];
+ for(const sample of cases){
+  const board=scenarioPositionFromFen(sample.fen);
+  if(!chess.legal(board).some(m=>chess.key(m)===sample.move))
+   throw Error('Reply threat sample is illegal: '+sample.name);
+  const threats=chess.coachOpponentReplyThreats(board,{
+    variations:[{rank:1,moves:[{uci:'not-a-real-engine-move'}]}]
+  });
+  const found=threats.candidates.find(x=>x.uci===sample.move);
+  if(!found||!sample.matches(found)||found.status!=='legal-next-move-threat-candidate'||
+    found.stockfishFirstReply)
+   throw Error('Missing or misclassified '+sample.kind+' reply threat: '+sample.name);
+ }
+ console.log('Verified opponent reply threat scan: queen pins, knight forks and discovered attacks even off the engine PV.');
+}
+verifyOpponentReplyThreatScan();
 function verifyGame(game){
  if(!game.scenario&&(!Array.isArray(game.moves)||game.moves.length<30))
   throw Error('Historical game too short: '+game.id);
