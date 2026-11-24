@@ -2458,44 +2458,6 @@ function coachOpponentReplyThreats(position,engineEvidence=null){
   note:'These are immediate legal opponent moves that CREATE tactical features. A threat can demand attention even if perfect defence exists. Defender captures and subsequent recaptures are legal two-ply options, not forced continuations or proof of net gain. Not all candidates are sound or forced. Use the engine evaluation and concrete replies to qualify danger; do not claim a guaranteed material loss merely because a pin or fork can be created.'
  };
 }
-// General legal continuation summary, not an instruction to play a move.
-function coachTacticalOpportunities(position,engineEvidence=null,precomputedScan=null){
- const scan=precomputedScan||coachOpponentReplyThreats(position,engineEvidence);
- const opportunities=[];
- for(const reply of scan.candidates){
-  const captures=reply.immediateDefenderCaptures||[];
-  const motifs=[];
-  for(const pin of reply.newAbsolutePins||[])motifs.push({
-   type:'absolute-pin',attacker:pin.pinnerPiece,atRisk:pin.pinnedPiece,
-   sideAtRisk:pin.pinnedSide,kingSquare:pin.kingSquare,
-   targetSquare:pin.pinnedSquare});
-  if(reply.forkTargets?.length>=2)motifs.push({
-   type:'fork',attacker:reply.piece,
-   targets:reply.forkTargets.map(x=>({piece:x.piece,square:x.square}))});
-  for(const d of reply.discoveredAttacks||[])motifs.push({
-   type:'discovered-attack',attacker:d.attacker,
-   target:d.target,targetSquare:d.targetSquare});
-  if(!motifs.length)continue;
-  const major=motifs.some(x=>x.type==='absolute-pin'&&x.atRisk==='queen')?140:
-   motifs.some(x=>x.type==='fork'&&x.targets.some(t=>t.piece==='queen'))?105:
-   motifs.some(x=>x.type==='absolute-pin')?85:
-   motifs.some(x=>x.type==='discovered-attack'&&x.target==='queen')?95:55;
-  const canCaptureAttacker=captures.length>0;
-  const canRecapture=captures.some(x=>x.immediatelyRecaptured?.length>0);
-  opportunities.push({motifs,priority:major+(reply.stockfishFirstReply?40:0)-
-    (canCaptureAttacker&&!canRecapture?40:0),
-   sideAbleToCreate:reply.side,
-   engineSupported:!!reply.stockfishFirstReply,
-   canCaptureAttacker,canRecapture,
-   legalRecaptureOptions:captures.slice(0,2).map(x=>({
-    capturer:x.capturer,recaptureAvailable:!!x.immediatelyRecaptured?.length})),
-   evidenceLevel:'legal-next-move-only',
-   interpretation:'Legally possible, not necessarily profitable, forced, or recommended.'});
- }
- opportunities.sort((a,b)=>b.priority-a.priority);
- return {top:opportunities.slice(0,4),total:scan.totalCandidates,
-  policy:'Review the completed move only. Explain verified risks, not the next move or a forced outcome.'};
-}
 function coachMoveTactics(before,move,previousBefore=null,previousMove=null){
  const after=apply(before,move),mover=before.t,to=move[1],from=move[0];
  const movedPiece=after.b[to],movedType=movedPiece.toLowerCase();
@@ -2990,7 +2952,6 @@ async function requestUnifiedMoveCoaching(ply){
   const tacticalContinuation=coachTacticalContinuation(after,engine);
   const recentCoaching=[...coachMoveMessages.entries()]
    .filter(([at,item])=>at<ply&&!item.pending&&item.message).slice(-3).map(([,item])=>item.message);
-  const threatScan=coachOpponentReplyThreats(after,engine);
   const coachPayload={
    beforeFen:fenOf(before),afterFen:fenOf(after),
    opening:openings[openingAtRequest].name,player:playerColour,
@@ -3008,8 +2969,7 @@ async function requestUnifiedMoveCoaching(ply){
    strategicFacts,
    teachingPriorities,
    tacticalContinuation,
-   opponentReplyThreats:threatScan,
-   tacticalOpportunities:coachTacticalOpportunities(after,engine,threatScan),
+   opponentReplyThreats:coachOpponentReplyThreats(after,engine),
    alternativeEvidence,
    openingContext:coachOpeningContext(ply),
    // The exact, author-written explanation for this verified guided move.
