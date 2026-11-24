@@ -2131,6 +2131,75 @@ function coachEngineEvidence(position,analysis){
  };
 }
 
+// Rank *verified events* inside the Stockfish principal variation after the
+// coached move. A PV is a forecast of best-play replies, not a forcing proof.
+// Preserve all preceding moves so a queen win is explained through its setup,
+// rather than isolating a capture from the tactical sequence.
+function coachTacticalContinuation(position,engineEvidence){
+ const first=engineEvidence?.variations?.find(x=>x.rank===1&&x.moves?.length);
+ if(!first)return null;
+ let board=position;
+ const moves=[],highlights=[];
+ const pieceValues={p:1,n:3,b:3,r:5,q:9,k:0};
+ for(const candidate of first.moves.slice(0,6)){
+  const move=legal(board).find(m=>key(m)===candidate.uci);
+  if(!move)break;
+  const before=board,after=apply(before,move),from=move[0],to=move[1];
+  const piece=before.b[from].toLowerCase();
+  const victim=move[3]==='ep'?before.b[to+16*before.t]:before.b[to];
+  const capture=victim!=='.';
+  const checkLine=coachCheckLineEvidence(after,-before.t);
+  const checking=!!checkLine?.checkingPieces?.length;
+  const checkmate=!!checkLine?.checkmate;
+  const discoveredCheck=checking&&!checkLine.checkingPieces.some(x=>x.from===sq(to));
+  const events=[];
+  if(capture){
+   const captured=coachPieceNames[victim.toLowerCase()];
+   const priority=victim.toLowerCase()==='q'?150:victim.toLowerCase()==='r'?120:
+    ['n','b'].includes(victim.toLowerCase())?95:55;
+   events.push({type:'capture',priority,capturedPiece:captured,capturedSquare:sq(to),
+    capturedValue:pieceValues[victim.toLowerCase()]});
+  }
+  if(checking){
+   events.push({type:checkmate?'checkmate':discoveredCheck?'discovered-check':'check',
+    priority:checkmate?190:discoveredCheck?137:105,
+    checkingPieces:checkLine.checkingPieces.map(x=>({piece:x.piece,from:x.from,
+     king:x.king,clearSquaresBetween:x.clearSquaresBetween}))});
+  }
+  if(piece==='k')events.push({type:'king-move',priority:75,from:sq(from),to:sq(to),
+   inReplyToPreviousCheck:!!moves.at(-1)?.check});
+  const attacks=coachPieceAttackSquares(after,to);
+  const highValueTargets=attacks.filter(x=>side(after.b[x])===-before.t&&
+    ['q','r'].includes(after.b[x].toLowerCase())).map(x=>({
+    square:sq(x),piece:coachPieceNames[after.b[x].toLowerCase()]
+   }));
+  if(highValueTargets.length)events.push({type:'high-value-attack',priority:
+   highValueTargets.some(x=>x.piece==='queen')?125:100,targets:highValueTargets});
+  const last=moves.at(-1);
+  if(capture&&last?.capturedPiece&&last.to===sq(to)&&
+    last.side!==(before.t===1?'White':'Black')){
+   events.push({type:'same-square-recapture',priority:108,
+    previousMove:last.uci,now:key(move)});
+  }
+  const entry={ply:moves.length+1,uci:key(move),label:moveLabel(before,move),
+   side:before.t===1?'White':'Black',piece:coachPieceNames[piece],
+   from:sq(from),to:sq(to),check:checking,checkmate,
+   ...(capture?{capturedPiece:coachPieceNames[victim.toLowerCase()]}:{}),
+   events};
+  moves.push(entry);
+  for(const event of events)highlights.push({ply:entry.ply,uci:entry.uci,
+   label:entry.label,side:entry.side,...event});
+  board=after;
+ }
+ if(!moves.length)return null;
+ highlights.sort((a,b)=>b.priority-a.priority||a.ply-b.ply);
+ return {source:'stockfish-principal-variation',depth:engineEvidence.depth,
+  lineRank:1,lineEvaluation:first.evaluation,lineMate:first.mate,
+  moves,highestPriorityEvents:highlights.slice(0,5),
+  mainEvent:highlights[0]||null,
+  guidance:'All moves are legal and in one verified engine principal variation. Explain the important sequence (including setup moves) before quieter details. Highlight concrete queen/rook captures, discovered checks, recaptures and forcing checks. A PV is NOT proof that each reply is forced or that a legal capture is profitable; do not invent alternatives or events not listed.'};
+}
+
 // Deterministic board facts for the AI. Never infer board occupancy in the prompt.
 const coachPieceNames={p:'pawn',n:'knight',b:'bishop',r:'rook',q:'queen',k:'king'};
 function coachPlainMove(position,move){
@@ -2740,6 +2809,7 @@ async function requestUnifiedMoveCoaching(ply){
    ?legal(previousBefore).find(m=>key(m)===priorNote.uci):null;
   const tacticalFacts=coachMoveTactics(before,move,previousBefore,previousMove);
   const teachingPriorities=coachTeachingPriorities(before,move,after,strategicFacts,tacticalFacts);
+  const tacticalContinuation=coachTacticalContinuation(after,engine);
   const recentCoaching=[...coachMoveMessages.entries()]
    .filter(([at,item])=>at<ply&&!item.pending&&item.message).slice(-3).map(([,item])=>item.message);
   const response=await fetch('/api/coach/move',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
@@ -2758,6 +2828,7 @@ async function requestUnifiedMoveCoaching(ply){
    tacticalFacts,
    strategicFacts,
    teachingPriorities,
+   tacticalContinuation,
    alternativeEvidence,
    openingContext:coachOpeningContext(ply),
    coachingLevel:coachExplanationLevel(),
