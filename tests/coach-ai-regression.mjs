@@ -62,7 +62,7 @@ function sequenceFor(item){
 // Exact 0x88 board state from a curated FEN. Every proposed move is still
 // checked through the application's legal() before any AI call.
 function positionFromFen(fen){
- const parts=fen.trim().split(/\\s+/);
+ const parts=fen.trim().split(/\s+/);
  if(parts.length!==6)throw Error('Tactical FEN requires six fields');
  const [placement,turn,castling,ep,half,full]=parts,rows=placement.split('/');
  if(rows.length!==8||!['w','b'].includes(turn))throw Error('Invalid tactical FEN');
