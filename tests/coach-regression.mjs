@@ -706,3 +706,41 @@ test('124 cannot invent exchange fallback without exact legal recapture evidence
   exchangeEvidence:{...operaRxd7.tacticalFacts.exchangeEvidence,captureOptions:[]}}};
  assert.equal(guardContext.guard.verifiedCaptureWithReplyFallback(input),null);
 });
+
+const openingContextStart=html.indexOf('function coachOpeningContext(ply){');
+const openingContextEnd=html.indexOf('function coachExplanationLevel(){',openingContextStart);
+assert.ok(openingContextStart>0&&openingContextEnd>openingContextStart,
+ 'Actual Guided opening context available for regression');
+function realOpeningContext({guided=true,ply=1,limit=10}={}){
+ const opening={name:"Queen's Gambit Declined",desc:'Support the centre',tip:'Develop and challenge d5',line:[]};
+ const opts={notes:Array.from({length:ply},()=>({uci:'d2d4'})),
+  trainingMode:guided?'learn':'play',learnOpponent:guided?'guided':'stockfish',
+  openings:{queen:opening},selected:'queen',openingParent:()=> 'queen',
+  routeLine:()=>Array.from({length:limit},()=>['d2d4']),guidedOpeningLimit:()=>limit};
+ vm.createContext(opts);
+ vm.runInContext(html.slice(openingContextStart,openingContextEnd)+'\nthis.getContext=coachOpeningContext;',opts);
+ return opts.getContext(ply);
+}
+test('125 Guided strategic connections suggested on selected spaced plies, not every move',()=>{
+ for(const ply of [1,4,7,10])assert.equal(realOpeningContext({ply}).strategyConnectionSuggested,true);
+ for(const ply of [2,3,5,6,8,9])assert.equal(realOpeningContext({ply}).strategyConnectionSuggested,false);
+});
+test('126 Guided strategy is not imposed after prepared line ends',()=>{
+ const ctx=realOpeningContext({ply:11});
+ assert.equal(ctx.source,'selected-guided');
+ assert.equal(ctx.strategyConnectionSuggested,false);
+ assert.equal(ctx.phase,'free-play-after-guided-opening');
+});
+test('127 Quick Play recognition does not inherit selected Guided coaching cue',()=>{
+ const ctx=realOpeningContext({guided:false,ply:1});
+ assert.equal(ctx.source,'unrecognised');
+ assert.equal(ctx.strategyConnectionSuggested,undefined);
+});
+test('128 prompts encourage succinct squares without sacrificing verified tactics',()=>{
+ const lambda=readFileSync(resolve(root,'lambda-coach/index.mjs'),'utf8');
+ assert.match(lambda,/Plain-language square economy:/);
+ assert.match(lambda,/Guided opening strategy:/);
+ assert.match(lambda,/openingContext\.strategyConnectionSuggested/);
+ assert.match(lambda,/Exceptions: a concrete forced tactic or checkmate/);
+ assert.ok(html.includes('normally name at most two board squares in a routine explanation'));
+});
