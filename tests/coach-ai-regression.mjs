@@ -19,8 +19,8 @@ const stockfishDepth=Math.max(10,Math.min(20,Number((()=>{const i=args.indexOf('
 const option=name=>{const i=args.indexOf(name);return i>=0?args[i+1]:undefined;};
 const max=Math.max(1,Math.min(40,Number(option('--limit')||6)));
 const group=option('--group');
-if(group&&!['tactical','historical','engine'].includes(group))throw Error('--group must be tactical, historical or engine');
-if(group==='engine'&&!useStockfish)throw Error('--group engine requires --stockfish: never fabricate engine evaluations');
+if(group&&!['tactical','historical','engine','middlegame'].includes(group))throw Error('--group must be tactical, historical, engine or middlegame');
+if(['engine','middlegame'].includes(group)&&!useStockfish)throw Error('--group '+group+' requires --stockfish: never fabricate engine evaluations');
 const endpoint=option('--endpoint')||'http://127.0.0.1:8000/api/coach/move';
 const selected=option('--case');
 const baselineFile=option('--baseline');
@@ -60,7 +60,7 @@ const otherSequences={
 };
 const base=['d2d4','d7d5','g1f3','g8f6','b1c3','e7e6','e2e4','f8b4','a2a3','b4a5','f1d3','a5c3','b2c3'];
 function sequenceFor(item){
- if(['tactical-fen','engine-fen','engine-line'].includes(item.referenceSequence))return item.moves;
+ if(['tactical-fen','engine-fen','engine-line','middlegame-puzzle'].includes(item.referenceSequence))return item.moves;
  if(item.referenceSequence==='main-line')return item.moves;
  if(otherSequences[item.id])return [...base,...otherSequences[item.id]];
  return null;
@@ -163,9 +163,10 @@ const fixed=[],skipped=[];
 for(const item of review.cases){
  if(selected&&item.id!==selected)continue;
  if(group==='tactical'&&item.referenceSequence!=='tactical-fen')continue;
- if(group==='historical'&&['tactical-fen','engine-fen','engine-line'].includes(item.referenceSequence))continue;
+ if(group==='historical'&&['tactical-fen','engine-fen','engine-line','middlegame-puzzle'].includes(item.referenceSequence))continue;
  if(group==='engine'&&!item.referenceSequence.startsWith('engine-'))continue;
- if(item.referenceSequence.startsWith('engine-')&&!useStockfish)continue;
+ if(group==='middlegame'&&item.referenceSequence!=='middlegame-puzzle')continue;
+ if((item.referenceSequence.startsWith('engine-')||item.referenceSequence==='middlegame-puzzle')&&!useStockfish)continue;
  const moves=sequenceFor(item);
  if(!moves){skipped.push({id:item.id,reason:'No complete legal move sequence / exact FEN recorded'});continue;}
  const fixture=makeInput(item,moves);
@@ -241,9 +242,10 @@ function verifyForcedLine(fixture,expected){
 }
 if(useStockfish){
  const targets=fixed.filter(x=>x.id.startsWith('29-')||x.id.startsWith('30-'));
+ const middlegameTargets=fixed.filter(x=>review.cases.some(item=>item.id===x.id&&item.referenceSequence==='middlegame-puzzle'));
  let sf=null;
  try{
-  if(targets.length)sf=await startStockfish(root);
+  if(targets.length||middlegameTargets.length)sf=await startStockfish(root);
   for(const fixture of targets){
    const item=review.cases.find(x=>x.id===fixture.id);
    const verifiedLine=verifyForcedLine(fixture,item.engineExpectedLine);
@@ -322,6 +324,65 @@ if(useStockfish){
     verifiedDefenderForced:item.engineMustBeForced||false};
    fixture.hash=sha(fixture.payload);
   }
+  // Real puzzle positions: the source's first move sets up the tactic;
+  // the second is the move being coached. Analyse both sides of that move.
+  // The published puzzle continuation is independently checked for legality
+  // but NEVER presented to GPT as an engine-confirmed or forced line.
+  for(const fixture of middlegameTargets){
+   const item=review.cases.find(x=>x.id===fixture.id);
+   if(fixture.moves.length!==2||item.puzzleLine?.slice(0,2).join(' ')!==fixture.moves.join(' '))
+    throw Error('Middlegame puzzle fixture must contain setup and tactic: '+fixture.id);
+   let board=positionFromFen(item.beforeFen);
+   const checkedPuzzleMoves=[];
+   for(const uci of item.puzzleLine){
+    const options=chess.legal(board),move=options.find(x=>chess.key(x)===uci);
+    if(!move)throw Error('Illegal Lichess source continuation '+item.id+' '+uci);
+    checkedPuzzleMoves.push({uci,side:board.t===1?'White':'Black',
+     legalReplyCount:options.length,move:chess.coachPlainMove(board,move)});
+    board=chess.apply(board,move);
+   }
+   if(chess.legal(fixture.before).length<2||chess.legal(fixture.after).length<2)
+    throw Error('Middlegame snapshot has insufficient tactical choice: '+item.id);
+   const before=legalEngineAnalysis(fixture.before,await sf.analyze(fixture.payload.beforeFen,stockfishDepth));
+   const after=legalEngineAnalysis(fixture.after,await sf.analyze(fixture.payload.afterFen,stockfishDepth));
+   const factor=fixture.before.t;
+   const change=before.analysis.evaluation!==null&&after.analysis.evaluation!==null?
+    Math.round((after.analysis.evaluation-before.analysis.evaluation)*100):null;
+   fixture.payload.engine=after.evidence;
+   fixture.payload.priorEngine=before.evidence;
+   fixture.payload.moveAssessment={
+    manual:true,playedIsEngineChoice:before.raw.bestmove===fixture.payload.played.uci,
+    centipawnLoss:change===null?null:Math.max(0,-factor*change),
+    approximate:true,depth:Math.min(before.raw.depth,after.raw.depth),
+    suggestedMove:null,suggestedMovePlainEnglish:null,
+    evaluationBefore:before.analysis.evaluation,evaluationAfter:after.analysis.evaluation,
+    evaluationChangeCentipawns:change,
+    evaluationChangeForMoverCentipawns:change===null?null:factor*change,
+    expectedContinuation:before.evidence.variations[0]?.moves||[]
+   };
+   fixture.payload.coachingGuidance.focus='tactical';
+   fixture.payload.coachingGuidance.explainAlternatives=false;
+   fixture.payload.coachingGuidance.alternativePolicy=
+    'Do not recommend an alternative because no verified alternativeEvidence was supplied. The pre-move PV is context, not a mandate to change the explanation.';
+   fixture.payload.coachingGuidance.evaluationPolicy=
+    'Stockfish analysis of both sides is attached. Use actual before/after evaluations and legal engine variations. Principal variations are best-play forecasts, not forced moves unless the defender has only one legal reply. Scores may be mate or centipawns.';
+   fixture.payload.scripted='Real-world middlegame puzzle snapshot: teach the concrete tactical consequences of the actual played move and the Stockfish line; do not invent replies, mate, a material gain, or claim puzzle solution line is forced.';
+   fixture.source={puzzleId:item.puzzleId,puzzleUrl:item.puzzleUrl,
+    attribution:'Lichess public puzzle record, FEN before opponent setup move',
+    sourceUciLine:item.puzzleLine,
+    sourceLineLegalityVerified:true,
+    legalSourceMoves:checkedPuzzleMoves};
+   fixture.engineProvenance={engine:after.raw.version,depth:stockfishDepth,
+    before:before.raw,after:after.raw,
+    playedIsEngineChoice:before.raw.bestmove===fixture.payload.played.uci,
+    sourcePuzzleId:item.puzzleId,sourcePuzzleUrl:item.puzzleUrl,
+    sourceContinuationVerifiedLegal:true,
+    sourceContinuationIsEngineProven:false};
+   fixture.hash=sha(fixture.payload);
+   console.log('Stockfish middlegame '+fixture.id+': played '+fixture.payload.played.uci+
+    ', pre-best '+before.raw.bestmove+', before '+before.raw.scoreType+' '+before.raw.score+
+    ', after '+after.raw.scoreType+' '+after.raw.score);
+  }
  }finally{sf?.stop();}
 }
 
@@ -358,6 +419,7 @@ for(const fixture of fixed){
   attempted:live&&results.filter(x=>x.attempted).length<allowed,
   response:message,error,objectiveWarnings:checks,
   ...(fixture.engineProvenance?{engineProvenance:fixture.engineProvenance}:{}),
+  ...(fixture.source?{source:fixture.source}:{}),
   // Human-scored dimensions intentionally blank until reviewed.
   review:{accuracy:null,tactical:null,teaching:null,clarity:null,notes:''}});
 }
