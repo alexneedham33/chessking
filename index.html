@@ -2347,6 +2347,17 @@ function coachExchangeEvidence(before,move,previousBefore=null,previousMove=null
  return {captured,captureOptions,completedExchange,
   interpretation:'Each reply and recapture is a legal two-ply sequence, NOT necessarily forced, sound, or engine-recommended. capturedValue and replySideNetLoss are pawn-unit material accounting for this sequence only: +8 means the reply side lost a queen (9) after taking a pawn (1); that is NOT a queen trade. A recapture does not mean the recapturing piece is lost.'};
 }
+// Hypothetical checking moves of the piece that just moved, if it could move
+// again from the current position. Board-verified and legal for that side,
+// but NOT a claim that the opponent will allow the move on a future turn.
+function coachMovedPiecePotentialChecks(after,to,mover){
+ const otherTurn={...after,t:mover,ep:-1};
+ return legal(otherTurn).filter(candidate=>candidate[0]===to&&
+  checked(apply(otherTurn,candidate),-mover)).map(candidate=>({
+   uci:key(candidate),to:sq(candidate[1]),
+   move:coachPlainMove(otherTurn,candidate)
+ }));
+}
 function coachMoveTactics(before,move,previousBefore=null,previousMove=null){
  const after=apply(before,move),mover=before.t,to=move[1],from=move[0];
  const movedPiece=after.b[to],movedType=movedPiece.toLowerCase();
@@ -2403,6 +2414,7 @@ function coachMoveTactics(before,move,previousBefore=null,previousMove=null){
  return {
   movedPiece:{colour:mover===1?'White':'Black',type:coachPieceNames[movedType],from:sq(from),to:sq(to)},
   movedPieceAttacks:attackedSquares.map(sq),
+  movedPiecePotentialChecks:coachMovedPiecePotentialChecks(after,to,mover),
   enemyPiecesAttackedByMovedPiece:attackedEnemy,
   friendlyPiecesDefendedByMovedPiece:defended,
   movedPieceUnderAttack:attacked(after,to,-mover),
