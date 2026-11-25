@@ -2092,6 +2092,7 @@ function syncCustomDropdowns(){
   if(menu.dataset.signature!==signature){
    menu.replaceChildren();
    options.forEach(opt=>{
+    if(select.id==='guidedJump'&&opt.value==='')return;
     const item=document.createElement('button');
     item.type='button';item.className='custom-select-option';item.setAttribute('role','option');
     item.dataset.value=opt.value;item.textContent=opt.textContent;item.disabled=opt.disabled;
