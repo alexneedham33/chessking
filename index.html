@@ -363,7 +363,7 @@ html.app-fullscreen .main,html:fullscreen .main{grid-template-columns:minmax(500
 .square.coach-square-highlight::before{content:"";position:absolute;inset:2px;background:rgba(213,188,151,.15);pointer-events:none;z-index:1}
 .square.coach-square-highlight .piece-img{position:relative;z-index:2}
 @keyframes coach-pending-spin{to{transform:rotate(360deg)}}
-.coach-toggle{appearance:none;border:1px solid #3b465f;border-radius:999px;background:#151c2c;color:#aeb9cb;font-size:12px;font-weight:750;padding:7px 12px;min-width:90px;transition:border-color .15s,background .15s,color .15s;white-space:nowrap}
+.coach-toggle{appearance:none;border:1px solid #3b465f;border-radius:999px;background:#151c2c;color:#aeb9cb;font-size:14px;font-weight:750;padding:7px 16px;min-width:62px;transition:border-color .15s,background .15s,color .15s;white-space:nowrap}
 .coach-toggle.is-on{border-color:#8d7759;background:#29251f;color:#e6d8b9}
 .coach-toggle:hover{border-color:#d5bc97}
 .coach-toggle:focus-visible{outline:2px solid #d5bc97;outline-offset:2px}
@@ -947,10 +947,10 @@ html.app-fullscreen .app,html:fullscreen .app{padding-top:60px;padding-bottom:8p
 .guided-navigation :focus-visible{outline:2px solid #d5bc97;outline-offset:2px}
 .guided-navigation{display:flex;gap:7px;margin-top:9px;align-items:center}
 .guided-navigation[hidden]{display:none!important}
-.guided-navigation select,.guided-navigation button{min-width:0;height:30px;border:1px solid #45516b;border-radius:7px;background:#1b2333;color:#e2e8f5;font:650 12px inherit;font-family:inherit;font-size:12px;font-weight:650;padding:0 8px;cursor:pointer}
+.guided-navigation select,.guided-navigation button{min-width:0;height:34px;border:1px solid #45516b;border-radius:7px;background:#1b2333;color:#e2e8f5;font-family:inherit;font-size:14px;font-weight:700;padding:0 10px;cursor:pointer}
 .guided-navigation select{flex:1 1 0}
 .guided-navigation .guided-jump-select{flex:1 1 0;width:auto;min-width:0}
-.guided-navigation .custom-select-trigger{width:100%;height:30px;display:flex;justify-content:space-between;align-items:center;color:#e2e8f5;border-color:#45516b}
+.guided-navigation .custom-select-trigger{width:100%;height:34px;display:flex;justify-content:space-between;align-items:center;color:#e2e8f5;border-color:#45516b}
 .guided-navigation .custom-select-menu{width:min(380px,calc(100vw - 44px));max-width:calc(100vw - 44px);max-height:min(340px,48vh);z-index:110}
 .guided-navigation .custom-select-option{height:auto;min-height:34px;display:grid;grid-template-columns:24px 23px minmax(0,1fr) auto;gap:7px;padding:6px 8px;text-align:left;white-space:normal;color:#e7edf7;border:0;background:transparent}
 .guided-navigation .custom-select-option:hover,.guided-navigation .custom-select-option:focus-visible{background:#344159;color:white}
@@ -970,7 +970,7 @@ html.app-fullscreen .app,html:fullscreen .app{padding-top:60px;padding-bottom:8p
 .autoplay-controls[hidden]{display:none!important}
 .autoplay-controls{display:flex;align-items:stretch;min-width:0;gap:8px}
 .autoplay-controls #autoPlay{flex:1 1 0;min-width:0;white-space:nowrap}
-.autoplay-controls select{min-width:0;flex:0 0 auto;width:68px;border:1px solid #45516b;border-radius:8px;background:#1b2333;color:#e2e8f5;font-family:inherit;font-size:14px;font-weight:700;padding:0 8px;cursor:pointer;color-scheme:dark;appearance:none;-webkit-appearance:none;padding-right:24px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%23e2e8f5' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;background-size:12px 12px}
+.autoplay-controls select{min-width:0;flex:0 0 auto;width:68px;border:1px solid #45516b;border-radius:8px;background:#1b2333;color:#e2e8f5;font-family:inherit;font-size:14px;font-weight:700;padding:0 8px;cursor:pointer;color-scheme:dark;appearance:none;-webkit-appearance:none;padding-left:13px;padding-right:27px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%23e2e8f5' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;background-size:12px 12px}
 @media(max-width:700px){.autoplay-controls select{font-size:12px}}
 .autoplay-controls select:focus-visible{outline:2px solid #d5bc97;outline-offset:2px}
 .board-controls #autoPlay[aria-pressed="true"]{background:#332b21;border-color:#c4a074;color:#e6d8b9}
@@ -978,6 +978,7 @@ html.app-fullscreen .app,html:fullscreen .app{padding-top:60px;padding-bottom:8p
 
 /* Warm board-inspired accent palette; dark text on light primary controls. */
 .btn.primary,.btn.primary:hover:not(:disabled),.tab.active,.training-option.active,.engine-sim-btn,.player-colour-switch button.active{color:#211c16}
+@media(max-width:700px){.guided-navigation select,.guided-navigation button,.coach-toggle{font-size:12px}.guided-navigation .custom-select-trigger{font-size:12px}}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -1052,7 +1053,7 @@ html.app-fullscreen .app,html:fullscreen .app{padding-top:60px;padding-bottom:8p
           <button class="detail-tab" data-detail-tab="simulator">Simulator</button><button class="detail-tab" data-detail-tab="review">Review</button>
         </div>
         <div class="detail-tab-content active" id="chatTabPane">
-          <div class="panel-header"><div class="learn-kicker">📖 <span>Coach</span></div><button id="coachToggle" type="button" class="coach-toggle " aria-pressed="false" aria-label="Turn automatic coach on">Coach Off</button></div><div id="strategicInsights" class="coach-internal-status" aria-hidden="true" hidden><span id="aiCoachStatus" role="status" hidden></span><button type="button" id="aiCoachRetry" hidden>Retry</button></div><span id="openingName" hidden></span><div class="chat-mode-switch" role="group" aria-label="Chat explanation style" style="display:none"><button class="chat-mode-btn active" data-chat-mode="quick" aria-pressed="true">Quick</button><button class="chat-mode-btn" data-chat-mode="learn" aria-pressed="false">Learn</button></div>
+          <div class="panel-header"><div class="learn-kicker">📖 <span>Coach</span></div><button id="coachToggle" type="button" class="coach-toggle " aria-pressed="false" aria-label="Turn automatic coach on">Off</button></div><div id="strategicInsights" class="coach-internal-status" aria-hidden="true" hidden><span id="aiCoachStatus" role="status" hidden></span><button type="button" id="aiCoachRetry" hidden>Retry</button></div><span id="openingName" hidden></span><div class="chat-mode-switch" role="group" aria-label="Chat explanation style" style="display:none"><button class="chat-mode-btn active" data-chat-mode="quick" aria-pressed="true">Quick</button><button class="chat-mode-btn" data-chat-mode="learn" aria-pressed="false">Learn</button></div>
           <div class="commentary-switch" role="group" aria-label="Chat perspective" style="display:none"><button class="commentary-btn active" data-perspective="coach">Opening coach</button><button class="commentary-btn" data-perspective="engine">Engine commentary</button></div><p class="engine-disclaimer" id="engineDisclaimer" style="display:none">Interpretations of engine moves, not Stockfish's actual thoughts.</p>
 
 <div class="chat-zone" id="chatZone">
@@ -3233,7 +3234,7 @@ function syncGuidedNavigation(visible,limit,done){
  select.value='';select.disabled=!canJumpGuided();skip.disabled=!canJumpGuided()||done>=limit;
  const root=select.closest('.custom-select');if(root&&!visible)closeCustomDropdowns();
 }
-function render(){const coachToggle=$('coachToggle');coachToggle.textContent=strategicAiEnabled?'Coach On':'Coach Off';coachToggle.classList.toggle('is-on',strategicAiEnabled);coachToggle.setAttribute('aria-pressed',String(strategicAiEnabled));coachToggle.setAttribute('aria-label',strategicAiEnabled?'Turn automatic coach off':'Turn automatic coach on');syncOpeningChoices();requestAnimationFrame(alignCapturedTrayWithBoard);const s=scenario?scenarioPositions[scenarioIndex]:current(),moves=legal(s),status=gameStatus(h),op=openings[selected],step=op.line[s.i],hint=trainingMode!=='learn'?null:learnOpponent==='guided'&&h.length-1<guidedOpeningLimit()&&s.t===playerSide()?suggested():(learnOpponent==='stockfish'||h.length-1>=guidedOpeningLimit())&&s.t===playerSide()?legal(s).find(m=>key(m)===(evalCache.get('14:'+fenOf(s))||evalCache.get('16:'+fenOf(s)))?.best):null,yourTurn=s.t===playerSide(),ended=status.done;$('openingSelect').value=openingParent(selected);$('variationSelect').value=selected;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x.dataset.mode===mode));$('openingName').textContent=op.name;$('description').textContent=op.desc;$('tip').textContent=op.tip;const lessonLimit=guidedOpeningLimit();
+function render(){const coachToggle=$('coachToggle');coachToggle.textContent=strategicAiEnabled?'On':'Off';coachToggle.classList.toggle('is-on',strategicAiEnabled);coachToggle.setAttribute('aria-pressed',String(strategicAiEnabled));coachToggle.setAttribute('aria-label',strategicAiEnabled?'Turn automatic coach off':'Turn automatic coach on');syncOpeningChoices();requestAnimationFrame(alignCapturedTrayWithBoard);const s=scenario?scenarioPositions[scenarioIndex]:current(),moves=legal(s),status=gameStatus(h),op=openings[selected],step=op.line[s.i],hint=trainingMode!=='learn'?null:learnOpponent==='guided'&&h.length-1<guidedOpeningLimit()&&s.t===playerSide()?suggested():(learnOpponent==='stockfish'||h.length-1>=guidedOpeningLimit())&&s.t===playerSide()?legal(s).find(m=>key(m)===(evalCache.get('14:'+fenOf(s))||evalCache.get('16:'+fenOf(s)))?.best):null,yourTurn=s.t===playerSide(),ended=status.done;$('openingSelect').value=openingParent(selected);$('variationSelect').value=selected;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x.dataset.mode===mode));$('openingName').textContent=op.name;$('description').textContent=op.desc;$('tip').textContent=op.tip;const lessonLimit=guidedOpeningLimit();
 const lessonDone=Math.min(lessonLimit,Math.max(0,h.length-1));
 $('progressLabel').textContent=lessonDone+' / '+lessonLimit;const progressPct=100*lessonDone/lessonLimit;$('progressBar').style.width=progressPct+'%';
 const showingGuidedProgress=trainingMode==='learn'&&learnOpponent==='guided';
