@@ -41,6 +41,9 @@ html.app-fullscreen .panel,html:fullscreen .panel{padding:14px}
 .board-controls{grid-column:2;grid-row:2;margin:12px 0 0;width:100%;min-width:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;flex-wrap:nowrap}
 .board-controls .btn{min-width:0;flex:none;padding:11px 8px}
 .board-controls #strategyToggle{display:none!important}
+.board-controls{grid-template-columns:repeat(5,minmax(0,1fr))}
+.board-controls .fast-moves-toggle[aria-pressed="true"]{background:#30204b;color:#e0caff;border-color:#a16be8}
+@media(max-width:480px){.board-controls{grid-template-columns:repeat(6,minmax(0,1fr))}.board-controls .btn{grid-column:span 2}.board-controls #next,.board-controls #hint{grid-column:span 2}.board-controls #fastMoves{grid-column:span 4}}
 @media(max-width:700px){.board-controls{gap:6px}.board-controls .btn{padding:10px 4px;font-size:12px}}
 
 /* Board and action row share the same intrinsic width, capped by viewport height. */
@@ -982,6 +985,7 @@ html.app-fullscreen .app,html:fullscreen .app{padding-top:60px;padding-bottom:8p
             <button class="btn" id="restart">⟳ Restart</button>
             <button class="btn primary" id="next">Next move →</button>
             <button class="btn" id="hint">✧ Hint</button>
+            <button class="btn fast-moves-toggle" id="fastMoves" type="button" aria-pressed="false" title="Skip move animations and artificial delays">⚡ Fast moves</button>
           </div>
         </div>
       </div>
@@ -1825,7 +1829,8 @@ async function prepareOpponentReply(){
  pendingReply=null;
  render();
 }
-function queueReply(m){pendingReply=m;feedback='Opponent is thinking...';render();replyTimer=setTimeout(()=>startMoveAnimation(m,true),800);}
+let fastMovesEnabled=false;
+function queueReply(m){pendingReply=m;feedback='Opponent is thinking...';render();replyTimer=setTimeout(()=>startMoveAnimation(m,true),fastMovesEnabled?0:800);}
 function startMoveAnimation(m,isOpponent,autoReplyAfterManual=false,manual=false,anticipate=false){
   if(isOpponent){replyTimer=null;pendingReply=null;previewReply=null;}
   const guided=trainingMode==='learn'&&!scenario;
@@ -1841,6 +1846,13 @@ function startMoveAnimation(m,isOpponent,autoReplyAfterManual=false,manual=false
     if(fenOf(before)!==fenOf(after))fetchEngine(before,12).catch(()=>{});
   }
   const engineSelected=!!previewReplyEngine,engineAnalysis=engineSelected?previewAnalysis:null;previewReplyEngine=false;previewAnalysis=null;
+  if(fastMovesEnabled){
+    selectedSquare=-1;showHint=false;
+    record(m,engineSelected,engineAnalysis,manual,isOpponent);
+    if(trainingMode==='challenge'&&!scenario&&(current().t===1&&current().full>Number($('challengeTarget').value)||gameStatus(h).done)){finalizeChallenge();render();return;}
+    if(!isOpponent&&mode==='play'&&!gameStatus(h).done&&current().t!==playerSide()&&trainingMode==='challenge'){prepareOpponentReply();return;}
+    render();return;
+  }
   animatingMove={move:m,piece,from:m[0],to:m[1],isOpponent};
   const thisAnimation=animatingMove;
   selectedSquare=-1;showHint=false;
@@ -3266,6 +3278,7 @@ $('openingSelect').onchange=()=>{const value=$('openingSelect').value;if(!value)
 $('variationSelect').onchange=()=>{const value=$('variationSelect').value;if(!value)return;selected=value;guidedStrategyChosen=true;guidedVariationChosen=true;reset();};document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;reset()});$('strategyToggle').onclick=()=>{strategyOn=!strategyOn;render()};$('scenarioStart').onclick=()=>{clearReplyState();enterScenario()};$('scenarioNext').onclick=()=>{
  if(!scenario||animatingMove||scenarioIndex>=scenario.moves.length)return;
  if(scenario.comparison){
+   if(fastMovesEnabled){scenarioIndex++;render();return;}
    const first=scenarioIndex===0,mo=first?scenario.comparison.actualMove:scenario.comparison.bestMove;
    if(!mo){scenarioIndex++;render();return;}
    const source=first?scenarioPositions[0]:scenarioPositions[1];
@@ -3404,5 +3417,6 @@ document.querySelectorAll('[data-detail-tab]').forEach(btn=>btn.onclick=()=>{con
 document.querySelectorAll('[data-chat-mode]').forEach(button=>button.addEventListener('click',()=>{chatMode=button.dataset.chatMode;document.querySelectorAll('[data-chat-mode]').forEach(b=>{const active=b===button;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});render();}));
 document.querySelectorAll('[data-perspective]').forEach(button=>button.addEventListener('click',()=>{chatPerspective=button.dataset.perspective;chatPageStart=0;document.querySelectorAll('[data-perspective]').forEach(b=>b.classList.toggle('active',b===button));render();}));
 $('coachToggle').onclick=()=>setAutomaticCoachEnabled(!strategicAiEnabled);
+$('fastMoves').onclick=()=>{fastMovesEnabled=!fastMovesEnabled;$('fastMoves').setAttribute('aria-pressed',String(fastMovesEnabled));$('fastMoves').title=fastMovesEnabled?'Fast moves enabled — click to restore animations':'Skip move animations and artificial delays';};
 initCustomDropdowns();render();requestAnimationFrame(fitBoardToViewport);
 </script></body></html>
