@@ -1859,10 +1859,17 @@ async function prepareOpponentReply(){
  pendingReply=null;
  render();
 }
-let autoPlaying=false,autoPlayTimer=null,autoPlaySpeed=3;
+let autoPlaying=false,autoPlayTimer=null,autoPlaySpeed=3,coachBeforePlayback=false,coachResumeAfterMove=false;
 function stopAutoPlay(){
- autoPlaying=false;
+ autoPlaying=false;coachBeforePlayback=false;coachResumeAfterMove=false;
  if(autoPlayTimer!==null){clearTimeout(autoPlayTimer);autoPlayTimer=null;}
+}
+function pauseAutoPlay(){
+ const restore=coachBeforePlayback;
+ stopAutoPlay();
+ if(restore&&animatingMove){coachResumeAfterMove=true;render();return;}
+ if(restore){setAutomaticCoachEnabled(true,true);return;}
+ render();
 }
 function autoPlayEligible(){
  return trainingMode==='learn'&&learnOpponent==='guided'&&!scenario&&isLockedOpeningPhase()&&!gameStatus(h).done;
@@ -1931,6 +1938,7 @@ function startMoveAnimation(m,isOpponent,autoReplyAfterManual=false,manual=false
     animationTimer=null;
     record(m,engineSelected,engineAnalysis,manual,isOpponent);
     animatingMove=null;
+    if(coachResumeAfterMove||(autoPlaying&&!autoPlayEligible()&&coachBeforePlayback)){stopAutoPlay();setAutomaticCoachEnabled(true,true);return;}
     if(trainingMode==='challenge'&&!scenario&&(current().t===1&&current().full>Number($('challengeTarget').value)||gameStatus(h).done)){finalizeChallenge();render();return;}
     // Only challenge mode automatically responds. In learning mode the
     // opponent waits for Next, and Next is disabled on the player's turn.
@@ -2202,7 +2210,7 @@ function coachGameLimit(){return trainingMode==='learn'&&learnOpponent==='guided
 let coachSeenPositionCount=1;
 // Coaching is on by default; turning it off avoids coach AI + analysis
 // requests, while the board, legal history and Stockfish opponent still work.
-function setAutomaticCoachEnabled(enabled){
+function setAutomaticCoachEnabled(enabled,evaluateLatest=false){
  if(strategicAiEnabled===enabled)return;
  strategicAiEnabled=enabled;
  strategicAiNonce++;
@@ -2217,8 +2225,11 @@ function setAutomaticCoachEnabled(enabled){
   if(h.length>1)coachSkippedPly.add(h.length-1);
  }
  // Re-enabling starts with the next move, not a retroactive paid request.
- if(enabled&&h.length>1&&!coachMoveMessages.has(h.length-1))
-  coachSkippedPly.add(h.length-1);
+ if(enabled&&h.length>1&&!coachMoveMessages.has(h.length-1)){
+  const ply=h.length-1;
+  if(evaluateLatest){coachSkippedPly.delete(ply);aiRequestedPly.delete(ply);}
+  else coachSkippedPly.add(ply);
+ }
  render();
 }
 function coachEngineEvidence(position,analysis){
@@ -3470,7 +3481,7 @@ $('variationSelect').onchange=()=>{const value=$('variationSelect').value;if(!va
  render();
 }
 $('autoPlaySpeed').onchange=()=>{const rate=Number($('autoPlaySpeed').value);if(![0.5,1,1.5,2,3].includes(rate))return;autoPlaySpeed=rate;if(autoPlayTimer!==null){clearTimeout(autoPlayTimer);autoPlayTimer=null;}syncAutoPlay();};
-$('autoPlay').onclick=()=>{if(autoPlaying){stopAutoPlay();render();return;}if(!autoPlayEligible()||!canAdvanceNextMove())return;if(strategicAiEnabled)setAutomaticCoachEnabled(false);autoPlaying=true;render();};
+$('autoPlay').onclick=()=>{if(autoPlaying){pauseAutoPlay();return;}if(!autoPlayEligible()||!canAdvanceNextMove())return;coachBeforePlayback=strategicAiEnabled;if(strategicAiEnabled)setAutomaticCoachEnabled(false);autoPlaying=true;render();};
 $('next').onclick=()=>{
  if(autoPlaying||!canAdvanceNextMove())return;
  clearOutsideLinePreview();
@@ -3553,7 +3564,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&fallbackFullscreen)
 document.querySelectorAll('[data-detail-tab]').forEach(btn=>btn.onclick=()=>{const tab=btn.dataset.detailTab;document.querySelectorAll('[data-detail-tab]').forEach(b=>b.classList.toggle('active',b===btn));$('chatTabPane').classList.toggle('active',tab==='chat');$('strategyTabPane').classList.toggle('active',tab==='strategy');$('simulatorTabPane').classList.toggle('active',tab==='simulator');$('reviewTabPane').classList.toggle('active',tab==='review');});
 document.querySelectorAll('[data-chat-mode]').forEach(button=>button.addEventListener('click',()=>{chatMode=button.dataset.chatMode;document.querySelectorAll('[data-chat-mode]').forEach(b=>{const active=b===button;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});render();}));
 document.querySelectorAll('[data-perspective]').forEach(button=>button.addEventListener('click',()=>{chatPerspective=button.dataset.perspective;chatPageStart=0;document.querySelectorAll('[data-perspective]').forEach(b=>b.classList.toggle('active',b===button));render();}));
-$('coachToggle').onclick=()=>setAutomaticCoachEnabled(!strategicAiEnabled);
+$('coachToggle').onclick=()=>{if(autoPlaying){coachBeforePlayback=true;pauseAutoPlay();return;}setAutomaticCoachEnabled(!strategicAiEnabled);};
 $('guidedJump').onchange=()=>{const value=$('guidedJump').value;if(value!=='')jumpGuided(Number(value));$('guidedJump').value='';};
 $('skipOpening').onclick=()=>jumpGuided(guidedOpeningLimit());
 initCustomDropdowns();render();requestAnimationFrame(fitBoardToViewport);
