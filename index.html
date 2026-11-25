@@ -949,6 +949,20 @@ html.app-fullscreen .app,html:fullscreen .app{padding-top:60px;padding-bottom:8p
 .guided-navigation[hidden]{display:none!important}
 .guided-navigation select,.guided-navigation button{min-width:0;height:30px;border:1px solid #45516b;border-radius:7px;background:#1b2333;color:#e2e8f5;font:650 12px inherit;font-family:inherit;font-size:12px;font-weight:650;padding:0 8px;cursor:pointer}
 .guided-navigation select{flex:1 1 0}
+.guided-navigation .guided-jump-select{flex:1 1 0;width:auto;min-width:0}
+.guided-navigation .custom-select-trigger{width:100%;height:30px;display:flex;justify-content:space-between;align-items:center;color:#e2e8f5;border-color:#45516b}
+.guided-navigation .custom-select-menu{width:min(380px,calc(100vw - 44px));max-width:calc(100vw - 44px);max-height:min(340px,48vh);z-index:110}
+.guided-navigation .custom-select-option{height:auto;min-height:34px;display:grid;grid-template-columns:24px 23px minmax(0,1fr) auto;gap:7px;padding:6px 8px;text-align:left;white-space:normal;color:#e7edf7;border:0;background:transparent}
+.guided-navigation .custom-select-option:hover,.guided-navigation .custom-select-option:focus-visible{background:#344159;color:white}
+.guided-navigation .custom-select-option[aria-selected="true"]{background:#44315f}
+.guided-navigation .custom-select-option[aria-selected="true"]::after{content:none}
+.guided-navigation .jump-number,.guided-navigation .jump-notation{color:#aeb9cc;font-size:11px;font-variant-numeric:tabular-nums}
+.guided-navigation .jump-notation{text-align:right;white-space:nowrap}
+.guided-navigation .jump-piece{width:20px;height:20px;object-fit:contain}
+.guided-navigation .jump-start{grid-column:1/-1}
+.guided-navigation .custom-select-option:disabled{opacity:.5}
+.opening-top-slot:has(.guided-jump-select.open){position:relative;z-index:90}
+
 .guided-navigation button{flex:none;color:#d8bcfa;border-color:#6a4c91;white-space:nowrap}
 .guided-navigation :disabled{opacity:.45;cursor:default}
 .side>.opening-top-slot{flex-basis:148px;min-height:148px}
@@ -1013,7 +1027,7 @@ html.app-fullscreen .app,html:fullscreen .app{padding-top:60px;padding-bottom:8p
             <span class="badge" id="progressLabel">0 / —</span>
           </div>
           <div class="progress"><div class="bar" id="progressBar"></div></div>
-          <div class="guided-navigation" id="guidedNavigation"><select id="guidedJump" aria-label="Jump to move"><option value="">Jump to move</option></select><button type="button" id="skipOpening">Skip opening <span aria-hidden="true">»</span></button></div>
+          <div class="guided-navigation" id="guidedNavigation"><div class="custom-select guided-jump-select" data-select-id="guidedJump"><select id="guidedJump" tabindex="-1" aria-hidden="true"><option value="">Jump to move</option></select><button type="button" class="custom-select-trigger" id="guidedJumpTrigger" aria-label="Jump to move" aria-haspopup="listbox" aria-expanded="false"><span class="custom-select-value">Jump to move</span><span class="custom-select-chevron" aria-hidden="true">⌄</span></button><div class="custom-select-menu" role="listbox" aria-label="Opening moves" hidden></div></div><button type="button" id="skipOpening">Skip opening <span aria-hidden="true">»</span></button></div>
           <div id="stockfishHandoff" class="stockfish-handoff" role="status" aria-live="polite" hidden>
             <span class="stockfish-handoff-dot" aria-hidden="true"></span>
             <span id="stockfishHandoffText">Opening sequence completed. Stockfish now takes over.</span>
@@ -2061,13 +2075,25 @@ function syncCustomDropdowns(){
   const trigger=root.querySelector('.custom-select-trigger'),value=root.querySelector('.custom-select-value');
   if(!select||!menu||!trigger)return;
   const options=Array.from(select.options);
-  const signature=JSON.stringify(options.map(opt=>[opt.value,opt.textContent,opt.disabled]));
+  const signature=JSON.stringify(options.map(opt=>[opt.value,opt.textContent,opt.disabled,opt.dataset.piece,opt.dataset.notation]));
   if(menu.dataset.signature!==signature){
    menu.replaceChildren();
    options.forEach(opt=>{
     const item=document.createElement('button');
     item.type='button';item.className='custom-select-option';item.setAttribute('role','option');
     item.dataset.value=opt.value;item.textContent=opt.textContent;item.disabled=opt.disabled;
+    if(select.id==='guidedJump'){
+     item.replaceChildren();
+     if(opt.value==='0'){const label=document.createElement('span');label.className='jump-start';label.textContent=opt.textContent;item.append(label);}
+     else if(opt.value!==''){
+      const number=document.createElement('span');number.className='jump-number';number.textContent=opt.value+'.';
+      const piece=pieceImage(opt.dataset.piece);if(piece)piece.className='jump-piece';
+      const label=document.createElement('span');label.textContent=opt.textContent;
+      const notation=document.createElement('span');notation.className='jump-notation';notation.textContent=opt.dataset.notation||'';
+      item.append(number,piece||document.createElement('span'),label,notation);
+      item.setAttribute('aria-label',opt.value+'. '+(opt.dataset.piece===opt.dataset.piece.toUpperCase()?'White: ':'Black: ')+opt.textContent+', '+notation.textContent);
+     }
+    }
     item.onclick=()=>{
      if(select.value!==opt.value){
       select.value=opt.value;
@@ -2080,6 +2106,7 @@ function syncCustomDropdowns(){
    });
    menu.dataset.signature=signature;
   }
+  if(select.id==='guidedJump'){trigger.disabled=select.disabled; if(select.disabled){menu.hidden=true;root.classList.remove('open');trigger.setAttribute('aria-expanded','false');}}
   const chosen=options.find(opt=>opt.value===select.value)||options[0];
   value.textContent=chosen?.textContent||'Choose';
   menu.querySelectorAll('.custom-select-option').forEach(item=>
@@ -3162,22 +3189,33 @@ function jumpGuided(target){stopAutoPlay();
  render();
 }
 function lastSquaresForJump(position,note){const m=legal(position).find(x=>key(x)===note?.uci);return m?[m[0],m[1]]:[];}
+const guidedMoveLabels={"italian":["Claim the centre","Contest the centre","Attack the central pawn","Defend the central pawn","Target the vulnerable f7 square","Develop an active bishop","Prepare the central break","Pressure the e4 pawn","Strike in the centre","Capture the central pawn","Rebuild the pawn centre","Check with the bishop","Block check and develop","Exchange bishops with check","Recapture and develop knight","Challenge the pawn centre","Exchange central pawns","Recapture with the knight","Castle kingside","Castle kingside"],"queenAccepted":["Claim the centre","Contest the centre","Offer the gambit","Accept the gambit","Develop the kingside knight","Contest the e4 square","Prepare to recover pawn","Free the dark-squared bishop","Recover the gambit pawn","Challenge White's centre","Castle kingside","Prepare queenside expansion","Support central expansion","Pressure the bishop","Preserve the active bishop","Develop along long diagonal","Activate the central rook","Develop the queenside knight","Expand the pawn centre","Prepare kingside castling","Reinforce central control","Castle kingside"],"queen":["Claim the centre","Contest the centre","Offer the gambit","Decline the gambit","Increase central pressure","Develop the kingside knight","Pin the knight to queen","Break the knight pin","Reinforce the centre","Castle kingside","Develop the second knight","Support the f6 knight","Activate the queenside rook","Reinforce the d5 pawn","Develop the kingside bishop","Release central tension","Recover the pawn","Centralise the knight","Exchange bishops","Recapture with the queen","Castle kingside"],"sicilian":["Claim the centre","Challenge from the flank","Prepare the central break","Control the e5 square","Open the centre","Exchange the flank pawn","Recapture with the knight","Attack the e4 pawn","Defend the e4 pawn","Control the b5 square","Prepare kingside castling","Advance and attack knight","Retreat the central knight","Develop the kingside bishop","Castle kingside","Castle kingside","Develop the queenside bishop","Contest central squares","Develop the queen","Complete minor-piece development"],"caro":["Claim the centre","Prepare the central challenge","Build a broad centre","Challenge the e4 pawn","Reinforce the e4 pawn","Exchange central pawns","Recapture with the knight","Free the light-squared bishop","Attack the bishop","Preserve the active bishop","Gain kingside space","Create a bishop retreat","Develop the second knight","Prepare knight development","Drive back the bishop","Preserve the bishop","Challenge the opposing bishop","Exchange bishops","Recapture and develop queen","Strengthen the centre","Prepare queenside castling","Develop the kingside knight","Castle queenside","Develop the remaining bishop","Improve queenside king safety","Castle kingside"],"slav":["Claim the centre","Contest the centre","Offer the gambit","Establish the Slav Defence","Develop the kingside knight","Contest the e4 square","Increase central pressure","Capture the gambit pawn","Discourage queenside expansion","Free the light-squared bishop","Prepare to recover pawn","Reinforce the centre","Recover the gambit pawn","Pin the queenside knight","Castle kingside","Castle kingside"],"albin":["Claim the centre","Contest the centre","Offer the Queen's Gambit","Launch the countergambit","Accept the countergambit","Advance the central pawn","Challenge the advanced pawn","Defend the advanced pawn","Prepare kingside fianchetto","Pressure the c4 pawn","Develop the queenside knight","Prepare queenside castling","Complete the fianchetto","Castle queenside","Castle kingside","Challenge the kingside bishop","Exchange bishops","Recapture near the king","Centralise the knight","Develop the remaining knight","Attack the queen","Maintain pressure on e5","Develop and defend e5","Increase pressure on e5"]};
+function guidedMoveLabel(pos,m,i){
+ if(!activeBranch||i<activeBranch.at){const label=guidedMoveLabels[selected]?.[i];if(label)return label;}
+ // Alternative teaching routes use their own authored move descriptions.
+ const reason=routeLine()[i]?.[1]||'';
+ const concise=reason.replace(/^(White|Black)\s+/,'').split(/[.;]/)[0].trim();
+ if(concise&&concise.length<=64)return concise[0].toUpperCase()+concise.slice(1);
+ const piece=({p:'pawn',n:'knight',b:'bishop',r:'rook',q:'queen',k:'king'})[pos.b[m[0]].toLowerCase()];
+ return m[3]==='castle'?'Castle '+(m[1]>m[0]?'kingside':'queenside'):pos.b[m[1]]!=='.'?'Capture with '+piece:'Move '+piece+' to '+sq(m[1]);
+}
 function syncGuidedNavigation(visible,limit,done){
  const nav=$('guidedNavigation'),select=$('guidedJump'),skip=$('skipOpening');
  nav.hidden=!visible;
- if(!visible)return;
- const signature=routeLine().map(m=>m[0]).join(',');
+ if(!visible){const root=select.closest('.custom-select');if(root?.classList.contains('open'))closeCustomDropdowns();return;}
+ const signature=selected+':'+routeLine().map(m=>m[0]).join(',');
  if(select.dataset.route!==signature){
-  select.replaceChildren(new Option('Jump to move',''));
+  const placeholder=new Option('Jump to move','');placeholder.disabled=true;select.replaceChildren(placeholder);
   let pos=original();
   for(let i=0;i<=limit;i++){
    if(i===0){select.add(new Option('Starting position','0'));continue;}
    const m=legal(pos).find(x=>key(x)===routeLine()[i-1][0]);if(!m)break;
-   select.add(new Option(i+' · '+moveLabel(pos,m),String(i)));pos=apply(pos,m);
+   const option=new Option(guidedMoveLabel(pos,m,i-1),String(i));option.dataset.piece=pos.b[m[0]];option.dataset.notation=san(pos,m);select.add(option);pos=apply(pos,m);
   }
   select.dataset.route=signature;
  }
  select.value='';select.disabled=!canJumpGuided();skip.disabled=!canJumpGuided()||done>=limit;
+ const root=select.closest('.custom-select');if(root&&!visible)closeCustomDropdowns();
 }
 function render(){const coachToggle=$('coachToggle');coachToggle.textContent=strategicAiEnabled?'Coach On':'Coach Off';coachToggle.classList.toggle('is-on',strategicAiEnabled);coachToggle.setAttribute('aria-pressed',String(strategicAiEnabled));coachToggle.setAttribute('aria-label',strategicAiEnabled?'Turn automatic coach off':'Turn automatic coach on');syncOpeningChoices();requestAnimationFrame(alignCapturedTrayWithBoard);const s=scenario?scenarioPositions[scenarioIndex]:current(),moves=legal(s),status=gameStatus(h),op=openings[selected],step=op.line[s.i],hint=trainingMode!=='learn'?null:learnOpponent==='guided'&&h.length-1<guidedOpeningLimit()&&s.t===playerSide()?suggested():(learnOpponent==='stockfish'||h.length-1>=guidedOpeningLimit())&&s.t===playerSide()?legal(s).find(m=>key(m)===(evalCache.get('14:'+fenOf(s))||evalCache.get('16:'+fenOf(s)))?.best):null,yourTurn=s.t===playerSide(),ended=status.done;$('openingSelect').value=openingParent(selected);$('variationSelect').value=selected;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x.dataset.mode===mode));$('openingName').textContent=op.name;$('description').textContent=op.desc;$('tip').textContent=op.tip;const lessonLimit=guidedOpeningLimit();
 const lessonDone=Math.min(lessonLimit,Math.max(0,h.length-1));
