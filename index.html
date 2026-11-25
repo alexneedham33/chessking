@@ -992,7 +992,7 @@ html.app-fullscreen .app,html:fullscreen .app{padding-top:60px;padding-bottom:8p
         <div id="openingProgressInner" class="opening-progress-inner">
           <div class="row opening-progress-heading">
             <span class="muted" id="openingProgressTitle">Opening progress</span>
-            <span class="badge" id="progressLabel">0 / 10</span>
+            <span class="badge" id="progressLabel">0 / —</span>
           </div>
           <div class="progress"><div class="bar" id="progressBar"></div></div>
           <div id="stockfishHandoff" class="stockfish-handoff" role="status" aria-live="polite" hidden>
@@ -1133,6 +1133,19 @@ const scenarios={
 /* Predefined Queen's Gambit studies: scripted replies, no engine move selection. */
 const predefinedQueenLines=['slav','albin'];
 Object.assign(openings,{"slav":{"name":"Slav Defence","side":1,"desc":"The Slav Defence: Black supports d5 with ...c6 rather than ...e6, keeping the light-squared bishop free.","tip":"Build the centre with d4 and c4, recover the pawn on c4 through development, and watch Black's active bishop.","line":[["d2d4","White takes central space."],["d7d5","Black contests the centre."],["c2c4","White challenges Black's d5 pawn."],["c7c6","The Slav Defence: Black reinforces d5 with ...c6."],["g1f3","White develops and supports d4."],["g8f6","Black develops and contests e4."],["b1c3","White increases central pressure."],["d5c4","Black captures on c4, temporarily gaining a pawn."],["a2a4","White discourages ...b5, which could support Black's c4 pawn."],["c8f5","Black brings the light-squared bishop outside the pawn chain."],["e2e3","White opens the bishop's route to c4."],["e7e6","Black reinforces the central structure."],["f1c4","White recaptures on c4 while developing a bishop."],["f8b4","Black develops and pins the knight on c3."],["e1g1","White castles for king safety."],["e8g8","Black castles as well."]]},"albin":{"name":"Albin Countergambit","side":1,"desc":"The Albin Countergambit: Black meets 2.c4 with ...e5, offering a pawn to gain time and central space with ...d4.","tip":"Watch Black's advanced d4 pawn. Develop calmly, avoid rushing to collect pawns, and secure your king.","line":[["d2d4","White claims central space."],["d7d5","Black contests White's centre."],["c2c4","White begins the Queen's Gambit."],["e7e5","Black offers the Albin Countergambit by playing ...e5."],["d4e5","White accepts the offered central pawn."],["d5d4","Black drives the d-pawn forward, gaining space and cramping White."],["g1f3","White develops a knight and prepares kingside safety."],["b8c6","Black develops and supports the advanced pawn."],["g2g3","White prepares to develop the bishop along the long diagonal."],["c8e6","Black develops a bishop and adds central influence."],["b1d2","White develops and looks for ways to challenge d4."],["d8d7","Black clears the back rank for queenside castling."],["f1g2","White develops the bishop."],["e8c8","Black castles queenside."],["e1g1","White castles, completing an important defensive step."]]}});
+// Curated guided endpoints: finish the opening idea rather than forcing a fixed ply count.
+const guidedContinuations={"italian":[["c5b4","Black checks with the bishop."],["c1d2","White develops a bishop to block the check."],["b4d2","Black exchanges bishops."],["b1d2","White recaptures while developing a knight."],["d7d5","Black challenges White's central pawns."],["e4d5","White exchanges the e-pawn for Black's d-pawn."],["f6d5","Black recaptures with a central knight."],["e1g1","White secures the king."],["e8g8","Black castles; the open centre will shape middlegame play."]],"queenAccepted":[["f1d1","White places a rook on the central d-file."],["b8d7","Black develops and supports the centre."],["e3e4","White builds a broad pawn centre."],["f8e7","Black develops the bishop and prepares to castle."],["b1c3","White develops a knight to support e4 and d5."],["e8g8","Black castles; White's central space faces Black's queenside counterplay."]],"queen":[["b8d7","Black develops the knight to support f6."],["a1c1","White places a rook on the c-file."],["c7c6","Black reinforces d5."],["f1d3","White develops the bishop and prepares castling."],["d5c4","Black releases the central tension."],["d3c4","White restores material balance and keeps the bishop active."],["f6d5","Black centralises the knight and opens the e7 bishop's diagonal toward g5."],["g5e7","White exchanges bishops."],["d8e7","Black recaptures with the queen."],["e1g1","White castles; both kings are safe and the central structure is established."]],"sicilian":[["f1e2","White chooses the Classical development setup against the Najdorf."],["e7e5","Black gains central space and attacks the knight on d4."],["d4b3","White retreats the knight."],["f8e7","Black develops and prepares castling."],["e1g1","White castles kingside."],["e8g8","Black castles kingside."],["c1e3","White develops and supports central play."],["c8e6","Black develops the bishop and contests key central squares."],["d1d2","White develops the queen and prepares rook development."],["b8d7","Black completes minor-piece development; d5 and queenside counterplay are central themes."]],"caro":[["h4h5","White gains space and attacks the bishop."],["g6h7","Black preserves the bishop on h7."],["f1d3","White develops and challenges the bishop on h7."],["h7d3","Black exchanges the active bishops."],["d1d3","White recaptures and develops the queen."],["e7e6","Black strengthens the centre and opens the remaining bishop's diagonal."],["c1d2","White develops and prepares queenside castling."],["g8f6","Black develops and prepares kingside castling."],["e1c1","White castles queenside."],["f8e7","Black develops the remaining bishop."],["c1b1","White improves king safety on the queenside."],["e8g8","Black castles; opposite-side castling creates distinct attacking plans."]],"albin":[["e6h3","Black challenges White's kingside bishop."],["g2h3","White exchanges the bishops."],["d7h3","Black recaptures with the queen, placing pressure near White's king."],["d2e4","White centralises the knight and opens the c1 bishop's diagonal."],["g8e7","Black develops the remaining knight."],["e4g5","White attacks the queen on h3."],["h3f5","Black retreats while maintaining pressure on e5."],["c1f4","White develops the bishop and defends e5."],["e7g6","Black increases pressure on e5; the extra pawn is not guaranteed to be recovered."]]};
+for(const [name,moves] of Object.entries(guidedContinuations)){
+ openings[name].line.push(...moves);
+ rationales[name] ||= [];
+ quickReasons[name] ||= [];
+ for(let i=0;i<openings[name].line.length;i++){
+  rationales[name][i] ||= openings[name].line[i][1];
+  quickReasons[name][i] ||= [openings[name].line[i][1]];
+ }
+}
+// The old Caro quick notes described a different move order.
+quickReasons.caro=openings.caro.line.map(move=>[move[1]]);
 for(const name of predefinedQueenLines){
  rationales[name]=openings[name].line.map(move=>move[1]);
  quickReasons[name]=openings[name].line.map(move=>[move[1]]);
@@ -1327,9 +1340,8 @@ function opponentSearchDepth(rating){
 const SCRIPTED_OPENING_PLIES=10;
 // Follow each selected variation through its complete prepared line before
 // transitioning to Stockfish. Branches have their own natural ending.
-// Guided practice defaults to five moves per side (10 half-moves),
-// or the full line for a shorter opening. Stockfish then takes over.
-function guidedOpeningLimit(){return Math.min(10,routeLine().length);}
+// Guided practice follows the entire curated line; challenge mode retains its separate cap.
+function guidedOpeningLimit(){return routeLine().length;}
 function isLockedOpeningPhase(){
  return trainingMode==='learn'&&!scenario&&learnOpponent==='guided'&&
         h.length-1<guidedOpeningLimit();
@@ -1823,7 +1835,7 @@ function startMoveAnimation(m,isOpponent,autoReplyAfterManual=false,manual=false
   // Prefetch BOTH depth-12 full-strength positions during the animation.
   // Guided and opponent moves previously waited until after animation to
   // analyse the position before the move.
-  if(guided&&strategicAiEnabled&&aiRequestedPly.size<AI_COACH_GAME_LIMIT){
+  if(guided&&strategicAiEnabled&&aiRequestedPly.size<coachGameLimit()){
     const before=current(),after=apply(before,m);
     fetchEngine(after,12).catch(()=>{});
     if(fenOf(before)!==fenOf(after))fetchEngine(before,12).catch(()=>{});
@@ -2107,7 +2119,9 @@ function renderCapturedPieces(){
 let strategicAiEnabled=true,strategicAiBusy=false,strategicAiFailed=false,strategicAiNonce=0,strategicAiStatus='',strategicAiError='';
 const coachDetail='adaptive';
 const aiRequestedPly=new Set(),coachMoveMessages=new Map(),coachSkippedPly=new Set();
-const AI_COACH_MIN_PLY=1,AI_COACH_INTERVAL=1,AI_COACH_GAME_LIMIT=24;
+const AI_COACH_MIN_PLY=1,AI_COACH_INTERVAL=1;
+// Preserve the original post-opening coaching allowance with longer guided lines.
+function coachGameLimit(){return trainingMode==='learn'&&learnOpponent==='guided'?Math.max(24,guidedOpeningLimit()+14):24;}
 let coachSeenPositionCount=1;
 // Coaching is on by default; turning it off avoids coach AI + analysis
 // requests, while the board, legal history and Stockfish opponent still work.
@@ -2761,7 +2775,7 @@ function coachOpeningContext(ply){
    preparedMoveCount:limit,completedMoves:Math.min(ply,limit),
    // Invite an occasional opening-plan connection, not a scripted mention
    // on every move. Only actual guided plies are eligible.
-   strategyConnectionSuggested:ply<=limit&&[1,4,7,10].includes(ply),
+   strategyConnectionSuggested:ply<=limit&&([1,4,7,10].includes(ply)||ply===limit),
    strategyConnectionPolicy:'When suggested, connect this move briefly to the selected opening plan only if the actual board supports that link. Refer naturally to the opening idea, not as a separate strategy section. Do not repeat the same plan on consecutive moves.',
    phase:ply<=limit?'guided-opening':'free-play-after-guided-opening',
    stillOnPreparedLine:onPreparedLine,
@@ -2822,7 +2836,7 @@ function playedMoveEvidence(position,move){
   check:checked(apply(position,move))};
 }
 async function requestUnifiedMoveCoaching(ply){
- if(!strategicAiEnabled||strategicAiBusy||coachSkippedPly.has(ply)||aiRequestedPly.size>=AI_COACH_GAME_LIMIT)return;
+ if(!strategicAiEnabled||strategicAiBusy||coachSkippedPly.has(ply)||aiRequestedPly.size>=coachGameLimit())return;
  const before=h[ply-1],after=h[ply],note=notes[ply-1];
  if(!before||!after||!note?.uci)return;
  const move=legal(before).find(m=>key(m)===note.uci);
@@ -3040,7 +3054,7 @@ function refreshUnifiedMoveCoaching(){
  status.textContent=({analysing:'Preparing…',engine:'AI + Stockfish',position:'AI · position',fallback:'Verified fallback · AI explanation unavailable',error:strategicAiError||'AI unavailable'})[strategicAiStatus]||'';
  const retry=$('aiCoachRetry');retry.hidden=!visible||!strategicAiEnabled||strategicAiBusy||strategicAiStatus!=='error'||!aiRequestedPly.has(h.length-1);
  status.title=strategicAiStatus==='error'?'AI coaching unavailable; scripted explanations are shown.':'A complete AI coaching explanation is displayed when ready.';
- if(!visible||!strategicAiEnabled||strategicAiBusy||aiRequestedPly.size>=AI_COACH_GAME_LIMIT)return;
+ if(!visible||!strategicAiEnabled||strategicAiBusy||aiRequestedPly.size>=coachGameLimit())return;
  const ply=h.length-1;
  if(ply<AI_COACH_MIN_PLY||ply%AI_COACH_INTERVAL!==0||aiRequestedPly.has(ply)||coachSkippedPly.has(ply)||!notes[ply-1]?.uci)return;
  requestUnifiedMoveCoaching(ply);
@@ -3170,7 +3184,7 @@ if(item.proposed){const summary=document.createElement('div');summary.className=
  // newest move in a waiting state until its own complete response is ready.
  const previewAi=!!animatingMove&&item.__i===notes.length&&strategicAiEnabled&&trainingMode==='learn'&&!scenario&&chatPerspective==='coach';
  const queuedAi=!ai&&strategicAiEnabled&&!coachSkippedPly.has(item.__i+1)&&!strategicAiFailed&&trainingMode==='learn'&&!scenario&&chatPerspective==='coach'&&!item.proposed&&
-  item.__i+1===h.length-1&&item.__i+1>=AI_COACH_MIN_PLY&&aiRequestedPly.size<AI_COACH_GAME_LIMIT;
+  item.__i+1===h.length-1&&item.__i+1>=AI_COACH_MIN_PLY&&aiRequestedPly.size<coachGameLimit();
  if(ai||queuedAi||previewAi)entry.classList.add('coach-ai-message');
  if(ai?.pending||queuedAi||previewAi){
   const pending=document.createElement('div');pending.className='unified-coach-pending';
@@ -3183,7 +3197,7 @@ if(item.proposed){const summary=document.createElement('div');summary.className=
   const postGuidedCoach=trainingMode==='learn'&&learnOpponent==='guided'&&
    item.__i+1>guidedOpeningLimit()&&chatPerspective==='coach'&&!item.proposed;
   const coachText=ai?.message||(coachSkippedPly.has(item.__i+1)?'Coaching was off for this move. Explanations resume with the next move.':postGuidedCoach?
-   (aiRequestedPly.size>=AI_COACH_GAME_LIMIT&&!aiRequestedPly.has(item.__i+1)
+   (aiRequestedPly.size>=coachGameLimit()&&!aiRequestedPly.has(item.__i+1)
     ?'AI coaching limit reached for this game. The board and Stockfish analysis remain available.'
     :'AI coaching unavailable for this move. Retry the analysis to get a position-specific explanation.'):
    item.reason);
