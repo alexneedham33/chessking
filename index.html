@@ -2835,12 +2835,24 @@ function playedMoveEvidence(position,move){
   capture:position.b[move[1]]!=='.'||move[3]==='ep',castle:move[3]==='castle',
   check:checked(apply(position,move))};
 }
+const guidedCoachLessons={"queenAccepted":["White claims central space and controls e5, opening lines for the dark-squared bishop.","Black matches White's central presence and prevents an uncontested pawn centre.","White challenges the d5 pawn from the flank. If Black accepts, White can develop while recovering the offered pawn.","Black takes the offered pawn, temporarily gaining material but surrendering the central foothold on d5.","White develops the knight toward the centre while keeping the option of recovering the c4 pawn.","Black develops a knight that controls e4 and prepares kingside castling.","White opens the light-squared bishop's diagonal toward c4 so the pawn can be recovered.","Black opens the dark-squared bishop's diagonal and prepares to develop without overextending.","White restores material equality and develops the bishop onto an active diagonal toward the kingside.","Black challenges the d4 pawn from the flank, preventing White from building an uncontested centre.","White moves the king away from the central pawn tension and brings the rook into play.","Black prepares queenside expansion with the b-pawn, which can gain space and drive White's bishop away from c4. This is characteristic counterplay in the Queen's Gambit Accepted.","White supports the potential expansion of the e-pawn and keeps the queen behind the developing pieces.","Black gains queenside space while attacking the bishop on c4, forcing White to address that pressure.","White preserves the bishop on an active diagonal toward f7 while avoiding the pawn attack.","Black develops the light-squared bishop along the long diagonal, increasing influence over e4.","White places a rook on the d-file behind the central pawn, supporting the contest for the centre.","Black develops the knight and adds support to the knight on f6.","White establishes a broad pawn centre, gaining space but also creating pawns Black can challenge.","Black develops the remaining bishop and clears the way for kingside castling.","White develops the remaining knight, supporting e4 and increasing influence over d5.","Black secures the king. White's central space and Black's queenside activity now define the middlegame."],"slav":["White claims central space and opens a route for the dark-squared bishop.","Black establishes a central foothold and contests White's control of e4.","White challenges the d5 pawn with the Queen's Gambit, seeking greater central influence.","Black supports d5 with the c-pawn rather than the e-pawn, keeping the light-squared bishop free to develop.","White develops the knight and supports d4 while controlling e5.","Black develops the knight, reinforces d5 and contests e4.","White increases pressure on d5 and develops a second knight toward the centre.","Black accepts the offered pawn temporarily, releasing the central tension and freeing the light-squared bishop.","White discourages Black's b-pawn from advancing to defend the extra pawn on c4.","Black develops the light-squared bishop outside the pawn chain before committing the e-pawn.","White opens the bishop's diagonal toward the extra black pawn on c4.","Black strengthens the pawn structure and opens a route for the dark-squared bishop.","White regains the pawn while developing the bishop, restoring material equality.","Black develops the bishop and restricts White's knight by pinning it to the king.","White castles, removing the king from the pin and reducing exposure to central play.","Black castles too. Both sides have secured their kings; the central structure and active bishops will shape the middlegame."],"albin":["White claims central space with the queen's pawn.","Black contests the centre and establishes a pawn on d5.","White challenges the central pawn with the Queen's Gambit.","Black offers the e-pawn to create an imbalanced position and gain central activity.","White accepts the gambit and gains a pawn, though Black can obtain space in return.","Black advances the d-pawn deep into White's position, restricting development and gaining space as compensation.","White develops a knight that attacks the advanced pawn and prepares kingside safety.","Black develops the knight and defends the advanced d-pawn.","White prepares to develop the bishop on the long diagonal, favouring king safety over chasing material.","Black develops the light-squared bishop and attacks the pawn on c4.","White develops the remaining knight and keeps options for challenging Black's advanced pawn.","Black develops the queen and clears the route for queenside castling.","White develops the bishop on the long diagonal, completing preparations for kingside castling.","Black castles queenside, bringing the rook onto the d-file behind the advanced pawn.","White castles kingside. With kings on opposite wings, both sides must pay attention to attacking chances.","Black challenges White's fianchettoed bishop, an important defender of the kingside.","White exchanges bishops, removing the piece that challenged the king's shelter.","Black recaptures with the queen, bringing it close to White's king without regaining the gambit pawn.","White centralises the knight and clears the diagonal for the remaining bishop.","Black develops the remaining knight and prepares to bring it into the contest over e5.","White attacks the queen with the knight, gaining time to develop.","Black withdraws the queen while keeping pressure on the extra white pawn.","White develops the bishop and adds a defender to the e5 pawn.","Black adds knight pressure to e5. The gambit pawn remains unrecovered; Black relies on activity and the advanced d-pawn for compensation."]};
+// Only use an authored lesson when the entire played prefix matches the active route.
+function guidedCoachPurpose(ply){
+ if(trainingMode!=='learn'||learnOpponent!=='guided'||scenario||ply<1||ply>guidedOpeningLimit())return null;
+ const line=routeLine(),note=notes[ply-1];
+ if(!note?.inPreparedLine||!h[ply]||!line[ply-1]||!notes.slice(0,ply).every((n,i)=>n.uci===line[i]?.[0])||notes.slice(0,ply).length!==ply)return null;
+ return (guidedCoachLessons[selected]?.[ply-1]&&!activeBranch?guidedCoachLessons[selected][ply-1]:line[ply-1][1])||null;
+}
+function isNeutralCoachFallback(result){
+ return result?.validation?.reason==='verified-neutral'||result?.validation?.reason==='ai-service-error'||/This changes the current position; review the move.s consequences/i.test(result?.message||'');
+}
 async function requestUnifiedMoveCoaching(ply){
  if(!strategicAiEnabled||strategicAiBusy||coachSkippedPly.has(ply)||aiRequestedPly.size>=coachGameLimit())return;
  const before=h[ply-1],after=h[ply],note=notes[ply-1];
  if(!before||!after||!note?.uci)return;
  const move=legal(before).find(m=>key(m)===note.uci);
  if(!move)return;
+ const preparedPurpose=guidedCoachPurpose(ply);
  const nonce=strategicAiNonce,openingAtRequest=selected;
  const record={pending:true,message:'',engineGrounded:false,detail:coachDetail};
  coachMoveMessages.set(ply,record);
@@ -2988,8 +3000,7 @@ async function requestUnifiedMoveCoaching(ply){
    openingContext:coachOpeningContext(ply),
    // The exact, author-written explanation for this verified guided move.
    // It is lesson context only; the backend still checks the actual board.
-   preparedMovePurpose:trainingMode==='learn'&&learnOpponent==='guided'&&
-    note.inPreparedLine&&typeof note.reason==='string'?note.reason:null,
+   preparedMovePurpose:preparedPurpose,
    coachingLevel:coachExplanationLevel(),
    // Move descriptions are generated from legal moves, not guessed by the AI.
    playedPlainEnglish:coachPlainMove(before,move),
@@ -3019,14 +3030,15 @@ async function requestUnifiedMoveCoaching(ply){
   const result=await response.json();
   if(nonce!==strategicAiNonce||h[ply]!==after||coachMoveMessages.get(ply)!==record||selected!==openingAtRequest)return;
   if(typeof result.message!=='string'||result.message.trim().length<15||result.message.length>3000)throw Error('Invalid AI explanation');
-  record.pending=false;record.message=result.message.trim();record.engineGrounded=!!result.engineGrounded;
-  record.validation=result.validation||null;
+  const useLesson=!!preparedPurpose&&isNeutralCoachFallback(result);
+  record.pending=false;record.message=useLesson?preparedPurpose:result.message.trim();record.engineGrounded=useLesson?false:!!result.engineGrounded;
+  record.validation=useLesson?{status:'fallback',reason:'prepared-lesson'}:result.validation||null;
   strategicAiFailed=false;strategicAiError='';
   strategicAiStatus=result.validation?.status==='fallback'?'fallback':
    result.engineGrounded?'engine':'position';
  }catch(error){
   if(nonce===strategicAiNonce&&coachMoveMessages.get(ply)===record){
-   coachMoveMessages.delete(ply);strategicAiFailed=true;strategicAiStatus='error';
+   if(preparedPurpose){record.pending=false;record.message=preparedPurpose;record.engineGrounded=false;record.validation={status:'fallback',reason:'prepared-lesson'};strategicAiFailed=false;strategicAiStatus='fallback';}else{coachMoveMessages.delete(ply);strategicAiFailed=true;strategicAiStatus='error';}
    strategicAiError=error.httpStatus===429?error.message:
     error.httpStatus===503?'AI server not configured':
     error.httpStatus===502?error.message:
@@ -3200,7 +3212,7 @@ if(item.proposed){const summary=document.createElement('div');summary.className=
    (aiRequestedPly.size>=coachGameLimit()&&!aiRequestedPly.has(item.__i+1)
     ?'AI coaching limit reached for this game. The board and Stockfish analysis remain available.'
     :'AI coaching unavailable for this move. Retry the analysis to get a position-specific explanation.'):
-   item.reason);
+   guidedCoachPurpose(item.__i+1)||item.reason);
   addCoachSquareReferences(explanation,coachText);
   copy.append(explanation);
  }
