@@ -3470,7 +3470,7 @@ $('variationSelect').onchange=()=>{const value=$('variationSelect').value;if(!va
  render();
 }
 $('autoPlaySpeed').onchange=()=>{const rate=Number($('autoPlaySpeed').value);if(![0.5,1,1.5,2,3].includes(rate))return;autoPlaySpeed=rate;if(autoPlayTimer!==null){clearTimeout(autoPlayTimer);autoPlayTimer=null;}syncAutoPlay();};
-$('autoPlay').onclick=()=>{if(autoPlaying){stopAutoPlay();render();return;}if(!autoPlayEligible()||!canAdvanceNextMove())return;autoPlaying=true;render();};
+$('autoPlay').onclick=()=>{if(autoPlaying){stopAutoPlay();render();return;}if(!autoPlayEligible()||!canAdvanceNextMove())return;if(strategicAiEnabled)setAutomaticCoachEnabled(false);autoPlaying=true;render();};
 $('next').onclick=()=>{
  if(autoPlaying||!canAdvanceNextMove())return;
  clearOutsideLinePreview();
