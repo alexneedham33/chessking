@@ -1015,7 +1015,7 @@ html.app-fullscreen .app,html:fullscreen .app{padding-top:60px;padding-bottom:8p
           <button class="detail-tab" data-detail-tab="simulator">Simulator</button><button class="detail-tab" data-detail-tab="review">Review</button>
         </div>
         <div class="detail-tab-content active" id="chatTabPane">
-          <div class="panel-header"><div class="learn-kicker">📖 <span>Coach</span></div><button id="coachToggle" type="button" class="coach-toggle is-on" aria-pressed="true" aria-label="Turn automatic coach off">Coach On</button></div><div id="strategicInsights" class="coach-internal-status" aria-hidden="true" hidden><span id="aiCoachStatus" role="status" hidden></span><button type="button" id="aiCoachRetry" hidden>Retry</button></div><span id="openingName" hidden></span><div class="chat-mode-switch" role="group" aria-label="Chat explanation style" style="display:none"><button class="chat-mode-btn active" data-chat-mode="quick" aria-pressed="true">Quick</button><button class="chat-mode-btn" data-chat-mode="learn" aria-pressed="false">Learn</button></div>
+          <div class="panel-header"><div class="learn-kicker">📖 <span>Coach</span></div><button id="coachToggle" type="button" class="coach-toggle " aria-pressed="false" aria-label="Turn automatic coach on">Coach Off</button></div><div id="strategicInsights" class="coach-internal-status" aria-hidden="true" hidden><span id="aiCoachStatus" role="status" hidden></span><button type="button" id="aiCoachRetry" hidden>Retry</button></div><span id="openingName" hidden></span><div class="chat-mode-switch" role="group" aria-label="Chat explanation style" style="display:none"><button class="chat-mode-btn active" data-chat-mode="quick" aria-pressed="true">Quick</button><button class="chat-mode-btn" data-chat-mode="learn" aria-pressed="false">Learn</button></div>
           <div class="commentary-switch" role="group" aria-label="Chat perspective" style="display:none"><button class="commentary-btn active" data-perspective="coach">Opening coach</button><button class="commentary-btn" data-perspective="engine">Engine commentary</button></div><p class="engine-disclaimer" id="engineDisclaimer" style="display:none">Interpretations of engine moves, not Stockfish's actual thoughts.</p>
 
 <div class="chat-zone" id="chatZone">
@@ -2116,7 +2116,7 @@ function renderCapturedPieces(){
 
 
 // Each move has one explanation. AI asynchronously replaces the scripted text.
-let strategicAiEnabled=true,strategicAiBusy=false,strategicAiFailed=false,strategicAiNonce=0,strategicAiStatus='',strategicAiError='';
+let strategicAiEnabled=false,strategicAiBusy=false,strategicAiFailed=false,strategicAiNonce=0,strategicAiStatus='',strategicAiError='';
 const coachDetail='adaptive';
 const aiRequestedPly=new Set(),coachMoveMessages=new Map(),coachSkippedPly=new Set();
 const AI_COACH_MIN_PLY=1,AI_COACH_INTERVAL=1;
