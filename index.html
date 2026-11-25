@@ -979,6 +979,14 @@ html.app-fullscreen .app,html:fullscreen .app{padding-top:60px;padding-bottom:8p
 /* Warm board-inspired accent palette; dark text on light primary controls. */
 .btn.primary,.btn.primary:hover:not(:disabled),.tab.active,.training-option.active,.engine-sim-btn,.player-colour-switch button.active{color:#211c16}
 @media(max-width:700px){.guided-navigation select,.guided-navigation button,.coach-toggle{font-size:12px}.guided-navigation .custom-select-trigger{font-size:12px}}
+.guided-alternatives[hidden]{display:none!important}
+.guided-alternatives{position:relative;margin-top:5px;font-size:12px;color:#d5bc97}
+.guided-alternatives summary{cursor:pointer;font-weight:700;padding:3px 0}
+#guidedAlternativeList{position:absolute;top:100%;left:0;right:0;z-index:120;background:#24211d;border:1px solid #514638;border-radius:10px;padding:5px;max-height:240px;overflow:auto;box-shadow:0 12px 30px #0008}
+.guided-alternative-option{display:grid;grid-template-columns:1fr auto;gap:4px 8px;width:100%;text-align:left;border:0;background:transparent;color:#e6d8b9;padding:9px;border-radius:6px}
+.guided-alternative-option:hover{background:#40372b}
+.guided-alternative-option small{grid-column:1/-1;color:#c8c0b4;font-size:12px;line-height:1.4}
+.opening-top-slot:has(#guidedAlternatives:not([hidden])){position:relative;z-index:80;flex-basis:172px;min-height:172px}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -1033,6 +1041,7 @@ html.app-fullscreen .app,html:fullscreen .app{padding-top:60px;padding-bottom:8p
           </div>
           <div class="progress"><div class="bar" id="progressBar"></div></div>
           <div class="guided-navigation" id="guidedNavigation"><div class="custom-select guided-jump-select" data-select-id="guidedJump"><select id="guidedJump" tabindex="-1" aria-hidden="true"><option value="">Jump to move</option></select><button type="button" class="custom-select-trigger" id="guidedJumpTrigger" aria-label="Jump to move" aria-haspopup="listbox" aria-expanded="false"><span class="custom-select-value">Jump to move</span><span class="custom-select-chevron" aria-hidden="true">⌄</span></button><div class="custom-select-menu" role="listbox" aria-label="Opening moves" hidden></div></div><button type="button" id="skipOpening" aria-label="Skip opening" title="Skip opening">Skip <span aria-hidden="true">»</span></button></div>
+          <div id="guidedAlternatives" class="guided-alternatives" hidden><details id="guidedAlternativesDetails"><summary>Alternative lines <span id="guidedAlternativeCount"></span></summary><div id="guidedAlternativeList"></div></details></div>
           <div id="stockfishHandoff" class="stockfish-handoff" role="status" aria-live="polite" hidden>
             <span class="stockfish-handoff-dot" aria-hidden="true"></span>
             <span id="stockfishHandoffText">Opening sequence completed. Stockfish now takes over.</span>
@@ -1193,6 +1202,15 @@ strategies.albin={intro:"Against the Albin Countergambit, watch the advanced ...
 scenarios.slav={setup:4,moves:[['b1c3','White develops Nc3 earlier.'],['g8f6','Black develops naturally.'],['e2e3','White supports the centre.'],['e7e6','Black reinforces d5.']],title:"An alternative Slav move order",summary:"What if White develops Nc3 before Nf3?"};
 scenarios.albin={setup:0,moves:[['d2d4','White begins with d4.'],['d7d5','Black responds centrally.'],['c2c4','White offers the Queen’s Gambit.'],['e7e5','Black responds with the Albin Countergambit.']],title:"Recognise the Albin",summary:"See the characteristic early ...e5 countergambit."};
 
+// Additional curated opening routes; each is validated by the existing startup legality check.
+const expandedOpeningLibrary={"qgaCentral":{"parent":"queen","name":"Queen's Gambit Accepted · Central Variation","desc":"An immediate e4 gives White a broad centre; Black counters with ...e5.","moves":["d2d4","d7d5","c2c4","d5c4","e2e4","g8f6","b1c3","e7e5","g1f3","e5d4","f3d4","f8c5","c1e3","e8g8","f1c4","f8e8","e1g1"],"labels":["Claim central space","Contest the centre","Offer the gambit","Accept the gambit","Build a broad pawn centre","Attack e4","Reinforce e4","Challenge the pawn centre","Develop and defend d4","Exchange central pawns","Recapture with knight","Pressure the central knight","Reinforce d4","Castle kingside","Recover the gambit pawn","Pressure the e-file","Castle kingside"]},"tarrasch":{"parent":"queen","name":"Tarrasch Defence","desc":"Black accepts an isolated d-pawn in exchange for active pieces and open lines.","moves":["d2d4","d7d5","c2c4","e7e6","b1c3","c7c5","c4d5","e6d5","g1f3","b8c6","g2g3","g8f6","f1g2","f8e7","e1g1","e8g8","d4c5","e7c5"],"labels":["Claim central space","Contest the centre","Offer the gambit","Reinforce d5","Pressure d5","Challenge the centre","Exchange on d5","Restore central presence","Develop knight","Pressure d4","Prepare fianchetto","Develop knight","Pressure long diagonal","Prepare castling","Castle kingside","Castle kingside","Isolate the d-pawn","Recapture and activate bishop"]},"cambridge":{"parent":"queen","name":"Cambridge Springs Defence","desc":"Black's queen on a5 and bishop on b4 increase pressure on c3.","moves":["d2d4","d7d5","c2c4","e7e6","b1c3","g8f6","c1g5","b8d7","e2e3","c7c6","g1f3","d8a5","f3d2","f8b4","d1c2","e8g8","f1d3","d5c4","d3c4","e6e5","e1g1"],"labels":["Claim central space","Contest the centre","Offer the gambit","Reinforce d5","Pressure d5","Develop knight","Pin the knight","Reinforce f6","Support the centre","Build solid structure","Develop knight","Pressure c3 along diagonal","Unpin and reinforce c3","Increase pressure on c3","Defend c3","Castle kingside","Develop bishop","Release central tension","Recover pawn","Challenge the centre","Castle kingside"]},"slavExchange":{"parent":"queen","name":"Exchange Slav","desc":"Symmetrical pawn structure makes development and control of the c-file important.","moves":["d2d4","d7d5","c2c4","c7c6","c4d5","c6d5","b1c3","b8c6","g1f3","g8f6","c1f4","c8f5","e2e3","e7e6","f1d3","f5d3","d1d3","f8d6","e1g1","e8g8"],"labels":["Claim central space","Contest the centre","Offer the gambit","Support d5","Exchange central pawns","Restore symmetry","Develop knight","Develop knight","Control e5","Control e4","Develop outside pawn chain","Develop outside pawn chain","Reinforce d4","Reinforce d5","Challenge active bishop","Exchange bishops","Recapture with queen","Develop toward kingside","Castle kingside","Castle kingside"]},"albinLasker":{"parent":"queen","name":"Albin Countergambit · Lasker Trap","desc":"Warning line, not recommended White play: premature e3 allows a rare underpromotion with check.","moves":["d2d4","d7d5","c2c4","e7e5","d4e5","d5d4","e2e3","f8b4","c1d2","d4e3","d2b4","e3f2","e1e2","f2g1n"],"labels":["Claim central space","Contest the centre","Offer the gambit","Launch countergambit","Accept countergambit","Advance central pawn","Premature central challenge","Check along the diagonal","Block with bishop","Create dangerous passed pawn","Capture checking bishop","Check with passed pawn","Forced king displacement","Underpromote with check"]},"pianissimo":{"parent":"italian","name":"Giuoco Pianissimo","desc":"Quiet development prepares central expansion after securing both kings.","moves":["e2e4","e7e5","g1f3","b8c6","f1c4","f8c5","d2d3","g8f6","e1g1","d7d6","c2c3","e8g8","f1e1","a7a6","c4b3","c5a7","b1d2"],"labels":["Claim the centre","Contest the centre","Attack e5","Defend e5","Target f7","Develop active bishop","Support e4","Pressure e4","Castle kingside","Support e5","Prepare d4","Castle kingside","Reinforce e4","Prepare queenside space","Preserve active bishop","Preserve active bishop","Prepare knight manoeuvre"]},"twoKnights":{"parent":"italian","name":"Two Knights Defence · Quiet Line","desc":"Black attacks e4 immediately, inviting White to choose between sharp and quiet play.","moves":["e2e4","e7e5","g1f3","b8c6","f1c4","g8f6","d2d3","f8c5","e1g1","d7d6","c2c3","e8g8","f1e1","a7a6","c4b3","c5a7","b1d2"],"labels":["Claim the centre","Contest the centre","Attack e5","Defend e5","Target f7","Pressure e4 immediately","Reinforce e4","Develop active bishop","Castle kingside","Reinforce e5","Prepare central break","Castle kingside","Support central pawn","Prepare queenside space","Preserve bishop","Preserve bishop","Develop queenside knight"]},"dragon":{"parent":"sicilian","name":"Dragon Variation","desc":"Black's fianchettoed bishop exerts long-diagonal pressure while White can attack on the kingside.","moves":["e2e4","c7c5","g1f3","d7d6","d2d4","c5d4","f3d4","g8f6","b1c3","g7g6","c1e3","f8g7","f2f3","e8g8","d1d2","b8c6","e1c1","c8d7","f1c4"],"labels":["Claim the centre","Challenge from flank","Prepare d4","Control e5","Open the centre","Exchange flank pawn","Centralise knight","Pressure e4","Defend e4","Prepare Dragon bishop","Develop bishop","Complete fianchetto","Support e4","Castle kingside","Prepare queenside castling","Develop knight","Castle queenside","Develop queenside bishop","Target f7"]},"accelerated":{"parent":"sicilian","name":"Accelerated Dragon","desc":"Black fianchettoes before ...d6, retaining the option of a direct ...d5 break.","moves":["e2e4","c7c5","g1f3","b8c6","d2d4","c5d4","f3d4","g7g6","b1c3","f8g7","c1e3","g8f6","f1c4","e8g8","c4b3","d7d6","f2f3","c8d7","d1d2","a8c8","e1c1"],"labels":["Claim the centre","Challenge from flank","Prepare d4","Develop knight early","Open the centre","Exchange flank pawn","Centralise knight","Prepare fianchetto","Defend e4","Complete fianchetto","Develop bishop","Pressure e4","Target f7","Castle kingside","Preserve bishop","Reinforce central structure","Support e4","Develop bishop","Prepare queenside castling","Activate semi-open c-file","Castle queenside"]},"closed":{"parent":"sicilian","name":"Closed Sicilian","desc":"White delays opening the centre and prepares kingside expansion behind a fianchetto.","moves":["e2e4","c7c5","b1c3","b8c6","g2g3","g7g6","f1g2","f8g7","d2d3","d7d6","f2f4","e7e6","g1f3","g8e7","e1g1","e8g8","c1e3"],"labels":["Claim the centre","Challenge from flank","Develop without d4","Develop knight","Prepare fianchetto","Prepare fianchetto","Complete fianchetto","Complete fianchetto","Support e4","Control e5","Gain kingside space","Prepare central counterplay","Develop knight","Develop without blocking bishop","Castle kingside","Castle kingside","Connect central pieces"]},"caroAdvance":{"parent":"caro","name":"Advance Variation","desc":"White gains space with e5; Black develops the light-squared bishop and attacks the pawn chain.","moves":["e2e4","c7c6","d2d4","d7d5","e4e5","c8f5","g1f3","e7e6","f1e2","c6c5","e1g1","b8c6","c1e3","c5d4","f3d4","g8e7","f2f4","h7h6","b1c3"],"labels":["Claim the centre","Prepare d5","Build broad centre","Challenge e4","Gain central space","Free light-squared bishop","Develop knight","Reinforce d5","Prepare castling","Attack pawn chain","Castle kingside","Pressure d4","Develop bishop","Exchange on d4","Recapture with knight","Develop kingside knight","Reinforce e5","Prepare bishop retreat","Develop queenside knight"]},"caroExchange":{"parent":"caro","name":"Exchange Variation","desc":"White chooses a balanced pawn structure; development and central files become important.","moves":["e2e4","c7c6","d2d4","d7d5","e4d5","c6d5","f1d3","b8c6","c2c3","g8f6","c1f4","c8g4","d1b3","d8d7","b1d2","e7e6","g1f3","f8d6","e1g1","e8g8"],"labels":["Claim the centre","Prepare d5","Build broad centre","Challenge e4","Exchange central pawns","Restore central presence","Develop active bishop","Pressure d4","Reinforce d4","Develop knight","Develop outside pawn chain","Develop active bishop","Pressure b7","Defend b7","Develop queenside knight","Free dark-squared bishop","Develop knight","Challenge bishop","Castle kingside","Castle kingside"]},"panov":{"parent":"caro","name":"Panov Attack","desc":"White accepts a potentially isolated d-pawn in return for active pieces.","moves":["e2e4","c7c6","d2d4","d7d5","e4d5","c6d5","c2c4","g8f6","b1c3","e7e6","g1f3","f8b4","f1d3","d5c4","d3c4","e8g8","e1g1","b8c6"],"labels":["Claim the centre","Prepare d5","Build broad centre","Challenge e4","Exchange central pawns","Restore central presence","Challenge d5","Develop knight","Pressure d5","Reinforce d5","Develop knight","Pin queenside knight","Develop bishop","Release central tension","Recover pawn","Castle kingside","Castle kingside","Pressure isolated d-pawn"]}};
+for(const [id,o] of Object.entries(expandedOpeningLibrary)){
+ const line=o.moves.map((uci,i)=>[uci,o.labels[i]+'.']);
+ openings[id]={name:o.name,side:openings[o.parent].side,desc:o.desc,tip:o.desc,line};
+ rationales[id]=line.map(m=>m[1]);quickReasons[id]=line.map(m=>[m[1]]);
+ strategies[id]={intro:o.desc,targets:[],objectives:[]};
+ scenarios[id]={setup:0,moves:line.slice(0,Math.min(6,line.length)),title:o.name,summary:o.desc};
+}
 let strategyOn=false,scenario=null,scenarioPositions=[],scenarioIndex=0,scenarioBaseHistory=null;
 function setScenario(){const data=scenarios[selected];let s=original();for(let i=0;i<data.setup;i++){const m=legal(s).find(x=>key(x)===openings[selected].line[i][0]);if(!m)throw Error('Scenario setup invalid '+selected);s=apply(s,m);}let positions=[s];for(const [uci] of data.moves){const m=legal(s).find(x=>key(x)===uci);if(!m)throw Error('Scenario move invalid '+selected+' '+uci);s=apply(s,m);positions.push(s);}return positions;}
 function enterScenario(){scenario=scenarios[selected];scenarioPositions=setScenario();scenarioIndex=0;selectedSquare=-1;showHint=false;render();}
@@ -2036,15 +2054,16 @@ function renderChallenge(){
  for(const ob of rows){const line=document.createElement('div');line.className='challenge-objective';const mark=document.createElement('b');mark.className=ob.state;mark.textContent=ob.state==='achieved'?'✓':ob.state==='adapted'?'~':'×';const text=document.createElement('div');const title=document.createElement('strong');title.textContent=ob.name+' · '+(ob.state==='missed'?'Needs work':ob.state);const detail=document.createElement('span');detail.textContent=ob.detail;text.append(title,detail);line.append(mark,text);root.append(line);}
 }
 
-const openingStrategies=['queenAccepted','queen','italian','sicilian','caro'];
+const openingStrategies=['queen','italian','sicilian','caro'];
+const familyNames={queen:"Queen's Gambit",italian:"Italian Game",sicilian:"Sicilian Defence",caro:"Caro–Kann Defence"};
 const variationGroups={
- queenAccepted:[['queenAccepted','Main line']],
- queen:[['queen','Main line'],['slav','Slav Defence'],['albin','Albin Countergambit']],
- italian:[['italian','Main line']],
- sicilian:[['sicilian','Main line']],
- caro:[['caro','Main line']]
+ queen:[['queenAccepted',"Accepted · Main Line"],['queen',"Declined · Orthodox"],['slav','Classical Slav'],['albin','Albin · Fianchetto']],
+ italian:[['italian','Giuoco Piano · Open Centre']],
+ sicilian:[['sicilian','Najdorf']],
+ caro:[['caro','Classical']]
 };
-function openingParent(name){return name==='slav'||name==='albin'?'queen':name;}
+for(const [id,o] of Object.entries(expandedOpeningLibrary))variationGroups[o.parent].push([id,o.name]);
+function openingParent(name){return expandedOpeningLibrary[name]?.parent||(['queenAccepted','slav','albin'].includes(name)?'queen':name);}
 // A guided opening is explicitly selected rather than silently assigned.
 let guidedStrategyChosen=false,guidedVariationChosen=false;
 function syncOpeningChoices(){
@@ -2054,7 +2073,7 @@ function syncOpeningChoices(){
   strategy.replaceChildren();
   const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Strategy';placeholder.disabled=true;strategy.append(placeholder);
   for(const id of openingStrategies){
-   const option=document.createElement('option');option.value=id;option.textContent=openings[id].name;strategy.append(option);
+   const option=document.createElement('option');option.value=id;option.textContent=familyNames[id]||openings[id].name;strategy.append(option);
   }
  }
  strategy.value=guidedStrategyChosen?parent:'';
@@ -2862,7 +2881,7 @@ function coachOpeningContext(ply){
   const onPreparedLine=matching===Math.min(played.length,limit);
   return {
    source:'selected-guided',name:opening.name,
-   family:openings[openingParent(selected)]?.name||opening.name,
+   family:familyNames[openingParent(selected)]||opening.name,
    variation:selected!==openingParent(selected)?opening.name:'Main line',
    description:opening.desc,plan:opening.tip,
    preparedMoveCount:limit,completedMoves:Math.min(ply,limit),
@@ -2895,7 +2914,7 @@ function coachOpeningContext(ply){
  const opening=openings[strongest.id];
  return {
   source:'detected-from-moves',name:opening.name,
-  family:openings[openingParent(strongest.id)]?.name||opening.name,
+  family:familyNames[openingParent(strongest.id)]||opening.name,
   variation:strongest.id!==openingParent(strongest.id)?opening.name:'Main line',
   description:opening.desc,plan:opening.tip,
   matchedMoveCount:strongest.count,
@@ -3209,6 +3228,7 @@ function jumpGuided(target){stopAutoPlay();
 function lastSquaresForJump(position,note){const m=legal(position).find(x=>key(x)===note?.uci);return m?[m[0],m[1]]:[];}
 const guidedMoveLabels={"italian":["Claim the centre","Contest the centre","Attack the central pawn","Defend the central pawn","Target the vulnerable f7 square","Develop an active bishop","Prepare the central break","Pressure the e4 pawn","Strike in the centre","Capture the central pawn","Rebuild the pawn centre","Check with the bishop","Block check and develop","Exchange bishops with check","Recapture and develop knight","Challenge the pawn centre","Exchange central pawns","Recapture with the knight","Castle kingside","Castle kingside"],"queenAccepted":["Claim the centre","Contest the centre","Offer the gambit","Accept the gambit","Develop the kingside knight","Contest the e4 square","Prepare to recover pawn","Free the dark-squared bishop","Recover the gambit pawn","Challenge White's centre","Castle kingside","Prepare queenside expansion","Support central expansion","Pressure the bishop","Preserve the active bishop","Develop along long diagonal","Activate the central rook","Develop the queenside knight","Expand the pawn centre","Prepare kingside castling","Reinforce central control","Castle kingside"],"queen":["Claim the centre","Contest the centre","Offer the gambit","Decline the gambit","Increase central pressure","Develop the kingside knight","Pin the knight to queen","Break the knight pin","Reinforce the centre","Castle kingside","Develop the second knight","Support the f6 knight","Activate the queenside rook","Reinforce the d5 pawn","Develop the kingside bishop","Release central tension","Recover the pawn","Centralise the knight","Exchange bishops","Recapture with the queen","Castle kingside"],"sicilian":["Claim the centre","Challenge from the flank","Prepare the central break","Control the e5 square","Open the centre","Exchange the flank pawn","Recapture with the knight","Attack the e4 pawn","Defend the e4 pawn","Control the b5 square","Prepare kingside castling","Advance and attack knight","Retreat the central knight","Develop the kingside bishop","Castle kingside","Castle kingside","Develop the queenside bishop","Contest central squares","Develop the queen","Complete minor-piece development"],"caro":["Claim the centre","Prepare the central challenge","Build a broad centre","Challenge the e4 pawn","Reinforce the e4 pawn","Exchange central pawns","Recapture with the knight","Free the light-squared bishop","Attack the bishop","Preserve the active bishop","Gain kingside space","Create a bishop retreat","Develop the second knight","Prepare knight development","Drive back the bishop","Preserve the bishop","Challenge the opposing bishop","Exchange bishops","Recapture and develop queen","Strengthen the centre","Prepare queenside castling","Develop the kingside knight","Castle queenside","Develop the remaining bishop","Improve queenside king safety","Castle kingside"],"slav":["Claim the centre","Contest the centre","Offer the gambit","Establish the Slav Defence","Develop the kingside knight","Contest the e4 square","Increase central pressure","Capture the gambit pawn","Discourage queenside expansion","Free the light-squared bishop","Prepare to recover pawn","Reinforce the centre","Recover the gambit pawn","Pin the queenside knight","Castle kingside","Castle kingside"],"albin":["Claim the centre","Contest the centre","Offer the Queen's Gambit","Launch the countergambit","Accept the countergambit","Advance the central pawn","Challenge the advanced pawn","Defend the advanced pawn","Prepare kingside fianchetto","Pressure the c4 pawn","Develop the queenside knight","Prepare queenside castling","Complete the fianchetto","Castle queenside","Castle kingside","Challenge the kingside bishop","Exchange bishops","Recapture near the king","Centralise the knight","Develop the remaining knight","Attack the queen","Maintain pressure on e5","Develop and defend e5","Increase pressure on e5"]};
 function guidedMoveLabel(pos,m,i){
+ if(expandedOpeningLibrary[selected]&&!activeBranch)return expandedOpeningLibrary[selected].labels[i]||'Continue development';
  if(!activeBranch||i<activeBranch.at){const label=guidedMoveLabels[selected]?.[i];if(label)return label;}
  // Alternative teaching routes use their own authored move descriptions.
  const reason=routeLine()[i]?.[1]||'';
@@ -3217,7 +3237,43 @@ function guidedMoveLabel(pos,m,i){
  const piece=({p:'pawn',n:'knight',b:'bishop',r:'rook',q:'queen',k:'king'})[pos.b[m[0]].toLowerCase()];
  return m[3]==='castle'?'Castle '+(m[1]>m[0]?'kingside':'queenside'):pos.b[m[1]]!=='.'?'Capture with '+piece:'Move '+piece+' to '+sq(m[1]);
 }
+function guidedAlternativeCandidates(){
+ const at=h.length-1;if(at<2||!canJumpGuided()||at>=guidedOpeningLimit()||autoPlaying)return [];
+ const family=openingParent(selected),expected=routeLine()[at]?.[0];
+ const available=legal(current()).map(key),seen=new Set();
+ return (variationGroups[family]||[]).filter(([id])=>{
+  if(id===selected)return false;const line=openings[id].line,next=line[at]?.[0];
+  if(!next||next===expected||seen.has(next)||!available.includes(next)||!notes.every((n,i)=>n.uci===line[i]?.[0]))return false;
+  seen.add(next);return true;
+ });
+}
+function syncGuidedAlternatives(visible){
+ const host=$('guidedAlternatives'),list=$('guidedAlternativeList'),details=$('guidedAlternativesDetails');
+ const options=visible?guidedAlternativeCandidates():[];
+ host.hidden=!options.length;
+ if(!options.length){details.open=false;return;}
+ $('guidedAlternativeCount').textContent='('+options.length+')';
+ const sig=selected+':'+h.length+':'+options.map(x=>x[0]).join(',');
+ if(list.dataset.signature===sig)return;
+ details.open=false;list.replaceChildren();list.dataset.signature=sig;
+ for(const [id,label] of options){
+  const next=openings[id].line[h.length-1][0],m=legal(current()).find(x=>key(x)===next);
+  const button=document.createElement('button');button.type='button';button.className='guided-alternative-option';
+  const name=document.createElement('strong');name.textContent=label;
+  const notation=document.createElement('span');notation.textContent=san(current(),m);
+  const desc=document.createElement('small');desc.textContent=openings[id].desc;
+  button.append(name,notation,desc);
+  button.onclick=()=>{
+   if(!guidedAlternativeCandidates().some(x=>x[0]===id))return;
+   stopAutoPlay();selected=id;activeBranch=null;deviationInfo=null;guidedStrategyChosen=true;guidedVariationChosen=true;
+   // Shared prefix is identical; retain the position and the user's history.
+   routeHistory=routeHistory.map(()=>({branch:null,info:null}));notes=notes.map((n,i)=>({...n,opening:id,index:i,inPreparedLine:true,reason:rationales[id][i]}));
+   details.open=false;render();
+  };list.append(button);
+ }
+}
 function syncGuidedNavigation(visible,limit,done){
+ syncGuidedAlternatives(visible);
  const nav=$('guidedNavigation'),select=$('guidedJump'),skip=$('skipOpening');
  nav.hidden=!visible;
  if(!visible){const root=select.closest('.custom-select');if(root?.classList.contains('open'))closeCustomDropdowns();return;}
