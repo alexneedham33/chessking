@@ -987,6 +987,33 @@ html.app-fullscreen .app,html:fullscreen .app{padding-top:60px;padding-bottom:8p
 .guided-alternative-option:hover{background:#40372b}
 .guided-alternative-option small{grid-column:1/-1;color:#c8c0b4;font-size:12px;line-height:1.4}
 .opening-top-slot:has(#guidedAlternatives:not([hidden])){position:relative;z-index:80;flex-basis:172px;min-height:172px}
+
+/* Independent lesson progress in the toolbar; permanent compact evaluation above Coach. */
+.workspace-toolbar-row{display:grid;grid-template-columns:minmax(0,1fr);align-items:center;gap:10px 18px}
+.workspace-toolbar-row:has(.toolbar-opening-slot:not([hidden])){grid-template-columns:minmax(0,1.85fr) minmax(0,.86fr)}
+.workspace-toolbar-row>.compact-toolbar{margin-bottom:0;max-width:100%;width:100%}
+.toolbar-opening-slot[hidden]{display:none!important}
+.toolbar-opening-slot{min-width:0;position:relative;z-index:45}
+.toolbar-opening-slot>.opening-progress-frame{margin:0;padding:0;background:transparent;border:0;box-shadow:none;border-radius:10px}
+.toolbar-opening-slot .opening-progress-inner{display:grid;grid-template-columns:minmax(0,1fr) minmax(120px,.95fr);column-gap:10px;row-gap:4px;align-items:center;padding:7px 10px;border-radius:10px}
+.toolbar-opening-slot .opening-progress-heading{grid-column:1;grid-row:1;gap:6px}
+.toolbar-opening-slot .opening-progress-heading .muted{font-size:13px;white-space:normal;line-height:1.2}
+.toolbar-opening-slot .opening-progress-heading .badge{font-size:12px;white-space:nowrap;padding:2px 5px}
+.toolbar-opening-slot .opening-progress-inner .progress{grid-column:1;grid-row:2;margin:0;height:5px}
+.toolbar-opening-slot .guided-navigation{grid-column:2;grid-row:1 / 3;margin:0;gap:5px}
+.toolbar-opening-slot .guided-navigation button{height:30px;font-size:12px;padding:0 7px}
+.toolbar-opening-slot .guided-navigation .custom-select-menu{right:0;left:auto}
+.toolbar-opening-slot .guided-alternatives{grid-column:1/-1;margin:0}
+.toolbar-opening-slot .guided-alternatives summary{padding:0;font-size:12px}
+.toolbar-opening-slot .stockfish-handoff{grid-column:1/-1;margin:0;font-size:11px;line-height:1.2}
+.toolbar-opening-slot:has(.guided-jump-select.open),.toolbar-opening-slot:has(details[open]){z-index:115}
+.side>.opening-top-slot{flex:0 0 auto!important;min-height:0!important}
+.opening-top-slot>.engine-panel{height:auto;min-height:0;padding:10px 14px;flex:none}
+.opening-top-slot>.engine-panel .position-balance{margin:6px 0 4px}
+.opening-top-slot>.engine-panel .balance-numbers{margin-top:4px}
+@media(min-width:1250px){.workspace-toolbar-row:has(.toolbar-opening-slot:not([hidden])){grid-template-columns:minmax(0,800px) minmax(0,550px);justify-content:start}}
+@media(max-width:1020px){.workspace-toolbar-row:has(.toolbar-opening-slot:not([hidden])){grid-template-columns:minmax(0,1fr)}.toolbar-opening-slot{max-width:100%}.workspace-toolbar-row>.compact-toolbar{flex-wrap:wrap}}
+@media(max-width:480px){.toolbar-opening-slot .opening-progress-inner{grid-template-columns:minmax(0,1fr)}.toolbar-opening-slot .guided-navigation{grid-column:1;grid-row:3}}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -995,6 +1022,7 @@ html.app-fullscreen .app,html:fullscreen .app{padding-top:60px;padding-bottom:8p
     </div>
     <div class="actions"><button class="btn icon-expand" type="button" id="fullscreen" aria-label="Expand view" title="Expand view" aria-pressed="false">⛶</button></div>
   </header>
+<div class="workspace-toolbar-row">
 <nav class="compact-toolbar" aria-label="Opening and opponent controls">
  <div class="toolbar-field player-side-control"><span class="sr-only">Play as</span><div class="player-colour-switch" role="group" aria-label="Choose playing colour"><button type="button" id="playWhite" aria-pressed="true">White</button><button type="button" id="playBlack" aria-pressed="false">Black</button></div></div>
  <div class="toolbar-field compact-mode"><div class="learn-opponent-head"><label id="practiceModeLabel" class="sr-only">Mode</label><div class="custom-select" data-select-id="learnOpponent"><select id="learnOpponent" tabindex="-1" aria-hidden="true"><option value="stockfish">Quick Play</option><option value="guided">Guided</option></select><button type="button" class="custom-select-trigger" id="learnOpponentTrigger" aria-labelledby="practiceModeLabel" aria-haspopup="listbox" aria-expanded="false"><span class="custom-select-value">Quick Play</span><span class="custom-select-chevron" aria-hidden="true">⌄</span></button><div class="custom-select-menu" role="listbox" aria-label="Practice mode" hidden></div></div></div></div> <div class="toolbar-field compact-opening"><div class="custom-select" data-select-id="openingSelect"><select id="openingSelect" tabindex="-1" aria-hidden="true"><option value="queenAccepted">Queen's Gambit Accepted</option><option value="queen">Queen's Gambit Declined</option><option value="italian">Italian Game</option><option value="sicilian">Sicilian Defence</option><option value="caro">Caro–Kann Defence</option></select><button type="button" class="custom-select-trigger" id="openingSelectTrigger" aria-label="Opening strategy" aria-haspopup="listbox" aria-expanded="false"><span class="custom-select-value">Queen's Gambit Accepted</span><span class="custom-select-chevron" aria-hidden="true">⌄</span></button><div class="custom-select-menu" role="listbox" aria-label="Opening strategy" hidden></div></div></div>
@@ -1009,6 +1037,23 @@ html.app-fullscreen .app,html:fullscreen .app{padding-top:60px;padding-bottom:8p
 <div class="opponent-assessment" id="learnEvalNote" style="display:none">Position evaluation and review always use full-strength Stockfish.</div></section>
 <section id="challengeSettings" class="challenge-settings" style="display:none"><div class="challenge-config"><label class="opponent-slider challenge-opponent-slider"><span class="opponent-slider-heading">Opponent strength <strong id="challengeEloValue">1700 Elo (approx.)</strong></span><input type="range" id="challengeElo" min="750" max="2800" step="50" value="1700"><span class="opponent-slider-range"><span>750 · Easier</span><span>2800 · Harder</span></span></label><label>Reach move <select id="challengeTarget"><option value="5">5</option><option value="10" selected>10</option><option value="15">15</option><option value="20">20</option></select></label><label>Position goal <select id="challengeGoal"><option value="equal">Roughly equal or better</option><option value="slight">Small disadvantage acceptable</option></select></label><button class="btn primary" id="challengeRestart">Start challenge ↻</button></div><div id="challengeStatus" class="challenge-status" aria-live="polite"></div><div id="challengeResults" class="challenge-results" style="display:none"></div></section></div></details>
 </nav>
+<div class="toolbar-opening-slot" id="toolbarOpeningSlot" hidden>      <section id="openingProgress" class="panel opening-progress-frame" aria-label="Opening progress">
+        <div id="openingProgressInner" class="opening-progress-inner">
+          <div class="row opening-progress-heading">
+            <span class="muted" id="openingProgressTitle">Opening progress</span>
+            <span class="badge" id="progressLabel">0 / —</span>
+          </div>
+          <div class="progress"><div class="bar" id="progressBar"></div></div>
+          <div class="guided-navigation" id="guidedNavigation"><div class="custom-select guided-jump-select" data-select-id="guidedJump"><select id="guidedJump" tabindex="-1" aria-hidden="true"><option value="">Jump to move</option></select><button type="button" class="custom-select-trigger" id="guidedJumpTrigger" aria-label="Jump to move" aria-haspopup="listbox" aria-expanded="false"><span class="custom-select-value">Jump to move</span><span class="custom-select-chevron" aria-hidden="true">⌄</span></button><div class="custom-select-menu" role="listbox" aria-label="Opening moves" hidden></div></div><button type="button" id="skipOpening" aria-label="Skip opening" title="Skip opening">Skip <span aria-hidden="true">»</span></button></div>
+          <div id="guidedAlternatives" class="guided-alternatives" hidden><details id="guidedAlternativesDetails"><summary>Alternative lines <span id="guidedAlternativeCount"></span></summary><div id="guidedAlternativeList"></div></details></div>
+          <div id="stockfishHandoff" class="stockfish-handoff" role="status" aria-live="polite" hidden>
+            <span class="stockfish-handoff-dot" aria-hidden="true"></span>
+            <span id="stockfishHandoffText">Opening sequence completed. Stockfish now takes over.</span>
+          </div>
+        </div>
+      </section>
+</div>
+</div>
 <div id="playChallengePanel" class="play-challenge-panel" style="display:none"><div class="play-challenge-heading"><strong>Opening challenge</strong><span>Reach your chosen move while developing a sound position</span></div></div>
 <div class="top-progress"><div class="top-progress-fill" id="topProgressFill"></div></div>
   <main class="main">
@@ -1033,21 +1078,6 @@ html.app-fullscreen .app,html:fullscreen .app{padding-top:60px;padding-bottom:8p
     </section>
     <aside class="side">
       <div class="opening-top-slot" aria-label="Lesson status">
-      <section id="openingProgress" class="panel opening-progress-frame" aria-label="Opening progress">
-        <div id="openingProgressInner" class="opening-progress-inner">
-          <div class="row opening-progress-heading">
-            <span class="muted" id="openingProgressTitle">Opening progress</span>
-            <span class="badge" id="progressLabel">0 / —</span>
-          </div>
-          <div class="progress"><div class="bar" id="progressBar"></div></div>
-          <div class="guided-navigation" id="guidedNavigation"><div class="custom-select guided-jump-select" data-select-id="guidedJump"><select id="guidedJump" tabindex="-1" aria-hidden="true"><option value="">Jump to move</option></select><button type="button" class="custom-select-trigger" id="guidedJumpTrigger" aria-label="Jump to move" aria-haspopup="listbox" aria-expanded="false"><span class="custom-select-value">Jump to move</span><span class="custom-select-chevron" aria-hidden="true">⌄</span></button><div class="custom-select-menu" role="listbox" aria-label="Opening moves" hidden></div></div><button type="button" id="skipOpening" aria-label="Skip opening" title="Skip opening">Skip <span aria-hidden="true">»</span></button></div>
-          <div id="guidedAlternatives" class="guided-alternatives" hidden><details id="guidedAlternativesDetails"><summary>Alternative lines <span id="guidedAlternativeCount"></span></summary><div id="guidedAlternativeList"></div></details></div>
-          <div id="stockfishHandoff" class="stockfish-handoff" role="status" aria-live="polite" hidden>
-            <span class="stockfish-handoff-dot" aria-hidden="true"></span>
-            <span id="stockfishHandoffText">Opening sequence completed. Stockfish now takes over.</span>
-          </div>
-        </div>
-      </section>
       <div class="engine-panel" id="enginePanel" aria-label="Stockfish positional balance relative to starting position">
  <div class="engine-line"><span>Positional balance · <small id="engineDepth">Stockfish</small></span><span class="balance-summary" id="engineScore" aria-live="polite">Even position</span></div>
  <div class="position-balance" role="img" id="outlookTrack" aria-label="White 50, Black 50"><div class="balance-white-side" id="balanceWhite" style="width:50%"></div><div class="balance-black-side"></div></div>
@@ -3300,7 +3330,8 @@ const atHandoff=showingGuidedProgress&&!scenario&&h.length-1===lessonLimit;
 // then hide it as soon as Stockfish free play begins. Undo restores it.
 const showOpeningProgress=showingGuidedProgress&&!scenario&&h.length-1<=lessonLimit;
 $('openingProgress').style.display=showOpeningProgress?'':'none';
-$('enginePanel').style.display=showOpeningProgress?'none':'';
+$('enginePanel').style.display='';
+$('toolbarOpeningSlot').hidden=!showOpeningProgress;
 $('openingProgressInner').classList.toggle('is-complete',atHandoff);
 $('openingProgressTitle').textContent=atHandoff?'Opening sequence completed':'Opening progress';
 $('stockfishHandoff').hidden=!atHandoff;
