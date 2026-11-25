@@ -41,9 +41,7 @@ html.app-fullscreen .panel,html:fullscreen .panel{padding:14px}
 .board-controls{grid-column:2;grid-row:2;margin:12px 0 0;width:100%;min-width:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;flex-wrap:nowrap}
 .board-controls .btn{min-width:0;flex:none;padding:11px 8px}
 .board-controls #strategyToggle{display:none!important}
-.board-controls{grid-template-columns:repeat(5,minmax(0,1fr))}
-.board-controls .fast-moves-toggle[aria-pressed="true"]{background:#30204b;color:#e0caff;border-color:#a16be8}
-@media(max-width:480px){.board-controls{grid-template-columns:repeat(6,minmax(0,1fr))}.board-controls .btn{grid-column:span 2}.board-controls #next,.board-controls #hint{grid-column:span 2}.board-controls #fastMoves{grid-column:span 4}}
+
 @media(max-width:700px){.board-controls{gap:6px}.board-controls .btn{padding:10px 4px;font-size:12px}}
 
 /* Board and action row share the same intrinsic width, capped by viewport height. */
@@ -946,6 +944,22 @@ html.app-fullscreen .app,html:fullscreen .app{padding-top:60px;padding-bottom:8p
   padding-top:clamp(56px,7vh,88px);
  }
 }
+.compact-toolbar>.playback-settings>summary{width:44px;justify-content:center;padding:0}
+.playback-settings .global-strength-panel{width:min(236px,85vw);gap:8px}
+.playback-setting-row{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px;font-weight:650}
+.playback-settings .global-strength-panel p{margin:0}
+.fast-moves-toggle{width:36px;height:20px;padding:3px;border:0;border-radius:999px;background:#46516a;cursor:pointer;display:flex;align-items:center}
+.fast-moves-toggle span{display:block;width:14px;height:14px;border-radius:50%;background:white;transition:transform .15s}
+.fast-moves-toggle[aria-checked="true"]{background:#9858e6}
+.fast-moves-toggle[aria-checked="true"] span{transform:translateX(16px)}
+.fast-moves-toggle:focus-visible,.guided-navigation :focus-visible{outline:2px solid #b58af8;outline-offset:2px}
+.guided-navigation{display:flex;gap:7px;margin-top:9px;align-items:center}
+.guided-navigation[hidden]{display:none!important}
+.guided-navigation select,.guided-navigation button{min-width:0;height:30px;border:1px solid #45516b;border-radius:7px;background:#1b2333;color:#e2e8f5;font:650 12px inherit;font-family:inherit;font-size:12px;font-weight:650;padding:0 8px;cursor:pointer}
+.guided-navigation select{flex:1 1 0}
+.guided-navigation button{flex:none;color:#d8bcfa;border-color:#6a4c91;white-space:nowrap}
+.guided-navigation :disabled{opacity:.45;cursor:default}
+.side>.opening-top-slot{flex-basis:148px;min-height:148px}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -961,7 +975,7 @@ html.app-fullscreen .app,html:fullscreen .app{padding-top:60px;padding-bottom:8p
  
 
  <label id="challengeToggleWrap" class="challenge-toggle" style="display:none"><input type="checkbox" id="challengeToggle"> Opening challenge</label>
-<details class="global-strength" id="globalStrength"><summary title="Choose practice mode and Stockfish difficulty"><span id="settingsModeSummary">Difficulty · 1500</span><span aria-hidden="true">⌄</span></summary><div class="global-strength-panel"><div class="settings-strength-field"><label for="globalElo"><strong>Stockfish difficulty · <span id="globalEloValue">1500</span></strong></label><input id="globalElo" type="range" min="750" max="2800" step="50" value="1500"><div class="global-strength-scale"><span>750 · Easier</span><span>2800 · Harder</span></div><p>Opponent strength is approximate. After the prepared opening, Stockfish takes over; position analysis remains full strength.</p></div></div></details><button class="btn primary" id="challengeQuickStart" style="display:none">Start challenge</button><details class="opponent-dropdown" id="opponentDropdown"><summary id="opponentSummary">Opponent · Guided opening</summary><div class="opponent-dropdown-panel"><section id="learnOpponentSettings" class="learn-opponent-settings">
+<details class="global-strength" id="globalStrength"><summary title="Choose practice mode and Stockfish difficulty"><span id="settingsModeSummary">Difficulty · 1500</span><span aria-hidden="true">⌄</span></summary><div class="global-strength-panel"><div class="settings-strength-field"><label for="globalElo"><strong>Stockfish difficulty · <span id="globalEloValue">1500</span></strong></label><input id="globalElo" type="range" min="750" max="2800" step="50" value="1500"><div class="global-strength-scale"><span>750 · Easier</span><span>2800 · Harder</span></div><p>Opponent strength is approximate. After the prepared opening, Stockfish takes over; position analysis remains full strength.</p></div></div></details><details class="global-strength playback-settings" id="playbackSettings"><summary aria-label="Settings" title="Settings"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l2 3 3.5-.2 1.5 3.1 3 1.6v3.5l-3 1.6-1.5 3.1-3.5-.2-2 3-2-3-3.5.2-1.5-3.1-3-1.6V9.5l3-1.6 1.5-3.1L10 5z"/><circle cx="12" cy="11.5" r="3"/></svg></summary><div class="global-strength-panel"><div class="playback-setting-row"><span>Fast moves</span><button class="fast-moves-toggle" id="fastMoves" type="button" role="switch" aria-checked="false" aria-label="Fast moves" title="Skip move animations and artificial delays"><span aria-hidden="true"></span></button></div><p>Skip move animations and artificial delays.</p></div></details><button class="btn primary" id="challengeQuickStart" style="display:none">Start challenge</button><details class="opponent-dropdown" id="opponentDropdown"><summary id="opponentSummary">Opponent · Guided opening</summary><div class="opponent-dropdown-panel"><section id="learnOpponentSettings" class="learn-opponent-settings">
 <div id="learnOpponentDescription" class="learn-opponent-description">Follow the prepared line or practise against Stockfish.</div>
 
 <label id="learnEloSetting" class="opponent-slider" style="display:none"><span class="opponent-slider-heading">Opponent strength <strong id="learnEloValue">1700 Elo (approx.)</strong></span><input type="range" id="learnElo" min="750" max="2800" step="50" value="1700"><span class="opponent-slider-range"><span>750 · Easier</span><span>2800 · Harder</span></span></label>
@@ -985,7 +999,6 @@ html.app-fullscreen .app,html:fullscreen .app{padding-top:60px;padding-bottom:8p
             <button class="btn" id="restart">⟳ Restart</button>
             <button class="btn primary" id="next">Next move →</button>
             <button class="btn" id="hint">✧ Hint</button>
-            <button class="btn fast-moves-toggle" id="fastMoves" type="button" aria-pressed="false" title="Skip move animations and artificial delays">⚡ Fast moves</button>
           </div>
         </div>
       </div>
@@ -999,6 +1012,7 @@ html.app-fullscreen .app,html:fullscreen .app{padding-top:60px;padding-bottom:8p
             <span class="badge" id="progressLabel">0 / —</span>
           </div>
           <div class="progress"><div class="bar" id="progressBar"></div></div>
+          <div class="guided-navigation" id="guidedNavigation"><select id="guidedJump" aria-label="Jump to move"><option value="">Jump to move</option></select><button type="button" id="skipOpening">Skip opening <span aria-hidden="true">»</span></button></div>
           <div id="stockfishHandoff" class="stockfish-handoff" role="status" aria-live="polite" hidden>
             <span class="stockfish-handoff-dot" aria-hidden="true"></span>
             <span id="stockfishHandoffText">Opening sequence completed. Stockfish now takes over.</span>
@@ -2081,11 +2095,12 @@ function initCustomDropdowns(){
   closeCustomDropdowns(root);
   const settings=$('globalStrength');
   if(settings.open&&!settings.contains(e.target))settings.open=false;
+  const playback=$('playbackSettings');if(playback.open&&!playback.contains(e.target))playback.open=false;
  });
  document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
    closeCustomDropdowns();
-   $('globalStrength').open=false;
+   $('globalStrength').open=false;$('playbackSettings').open=false;
   }
  });
 }
@@ -3083,6 +3098,65 @@ function refreshUnifiedMoveCoaching(){
  if(ply<AI_COACH_MIN_PLY||ply%AI_COACH_INTERVAL!==0||aiRequestedPly.has(ply)||coachSkippedPly.has(ply)||!notes[ply-1]?.uci)return;
  requestUnifiedMoveCoaching(ply);
 }
+// Navigate only inside the prepared opening, keeping every intermediate legal position.
+function canJumpGuided(){
+ return trainingMode==='learn'&&learnOpponent==='guided'&&!scenario&&!pendingReply&&!animatingMove&&!promotion&&h.length-1<=guidedOpeningLimit();
+}
+function guidedJumpPlan(target){
+ const line=routeLine(),at=h.length-1;
+ if(!Number.isInteger(target)||target<0||target>line.length||!canJumpGuided())return null;
+ if(notes.length!==at||!notes.every((n,i)=>n.uci===line[i]?.[0]))return null;
+ if(target<=at)return [];
+ let pos=current(),plan=[];
+ for(let i=at;i<target;i++){
+  const move=legal(pos).find(m=>key(m)===line[i]?.[0]);
+  if(!move)return null;
+  plan.push(move);pos=apply(pos,move);
+ }
+ return plan;
+}
+function jumpGuided(target){
+ const plan=guidedJumpPlan(target),at=h.length-1;
+ if(!plan||target===at)return;
+ // Invalidate stale async work; no intermediate render or AI call.
+ strategicAiNonce++;strategicAiBusy=false;strategicAiFailed=false;strategicAiStatus='';strategicAiError='';
+ for(const [ply,item] of coachMoveMessages)if(item.pending||ply>target){coachMoveMessages.delete(ply);aiRequestedPly.delete(ply);}
+ for(const ply of [...aiRequestedPly])if(ply>target)aiRequestedPly.delete(ply);
+ for(const ply of [...coachSkippedPly])if(ply>target)coachSkippedPly.delete(ply);
+ clearReplyState();replySelectionToken++;simEvalRequest++;clearOutsideLinePreview();invalidateReview();
+ if(target<at){
+  const restored=routeHistory[target];h=h.slice(0,target+1);logs=logs.slice(0,target);notes=notes.slice(0,target);routeHistory=routeHistory.slice(0,target);
+  activeBranch=restored?.branch||null;deviationInfo=restored?.info||null;
+ }else{
+  for(const move of plan){
+   const opponent=current().t!==playerSide();
+   record(move,false,null,false,opponent);
+   notes[notes.length-1].skippedByJump=true;coachSkippedPly.add(h.length-1);
+  }
+ }
+ // Also suppress a new request for the destination itself.
+ if(target>0&&!coachMoveMessages.has(target)){coachSkippedPly.add(target);notes[target-1].skippedByJump=true;}
+ coachSeenPositionCount=h.length;selectedSquare=-1;showHint=false;promotion=null;feedback='';coachAnswerText='';lastSquares=target?[...lastSquaresForJump(h[target-1],notes[target-1])]:[];
+ render();
+}
+function lastSquaresForJump(position,note){const m=legal(position).find(x=>key(x)===note?.uci);return m?[m[0],m[1]]:[];}
+function syncGuidedNavigation(visible,limit,done){
+ const nav=$('guidedNavigation'),select=$('guidedJump'),skip=$('skipOpening');
+ nav.hidden=!visible;
+ if(!visible)return;
+ const signature=routeLine().map(m=>m[0]).join(',');
+ if(select.dataset.route!==signature){
+  select.replaceChildren(new Option('Jump to move',''));
+  let pos=original();
+  for(let i=0;i<=limit;i++){
+   if(i===0){select.add(new Option('Starting position','0'));continue;}
+   const m=legal(pos).find(x=>key(x)===routeLine()[i-1][0]);if(!m)break;
+   select.add(new Option(i+' · '+moveLabel(pos,m),String(i)));pos=apply(pos,m);
+  }
+  select.dataset.route=signature;
+ }
+ select.value='';select.disabled=!canJumpGuided();skip.disabled=!canJumpGuided()||done>=limit;
+}
 function render(){const coachToggle=$('coachToggle');coachToggle.textContent=strategicAiEnabled?'Coach On':'Coach Off';coachToggle.classList.toggle('is-on',strategicAiEnabled);coachToggle.setAttribute('aria-pressed',String(strategicAiEnabled));coachToggle.setAttribute('aria-label',strategicAiEnabled?'Turn automatic coach off':'Turn automatic coach on');syncOpeningChoices();requestAnimationFrame(alignCapturedTrayWithBoard);const s=scenario?scenarioPositions[scenarioIndex]:current(),moves=legal(s),status=gameStatus(h),op=openings[selected],step=op.line[s.i],hint=trainingMode!=='learn'?null:learnOpponent==='guided'&&h.length-1<guidedOpeningLimit()&&s.t===playerSide()?suggested():(learnOpponent==='stockfish'||h.length-1>=guidedOpeningLimit())&&s.t===playerSide()?legal(s).find(m=>key(m)===(evalCache.get('14:'+fenOf(s))||evalCache.get('16:'+fenOf(s)))?.best):null,yourTurn=s.t===playerSide(),ended=status.done;$('openingSelect').value=openingParent(selected);$('variationSelect').value=selected;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x.dataset.mode===mode));$('openingName').textContent=op.name;$('description').textContent=op.desc;$('tip').textContent=op.tip;const lessonLimit=guidedOpeningLimit();
 const lessonDone=Math.min(lessonLimit,Math.max(0,h.length-1));
 $('progressLabel').textContent=lessonDone+' / '+lessonLimit;const progressPct=100*lessonDone/lessonLimit;$('progressBar').style.width=progressPct+'%';
@@ -3096,6 +3170,7 @@ $('enginePanel').style.display=showOpeningProgress?'none':'';
 $('openingProgressInner').classList.toggle('is-complete',atHandoff);
 $('openingProgressTitle').textContent=atHandoff?'Opening sequence completed':'Opening progress';
 $('stockfishHandoff').hidden=!atHandoff;
+syncGuidedNavigation(showOpeningProgress,lessonLimit,lessonDone);
 if(atHandoff)$('stockfishHandoffText').textContent='Stockfish takes over · '+opponentElo()+' Elo · Play on the board';
 $('openingLineWarning').style.display=outsideLinePreview?'block':'none';
 if(outsideLinePreview){
@@ -3220,7 +3295,7 @@ if(item.proposed){const summary=document.createElement('div');summary.className=
   const explanation=document.createElement('p');
   const postGuidedCoach=trainingMode==='learn'&&learnOpponent==='guided'&&
    item.__i+1>guidedOpeningLimit()&&chatPerspective==='coach'&&!item.proposed;
-  const coachText=ai?.message||(coachSkippedPly.has(item.__i+1)?'Coaching was off for this move. Explanations resume with the next move.':postGuidedCoach?
+  const coachText=ai?.message||(notes[item.__i]?.skippedByJump?(guidedCoachPurpose(item.__i+1)||item.reason):coachSkippedPly.has(item.__i+1)?'Coaching was off for this move. Explanations resume with the next move.':postGuidedCoach?
    (aiRequestedPly.size>=coachGameLimit()&&!aiRequestedPly.has(item.__i+1)
     ?'AI coaching limit reached for this game. The board and Stockfish analysis remain available.'
     :'AI coaching unavailable for this move. Retry the analysis to get a position-specific explanation.'):
@@ -3417,6 +3492,8 @@ document.querySelectorAll('[data-detail-tab]').forEach(btn=>btn.onclick=()=>{con
 document.querySelectorAll('[data-chat-mode]').forEach(button=>button.addEventListener('click',()=>{chatMode=button.dataset.chatMode;document.querySelectorAll('[data-chat-mode]').forEach(b=>{const active=b===button;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});render();}));
 document.querySelectorAll('[data-perspective]').forEach(button=>button.addEventListener('click',()=>{chatPerspective=button.dataset.perspective;chatPageStart=0;document.querySelectorAll('[data-perspective]').forEach(b=>b.classList.toggle('active',b===button));render();}));
 $('coachToggle').onclick=()=>setAutomaticCoachEnabled(!strategicAiEnabled);
-$('fastMoves').onclick=()=>{fastMovesEnabled=!fastMovesEnabled;$('fastMoves').setAttribute('aria-pressed',String(fastMovesEnabled));$('fastMoves').title=fastMovesEnabled?'Fast moves enabled — click to restore animations':'Skip move animations and artificial delays';};
+$('guidedJump').onchange=()=>{const value=$('guidedJump').value;if(value!=='')jumpGuided(Number(value));$('guidedJump').value='';};
+$('skipOpening').onclick=()=>jumpGuided(guidedOpeningLimit());
+$('fastMoves').onclick=()=>{fastMovesEnabled=!fastMovesEnabled;$('fastMoves').setAttribute('aria-checked',String(fastMovesEnabled));$('fastMoves').title=fastMovesEnabled?'Fast moves enabled — click to restore animations':'Skip move animations and artificial delays';};
 initCustomDropdowns();render();requestAnimationFrame(fitBoardToViewport);
 </script></body></html>
