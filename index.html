@@ -960,6 +960,10 @@ html.app-fullscreen .app,html:fullscreen .app{padding-top:60px;padding-bottom:8p
 .guided-navigation button{flex:none;color:#d8bcfa;border-color:#6a4c91;white-space:nowrap}
 .guided-navigation :disabled{opacity:.45;cursor:default}
 .side>.opening-top-slot{flex-basis:148px;min-height:148px}
+.board-controls:has(#autoPlay:not([hidden])){grid-template-columns:repeat(5,minmax(0,1fr))}
+.board-controls #autoPlay[hidden]{display:none!important}
+.board-controls #autoPlay[aria-pressed="true"]{background:#30204b;border-color:#a16be8;color:#e0caff}
+@media(max-width:480px){.board-controls:has(#autoPlay:not([hidden])){grid-template-columns:repeat(6,minmax(0,1fr))}.board-controls:has(#autoPlay:not([hidden]))>.btn{grid-column:span 2}.board-controls:has(#autoPlay:not([hidden]))>#autoPlay{grid-column:span 2}}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -999,6 +1003,7 @@ html.app-fullscreen .app,html:fullscreen .app{padding-top:60px;padding-bottom:8p
             <button class="btn" id="restart">⟳ Restart</button>
             <button class="btn primary" id="next">Next move →</button>
             <button class="btn" id="hint">✧ Hint</button>
+            <button class="btn" id="autoPlay" type="button" aria-pressed="false" title="Play the prepared opening automatically">▶ Play</button>
           </div>
         </div>
       </div>
@@ -1693,7 +1698,7 @@ function playerSide(){return chosenPlayerSide===null?1:chosenPlayerSide;}
 function boardFlipped(){return playerSide()===-1;}
 let ghostMoveReference=null;
 let chatMode='learn',chatPerspective='coach',previewReplyEngine=false,previewAnalysis=null,trainingMode='learn',learnOpponent=loadOpponentMode(),challengeStarted=false,challengeFinished=false,challengeScore=null;let selected='queenAccepted',mode='play',h=[original()],selectedSquare=-1,showHint=false,feedback='',promotion=null,logs=[],notes=[],lastSquares=[],pendingReply=null,previewReply=null,replyTimer=null,animatingMove=null,animationTimer=null,moveLeadTimer=null;const $=id=>document.getElementById(id);
-function clearReplyState(){if(moveLeadTimer){clearTimeout(moveLeadTimer);moveLeadTimer=null}if(replyTimer){clearTimeout(replyTimer);replyTimer=null}if(animationTimer){clearTimeout(animationTimer);animationTimer=null}pendingReply=null;previewReply=null;previewReplyEngine=false;previewAnalysis=null;animatingMove=null;ghostMoveReference=null;const ghost=$('moveGhost');if(ghost){ghost.style.transition='none';ghost.className='move-ghost';ghost.style.display='none';ghost.textContent='';}}
+function clearReplyState(){stopAutoPlay();if(moveLeadTimer){clearTimeout(moveLeadTimer);moveLeadTimer=null}if(replyTimer){clearTimeout(replyTimer);replyTimer=null}if(animationTimer){clearTimeout(animationTimer);animationTimer=null}pendingReply=null;previewReply=null;previewReplyEngine=false;previewAnalysis=null;animatingMove=null;ghostMoveReference=null;const ghost=$('moveGhost');if(ghost){ghost.style.transition='none';ghost.className='move-ghost';ghost.style.display='none';ghost.textContent='';}}
 let variationPanelOpen=false,gameReviewOpen=false,coachAnswerText='';
 function explainCoachQuestion(type){
  const op=openings[selected],last=notes.at(-1),step=routeLine()[current().i];
@@ -1844,6 +1849,33 @@ async function prepareOpponentReply(){
  render();
 }
 let fastMovesEnabled=false;
+let autoPlaying=false,autoPlayTimer=null;
+function stopAutoPlay(){
+ autoPlaying=false;
+ if(autoPlayTimer!==null){clearTimeout(autoPlayTimer);autoPlayTimer=null;}
+}
+function autoPlayEligible(){
+ return trainingMode==='learn'&&learnOpponent==='guided'&&!scenario&&isLockedOpeningPhase()&&!gameStatus(h).done;
+}
+function syncAutoPlay(){
+ const button=$('autoPlay'),eligible=autoPlayEligible();
+ if(!eligible)stopAutoPlay();
+ button.hidden=trainingMode!=='learn'||learnOpponent!=='guided'||!!scenario;
+ button.disabled=!eligible||(!autoPlaying&&(!!pendingReply||!!animatingMove||!!promotion||!suggested()));
+ button.textContent=autoPlaying?'Ⅱ Pause':'▶ Play';
+ button.setAttribute('aria-pressed',String(autoPlaying));
+ if(!autoPlaying||autoPlayTimer!==null||animatingMove||pendingReply||promotion)return;
+ if(!suggested()){stopAutoPlay();button.textContent='▶ Play';button.setAttribute('aria-pressed','false');return;}
+ autoPlayTimer=setTimeout(()=>{
+  autoPlayTimer=null;
+  if(!autoPlaying||!autoPlayEligible()||!canAdvanceNextMove()){stopAutoPlay();render();return;}
+  const m=suggested();
+  if(!m){stopAutoPlay();render();return;}
+  clearOutsideLinePreview();
+  startMoveAnimation(m,current().t!==playerSide());
+ },fastMovesEnabled?650:350);
+}
+
 function queueReply(m){pendingReply=m;feedback='Opponent is thinking...';render();replyTimer=setTimeout(()=>startMoveAnimation(m,true),fastMovesEnabled?0:800);}
 function startMoveAnimation(m,isOpponent,autoReplyAfterManual=false,manual=false,anticipate=false){
   if(isOpponent){replyTimer=null;pendingReply=null;previewReply=null;}
@@ -1904,6 +1936,7 @@ function startMoveAnimation(m,isOpponent,autoReplyAfterManual=false,manual=false
   },1550+(anticipate?170:0));
 }
 function play(m,manual=false,anticipate=false){
+  if(manual)stopAutoPlay();
   if(trainingMode==='challenge'&&!challengeStarted)return;
   if(challengeFinished||scenario||pendingReply||animatingMove||gameStatus(h).done)return;
   const found=legal(current()).find(x=>key(x)===key(m));
@@ -3115,7 +3148,7 @@ function guidedJumpPlan(target){
  }
  return plan;
 }
-function jumpGuided(target){
+function jumpGuided(target){stopAutoPlay();
  const plan=guidedJumpPlan(target),at=h.length-1;
  if(!plan||target===at)return;
  // Invalidate stale async work; no intermediate render or AI call.
@@ -3221,7 +3254,7 @@ if(ghost){
   ghost.replaceChildren();
  }
 }
-$('hint').style.display=scenario?'none':mode==='play'?'':'none';$('next').style.display=scenario?'none':'';$('next').disabled=!canAdvanceNextMove();$('hint').disabled=ended||!yourTurn||(isLockedOpeningPhase()&&!hint)||!!pendingReply||!!animatingMove;$('back').disabled=!!pendingReply||!!animatingMove||(!scenario&&h.length===1);$('opponent').style.display='none';
+$('hint').style.display=scenario?'none':mode==='play'?'':'none';$('next').style.display=scenario?'none':'';$('next').disabled=autoPlaying||!canAdvanceNextMove();syncAutoPlay();$('hint').disabled=ended||!yourTurn||(isLockedOpeningPhase()&&!hint)||!!pendingReply||!!animatingMove;$('back').disabled=!!pendingReply||!!animatingMove||(!scenario&&h.length===1);$('opponent').style.display='none';
 if(pendingReply||animatingMove?.isOpponent){$('promptLabel').textContent='OPPONENT';$('prompt').textContent='Typical reply incoming';$('explanation').textContent='Watch how the opponent develops their position.';} else if(ended){$('promptLabel').textContent='GAME OVER';$('prompt').textContent=status.text;$('explanation').textContent='Restart to try again.';}else if(s.i===routeLine().length){$('promptLabel').textContent='COMPLETE';$('prompt').textContent='Opening complete!';$('explanation').textContent='You have finished the prepared line. Keep playing or restart.';}else if(s.i<0){$('promptLabel').textContent='FREE PLAY';$('prompt').textContent='Explore the position';$('explanation').textContent='You have departed from the guided opening. Any legal move is still available.';}else{$('promptLabel').textContent=mode==='play'?(yourTurn?'YOUR TURN':'OPPONENT TO MOVE'):'NEXT IN THE LINE';$('prompt').textContent=mode==='play'&&yourTurn&&!showHint?'Find the next move':hint?moveLabel(s,hint):'Opening complete';$('explanation').textContent=mode==='play'&&yourTurn&&!showHint?'Make your move, or reveal a hint.':step?.[1]||'';}
 if(scenario){$('promptLabel').textContent='SCENARIO';$('prompt').textContent=scenario.title;$('explanation').textContent=scenarioIndex===0?scenario.summary:scenario.moves[scenarioIndex-1][1];}// One chronological conversation page. A new page begins when the messages reach the board's bottom.
 // Display the current half-move only. The full game and explanations
@@ -3363,7 +3396,7 @@ $('variationSelect').onchange=()=>{const value=$('variationSelect').value;if(!va
    requestAnimationFrame(()=>requestAnimationFrame(()=>{if(animatingMove)$('moveGhost').classList.add('moving')}));
    animationTimer=setTimeout(()=>{animationTimer=null;animatingMove=null;scenarioIndex++;render();},1550);
  }else{scenarioIndex++;render();}
-};$('scenarioExit').onclick=()=>{clearReplyState();leaveScenario()};$('hint').onclick=async()=>{
+};$('scenarioExit').onclick=()=>{clearReplyState();leaveScenario()};$('hint').onclick=async()=>{if(autoPlaying){stopAutoPlay();render();}
  if(outsideLinePreview){clearOutsideLinePreview();showHint=true;render();return;}
  if((learnOpponent==='stockfish'||!isLockedOpeningPhase())&&!showHint&&current().t===playerSide()){
   const position=current(),fen=fenOf(position);
@@ -3409,8 +3442,9 @@ $('variationSelect').onchange=()=>{const value=$('variationSelect').value;if(!va
  }
  render();
 }
+$('autoPlay').onclick=()=>{if(autoPlaying){stopAutoPlay();render();return;}if(!autoPlayEligible()||!canAdvanceNextMove())return;autoPlaying=true;render();};
 $('next').onclick=()=>{
- if(!canAdvanceNextMove())return;
+ if(autoPlaying||!canAdvanceNextMove())return;
  clearOutsideLinePreview();
  if(isLockedOpeningPhase()){
   // One prepared half-move per click, for either colour.
@@ -3423,7 +3457,7 @@ $('next').onclick=()=>{
   // Quick Play and post-guided: only trigger ONE Stockfish opponent reply.
   advanceLearnStockfishMove();
  }
-};$('opponent').onclick=()=>{const m=suggested();if(m)play(m)};$('restart').onclick=reset;$('back').onclick=()=>{if(scenario){scenarioIndex=Math.max(0,scenarioIndex-1);render();return;}if(pendingReply||animatingMove){clearReplyState();render();return;}if(h.length<2){clearOutsideLinePreview();render();return;}clearOutsideLinePreview();invalidateReview();// Next advances one half-move in Stockfish mode; Undo should likewise step back one move.
+};$('opponent').onclick=()=>{const m=suggested();if(m)play(m)};$('restart').onclick=reset;$('back').onclick=()=>{stopAutoPlay();if(scenario){scenarioIndex=Math.max(0,scenarioIndex-1);render();return;}if(pendingReply||animatingMove){clearReplyState();render();return;}if(h.length<2){clearOutsideLinePreview();render();return;}clearOutsideLinePreview();invalidateReview();// Next advances one half-move in Stockfish mode; Undo should likewise step back one move.
 const n=trainingMode==='challenge'&&mode==='play'&&h.length>2&&h.at(-1).t===playerSide()?2:1;h=h.slice(0,-n);logs=logs.slice(0,-n);notes=notes.slice(0,-n);const restored=routeHistory.length>=n?routeHistory[routeHistory.length-n]:null;routeHistory=routeHistory.slice(0,-n);activeBranch=restored?.branch||null;deviationInfo=restored?.info||null;selectedSquare=-1;showHint=false;feedback='';lastSquares=[];render()};$('cancelPromo').onclick=()=>{promotion=null;render()};// Keep the material card level with the bottom of the 64-square board,
 // not the board shell (which also contains the Undo/Restart/Next buttons).
 function alignCapturedTrayWithBoard(){
