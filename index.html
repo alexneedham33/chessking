@@ -960,10 +960,14 @@ html.app-fullscreen .app,html:fullscreen .app{padding-top:60px;padding-bottom:8p
 .guided-navigation button{flex:none;color:#d8bcfa;border-color:#6a4c91;white-space:nowrap}
 .guided-navigation :disabled{opacity:.45;cursor:default}
 .side>.opening-top-slot{flex-basis:148px;min-height:148px}
-.board-controls:has(#autoPlay:not([hidden])){grid-template-columns:repeat(5,minmax(0,1fr))}
-.board-controls #autoPlay[hidden]{display:none!important}
+.board-controls:has(#autoPlayControls:not([hidden])){grid-template-columns:repeat(4,minmax(0,1fr)) minmax(0,1.65fr)}
+.autoplay-controls[hidden]{display:none!important}
+.autoplay-controls{display:flex;align-items:stretch;min-width:0;gap:4px}
+.autoplay-controls #autoPlay{flex:1 1 0;min-width:0;white-space:nowrap}
+.autoplay-controls select{min-width:0;flex:0 0 auto;width:54px;border:1px solid #45516b;border-radius:8px;background:#1b2333;color:#e2e8f5;font-family:inherit;font-size:12px;font-weight:650;padding:0 3px;cursor:pointer;color-scheme:dark}
+.autoplay-controls select:focus-visible{outline:2px solid #b58af8;outline-offset:2px}
 .board-controls #autoPlay[aria-pressed="true"]{background:#30204b;border-color:#a16be8;color:#e0caff}
-@media(max-width:480px){.board-controls:has(#autoPlay:not([hidden])){grid-template-columns:repeat(6,minmax(0,1fr))}.board-controls:has(#autoPlay:not([hidden]))>.btn{grid-column:span 2}.board-controls:has(#autoPlay:not([hidden]))>#autoPlay{grid-column:span 2}}
+@media(max-width:600px){.board-controls:has(#autoPlayControls:not([hidden])){grid-template-columns:repeat(4,minmax(0,1fr))}.board-controls:has(#autoPlayControls:not([hidden]))>.autoplay-controls{grid-column:span 4;justify-self:end;width:150px}}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -1003,7 +1007,7 @@ html.app-fullscreen .app,html:fullscreen .app{padding-top:60px;padding-bottom:8p
             <button class="btn" id="restart">⟳ Restart</button>
             <button class="btn primary" id="next">Next move →</button>
             <button class="btn" id="hint">✧ Hint</button>
-            <button class="btn" id="autoPlay" type="button" aria-pressed="false" title="Play the prepared opening automatically">▶ Play</button>
+            <div class="autoplay-controls" id="autoPlayControls" hidden><button class="btn" id="autoPlay" type="button" aria-pressed="false" title="Play the prepared opening automatically">▶ Play</button><select id="autoPlaySpeed" aria-label="Playback speed" title="Playback speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="1.5">1.5×</option><option value="2">2×</option><option value="3">3×</option></select></div>
           </div>
         </div>
       </div>
@@ -1849,7 +1853,7 @@ async function prepareOpponentReply(){
  render();
 }
 let fastMovesEnabled=false;
-let autoPlaying=false,autoPlayTimer=null;
+let autoPlaying=false,autoPlayTimer=null,autoPlaySpeed=1;
 function stopAutoPlay(){
  autoPlaying=false;
  if(autoPlayTimer!==null){clearTimeout(autoPlayTimer);autoPlayTimer=null;}
@@ -1860,7 +1864,8 @@ function autoPlayEligible(){
 function syncAutoPlay(){
  const button=$('autoPlay'),eligible=autoPlayEligible();
  if(!eligible)stopAutoPlay();
- button.hidden=trainingMode!=='learn'||learnOpponent!=='guided'||!!scenario;
+ $('autoPlayControls').hidden=trainingMode!=='learn'||learnOpponent!=='guided'||!!scenario;
+ $('autoPlaySpeed').disabled=!eligible;
  button.disabled=!eligible||(!autoPlaying&&(!!pendingReply||!!animatingMove||!!promotion||!suggested()));
  button.textContent=autoPlaying?'Ⅱ Pause':'▶ Play';
  button.setAttribute('aria-pressed',String(autoPlaying));
@@ -1873,7 +1878,7 @@ function syncAutoPlay(){
   if(!m){stopAutoPlay();render();return;}
   clearOutsideLinePreview();
   startMoveAnimation(m,current().t!==playerSide());
- },fastMovesEnabled?650:350);
+ },(fastMovesEnabled?650:350)/autoPlaySpeed);
 }
 
 function queueReply(m){pendingReply=m;feedback='Opponent is thinking...';render();replyTimer=setTimeout(()=>startMoveAnimation(m,true),fastMovesEnabled?0:800);}
@@ -1892,6 +1897,7 @@ function startMoveAnimation(m,isOpponent,autoReplyAfterManual=false,manual=false
     if(fenOf(before)!==fenOf(after))fetchEngine(before,12).catch(()=>{});
   }
   const engineSelected=!!previewReplyEngine,engineAnalysis=engineSelected?previewAnalysis:null;previewReplyEngine=false;previewAnalysis=null;
+  const playbackRate=autoPlaying?autoPlaySpeed:1;
   if(fastMovesEnabled){
     selectedSquare=-1;showHint=false;
     record(m,engineSelected,engineAnalysis,manual,isOpponent);
@@ -1917,7 +1923,7 @@ function startMoveAnimation(m,isOpponent,autoReplyAfterManual=false,manual=false
     moveLeadTimer=null;
     if(animatingMove!==thisAnimation)return;
     const movingGhost=$('moveGhost');
-    if(movingGhost){movingGhost.style.transition='';movingGhost.classList.add('moving');}
+    if(movingGhost){movingGhost.style.transition=playbackRate===1?'':`left ${1500/playbackRate}ms cubic-bezier(.22,.8,.32,1), top ${1500/playbackRate}ms cubic-bezier(.22,.8,.32,1), transform ${1500/playbackRate}ms cubic-bezier(.22,.8,.32,1), opacity .2s ease`;movingGhost.classList.add('moving');}
    };
    if(anticipate)moveLeadTimer=setTimeout(beginMovement,170);
    else beginMovement();
@@ -1933,7 +1939,7 @@ function startMoveAnimation(m,isOpponent,autoReplyAfterManual=false,manual=false
       await prepareOpponentReply();return;
     }
     render();
-  },1550+(anticipate?170:0));
+  },1550/playbackRate+(anticipate?170:0));
 }
 function play(m,manual=false,anticipate=false){
   if(manual)stopAutoPlay();
@@ -3442,6 +3448,7 @@ $('variationSelect').onchange=()=>{const value=$('variationSelect').value;if(!va
  }
  render();
 }
+$('autoPlaySpeed').onchange=()=>{const rate=Number($('autoPlaySpeed').value);if(![0.5,1,1.5,2,3].includes(rate))return;autoPlaySpeed=rate;if(autoPlayTimer!==null){clearTimeout(autoPlayTimer);autoPlayTimer=null;}syncAutoPlay();};
 $('autoPlay').onclick=()=>{if(autoPlaying){stopAutoPlay();render();return;}if(!autoPlayEligible()||!canAdvanceNextMove())return;autoPlaying=true;render();};
 $('next').onclick=()=>{
  if(autoPlaying||!canAdvanceNextMove())return;
