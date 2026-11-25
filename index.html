@@ -944,15 +944,7 @@ html.app-fullscreen .app,html:fullscreen .app{padding-top:60px;padding-bottom:8p
   padding-top:clamp(56px,7vh,88px);
  }
 }
-.compact-toolbar>.playback-settings>summary{width:44px;justify-content:center;padding:0}
-.playback-settings .global-strength-panel{width:min(236px,85vw);gap:8px}
-.playback-setting-row{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px;font-weight:650}
-.playback-settings .global-strength-panel p{margin:0}
-.fast-moves-toggle{width:36px;height:20px;padding:3px;border:0;border-radius:999px;background:#46516a;cursor:pointer;display:flex;align-items:center}
-.fast-moves-toggle span{display:block;width:14px;height:14px;border-radius:50%;background:white;transition:transform .15s}
-.fast-moves-toggle[aria-checked="true"]{background:#9858e6}
-.fast-moves-toggle[aria-checked="true"] span{transform:translateX(16px)}
-.fast-moves-toggle:focus-visible,.guided-navigation :focus-visible{outline:2px solid #b58af8;outline-offset:2px}
+.guided-navigation :focus-visible{outline:2px solid #b58af8;outline-offset:2px}
 .guided-navigation{display:flex;gap:7px;margin-top:9px;align-items:center}
 .guided-navigation[hidden]{display:none!important}
 .guided-navigation select,.guided-navigation button{min-width:0;height:30px;border:1px solid #45516b;border-radius:7px;background:#1b2333;color:#e2e8f5;font:650 12px inherit;font-family:inherit;font-size:12px;font-weight:650;padding:0 8px;cursor:pointer}
@@ -962,12 +954,12 @@ html.app-fullscreen .app,html:fullscreen .app{padding-top:60px;padding-bottom:8p
 .side>.opening-top-slot{flex-basis:148px;min-height:148px}
 .board-controls:has(#autoPlayControls:not([hidden])){grid-template-columns:repeat(4,minmax(0,1fr)) minmax(0,1.65fr)}
 .autoplay-controls[hidden]{display:none!important}
-.autoplay-controls{display:flex;align-items:stretch;min-width:0;gap:4px}
+.autoplay-controls{display:flex;align-items:stretch;min-width:0;gap:8px}
 .autoplay-controls #autoPlay{flex:1 1 0;min-width:0;white-space:nowrap}
-.autoplay-controls select{min-width:0;flex:0 0 auto;width:54px;border:1px solid #45516b;border-radius:8px;background:#1b2333;color:#e2e8f5;font-family:inherit;font-size:12px;font-weight:650;padding:0 3px;cursor:pointer;color-scheme:dark}
+.autoplay-controls select{min-width:0;flex:0 0 auto;width:68px;border:1px solid #45516b;border-radius:8px;background:#1b2333;color:#e2e8f5;font-family:inherit;font-size:12px;font-weight:650;padding:0 8px;cursor:pointer;color-scheme:dark}
 .autoplay-controls select:focus-visible{outline:2px solid #b58af8;outline-offset:2px}
 .board-controls #autoPlay[aria-pressed="true"]{background:#30204b;border-color:#a16be8;color:#e0caff}
-@media(max-width:600px){.board-controls:has(#autoPlayControls:not([hidden])){grid-template-columns:repeat(4,minmax(0,1fr))}.board-controls:has(#autoPlayControls:not([hidden]))>.autoplay-controls{grid-column:span 4;justify-self:end;width:150px}}
+@media(max-width:600px){.board-controls:has(#autoPlayControls:not([hidden])){grid-template-columns:repeat(4,minmax(0,1fr))}.board-controls:has(#autoPlayControls:not([hidden]))>.autoplay-controls{grid-column:span 4;justify-self:end;width:168px}}
 </style></head><body>
 <div class="app">
   <header class="top">
@@ -983,7 +975,7 @@ html.app-fullscreen .app,html:fullscreen .app{padding-top:60px;padding-bottom:8p
  
 
  <label id="challengeToggleWrap" class="challenge-toggle" style="display:none"><input type="checkbox" id="challengeToggle"> Opening challenge</label>
-<details class="global-strength" id="globalStrength"><summary title="Choose practice mode and Stockfish difficulty"><span id="settingsModeSummary">Difficulty · 1500</span><span aria-hidden="true">⌄</span></summary><div class="global-strength-panel"><div class="settings-strength-field"><label for="globalElo"><strong>Stockfish difficulty · <span id="globalEloValue">1500</span></strong></label><input id="globalElo" type="range" min="750" max="2800" step="50" value="1500"><div class="global-strength-scale"><span>750 · Easier</span><span>2800 · Harder</span></div><p>Opponent strength is approximate. After the prepared opening, Stockfish takes over; position analysis remains full strength.</p></div></div></details><details class="global-strength playback-settings" id="playbackSettings"><summary aria-label="Settings" title="Settings"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l2 3 3.5-.2 1.5 3.1 3 1.6v3.5l-3 1.6-1.5 3.1-3.5-.2-2 3-2-3-3.5.2-1.5-3.1-3-1.6V9.5l3-1.6 1.5-3.1L10 5z"/><circle cx="12" cy="11.5" r="3"/></svg></summary><div class="global-strength-panel"><div class="playback-setting-row"><span>Fast moves</span><button class="fast-moves-toggle" id="fastMoves" type="button" role="switch" aria-checked="false" aria-label="Fast moves" title="Skip move animations and artificial delays"><span aria-hidden="true"></span></button></div><p>Skip move animations and artificial delays.</p></div></details><button class="btn primary" id="challengeQuickStart" style="display:none">Start challenge</button><details class="opponent-dropdown" id="opponentDropdown"><summary id="opponentSummary">Opponent · Guided opening</summary><div class="opponent-dropdown-panel"><section id="learnOpponentSettings" class="learn-opponent-settings">
+<details class="global-strength" id="globalStrength"><summary title="Choose practice mode and Stockfish difficulty"><span id="settingsModeSummary">Difficulty · 1500</span><span aria-hidden="true">⌄</span></summary><div class="global-strength-panel"><div class="settings-strength-field"><label for="globalElo"><strong>Stockfish difficulty · <span id="globalEloValue">1500</span></strong></label><input id="globalElo" type="range" min="750" max="2800" step="50" value="1500"><div class="global-strength-scale"><span>750 · Easier</span><span>2800 · Harder</span></div><p>Opponent strength is approximate. After the prepared opening, Stockfish takes over; position analysis remains full strength.</p></div></div></details><button class="btn primary" id="challengeQuickStart" style="display:none">Start challenge</button><details class="opponent-dropdown" id="opponentDropdown"><summary id="opponentSummary">Opponent · Guided opening</summary><div class="opponent-dropdown-panel"><section id="learnOpponentSettings" class="learn-opponent-settings">
 <div id="learnOpponentDescription" class="learn-opponent-description">Follow the prepared line or practise against Stockfish.</div>
 
 <label id="learnEloSetting" class="opponent-slider" style="display:none"><span class="opponent-slider-heading">Opponent strength <strong id="learnEloValue">1700 Elo (approx.)</strong></span><input type="range" id="learnElo" min="750" max="2800" step="50" value="1700"><span class="opponent-slider-range"><span>750 · Easier</span><span>2800 · Harder</span></span></label>
@@ -1007,7 +999,7 @@ html.app-fullscreen .app,html:fullscreen .app{padding-top:60px;padding-bottom:8p
             <button class="btn" id="restart">⟳ Restart</button>
             <button class="btn primary" id="next">Next move →</button>
             <button class="btn" id="hint">✧ Hint</button>
-            <div class="autoplay-controls" id="autoPlayControls" hidden><button class="btn" id="autoPlay" type="button" aria-pressed="false" title="Play the prepared opening automatically">▶ Play</button><select id="autoPlaySpeed" aria-label="Playback speed" title="Playback speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="1.5">1.5×</option><option value="2">2×</option><option value="3">3×</option></select></div>
+            <div class="autoplay-controls" id="autoPlayControls" hidden><button class="btn" id="autoPlay" type="button" aria-pressed="false" title="Play the prepared opening automatically">▶ Play</button><select id="autoPlaySpeed" aria-label="Playback speed" title="Playback speed"><option value="0.5">0.5×</option><option value="1">1×</option><option value="1.5">1.5×</option><option value="2">2×</option><option value="3" selected>3×</option></select></div>
           </div>
         </div>
       </div>
@@ -1852,8 +1844,7 @@ async function prepareOpponentReply(){
  pendingReply=null;
  render();
 }
-let fastMovesEnabled=false;
-let autoPlaying=false,autoPlayTimer=null,autoPlaySpeed=1;
+let autoPlaying=false,autoPlayTimer=null,autoPlaySpeed=3;
 function stopAutoPlay(){
  autoPlaying=false;
  if(autoPlayTimer!==null){clearTimeout(autoPlayTimer);autoPlayTimer=null;}
@@ -1878,10 +1869,10 @@ function syncAutoPlay(){
   if(!m){stopAutoPlay();render();return;}
   clearOutsideLinePreview();
   startMoveAnimation(m,current().t!==playerSide());
- },(fastMovesEnabled?650:350)/autoPlaySpeed);
+ },350/autoPlaySpeed);
 }
 
-function queueReply(m){pendingReply=m;feedback='Opponent is thinking...';render();replyTimer=setTimeout(()=>startMoveAnimation(m,true),fastMovesEnabled?0:800);}
+function queueReply(m){pendingReply=m;feedback='Opponent is thinking...';render();replyTimer=setTimeout(()=>startMoveAnimation(m,true),800);}
 function startMoveAnimation(m,isOpponent,autoReplyAfterManual=false,manual=false,anticipate=false){
   if(isOpponent){replyTimer=null;pendingReply=null;previewReply=null;}
   const guided=trainingMode==='learn'&&!scenario;
@@ -1898,13 +1889,6 @@ function startMoveAnimation(m,isOpponent,autoReplyAfterManual=false,manual=false
   }
   const engineSelected=!!previewReplyEngine,engineAnalysis=engineSelected?previewAnalysis:null;previewReplyEngine=false;previewAnalysis=null;
   const playbackRate=autoPlaying?autoPlaySpeed:1;
-  if(fastMovesEnabled){
-    selectedSquare=-1;showHint=false;
-    record(m,engineSelected,engineAnalysis,manual,isOpponent);
-    if(trainingMode==='challenge'&&!scenario&&(current().t===1&&current().full>Number($('challengeTarget').value)||gameStatus(h).done)){finalizeChallenge();render();return;}
-    if(!isOpponent&&mode==='play'&&!gameStatus(h).done&&current().t!==playerSide()&&trainingMode==='challenge'){prepareOpponentReply();return;}
-    render();return;
-  }
   animatingMove={move:m,piece,from:m[0],to:m[1],isOpponent};
   const thisAnimation=animatingMove;
   selectedSquare=-1;showHint=false;
@@ -2134,12 +2118,11 @@ function initCustomDropdowns(){
   closeCustomDropdowns(root);
   const settings=$('globalStrength');
   if(settings.open&&!settings.contains(e.target))settings.open=false;
-  const playback=$('playbackSettings');if(playback.open&&!playback.contains(e.target))playback.open=false;
  });
  document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
    closeCustomDropdowns();
-   $('globalStrength').open=false;$('playbackSettings').open=false;
+   $('globalStrength').open=false;
   }
  });
 }
@@ -3392,7 +3375,6 @@ $('openingSelect').onchange=()=>{const value=$('openingSelect').value;if(!value)
 $('variationSelect').onchange=()=>{const value=$('variationSelect').value;if(!value)return;selected=value;guidedStrategyChosen=true;guidedVariationChosen=true;reset();};document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;reset()});$('strategyToggle').onclick=()=>{strategyOn=!strategyOn;render()};$('scenarioStart').onclick=()=>{clearReplyState();enterScenario()};$('scenarioNext').onclick=()=>{
  if(!scenario||animatingMove||scenarioIndex>=scenario.moves.length)return;
  if(scenario.comparison){
-   if(fastMovesEnabled){scenarioIndex++;render();return;}
    const first=scenarioIndex===0,mo=first?scenario.comparison.actualMove:scenario.comparison.bestMove;
    if(!mo){scenarioIndex++;render();return;}
    const source=first?scenarioPositions[0]:scenarioPositions[1];
@@ -3535,6 +3517,5 @@ document.querySelectorAll('[data-perspective]').forEach(button=>button.addEventL
 $('coachToggle').onclick=()=>setAutomaticCoachEnabled(!strategicAiEnabled);
 $('guidedJump').onchange=()=>{const value=$('guidedJump').value;if(value!=='')jumpGuided(Number(value));$('guidedJump').value='';};
 $('skipOpening').onclick=()=>jumpGuided(guidedOpeningLimit());
-$('fastMoves').onclick=()=>{fastMovesEnabled=!fastMovesEnabled;$('fastMoves').setAttribute('aria-checked',String(fastMovesEnabled));$('fastMoves').title=fastMovesEnabled?'Fast moves enabled — click to restore animations':'Skip move animations and artificial delays';};
 initCustomDropdowns();render();requestAnimationFrame(fitBoardToViewport);
 </script></body></html>
